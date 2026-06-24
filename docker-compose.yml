@@ -1,0 +1,73 @@
+```yaml
+version: '3.8'
+
+networks:
+  flower_network:
+    driver: bridge
+
+services:
+  # ==================== БАЗА ДАННЫХ ====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: flower_postgres
+    environment:
+      POSTGRES_USER: flower_user
+      POSTGRES_PASSWORD: flower_pass
+      POSTGRES_DB: flower_marketplace
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - flower_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flower_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== КЭШ (VALKEY) ====================
+  valkey:
+    image: valkey/valkey:7-alpine
+    container_name: flower_valkey
+    command: valkey-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    networks:
+      - flower_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== БРОКЕР СООБЩЕНИЙ ====================
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    container_name: flower_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - flower_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres_data:
+  valkey_data:
+  rabbitmq_data:
