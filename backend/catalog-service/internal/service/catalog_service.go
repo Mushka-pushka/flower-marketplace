@@ -21,17 +21,23 @@ import (
 
 type CatalogService struct {
 	productRepo  *repository.ProductRepository
+	cartRepo     *repository.CartRepository
+	favoriteRepo  *repository.FavoriteRepository
 	cfg          *config.Config
 	valkeyClient *redis.Client
 }
 
 func NewCatalogService(
 	productRepo *repository.ProductRepository,
+	cartRepo *repository.CartRepository,
+	favoriteRepo *repository.FavoriteRepository,
 	cfg *config.Config,
 	valkeyClient *redis.Client,
 ) *CatalogService {
 	return &CatalogService{
 		productRepo:  productRepo,
+		cartRepo:     cartRepo,
+		favoriteRepo:  favoriteRepo,
 		cfg:          cfg,
 		valkeyClient: valkeyClient,
 	}
@@ -86,7 +92,6 @@ func (s *CatalogService) CreateProduct(ctx context.Context, req *models.CreatePr
 		return nil, fmt.Errorf("failed to create product: %w", err)
 	}
 
-	// Очищаем кэш при создании нового товара
 	go s.clearSearchCache()
 
 	return product, nil
@@ -122,7 +127,6 @@ func (s *CatalogService) GetProductBySlug(ctx context.Context, slug string) (*mo
 
 // SearchProducts — расширенный семантический поиск с кэшированием в Valkey
 func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchRequest) (*models.SearchResponse, error) {
-	// Нормализуем запрос
 	if req.Query != "" {
 		tagsFromQuery := extractTagsFromQuery(req.Query)
 		if len(req.Tags) == 0 {
@@ -146,7 +150,6 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 		req.SortBy = "relevance"
 	}
 
-	// Формируем ключ для кэша
 	cacheKey := fmt.Sprintf("search:%s:%s:%v:%v:%v:%d:%d:%s",
 		req.Query,
 		req.Category,
@@ -158,7 +161,6 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 		req.SortBy,
 	)
 
-	// Пробуем получить из кэша
 	cached, err := s.valkeyClient.Get(ctx, cacheKey).Result()
 	if err == nil && cached != "" {
 		var resp models.SearchResponse
@@ -168,13 +170,11 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 		}
 	}
 
-	// Кэша нет — выполняем поиск
 	products, total, err := s.productRepo.SearchProducts(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("search failed: %w", err)
 	}
 
-	// Формируем ответ
 	resp := &models.SearchResponse{
 		Items:    products,
 		Total:    total,
@@ -186,7 +186,6 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 		HasMore:  int64(req.Offset+req.Limit) < total,
 	}
 
-	// Сохраняем в кэш на 5 минут
 	data, _ := json.Marshal(resp)
 	s.valkeyClient.Set(ctx, cacheKey, data, 5*time.Minute)
 	log.Printf("Saved to cache: %s", cacheKey)
@@ -194,7 +193,7 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 	return resp, nil
 }
 
-// clearSearchCache — очищает все кэши поиска (используется при создании/обновлении товаров)
+// clearSearchCache — очищает все кэши поиска
 func (s *CatalogService) clearSearchCache() {
 	ctx := context.Background()
 	iter := s.valkeyClient.Scan(ctx, 0, "search:*", 0).Iterator()
@@ -216,6 +215,7 @@ func (s *CatalogService) GetCategories(ctx context.Context, withProducts bool) (
 }
 
 // ОБНОВЛЕНИЕ И УДАЛЕНИЕ
+
 // UpdateProduct — обновление товара
 func (s *CatalogService) UpdateProduct(ctx context.Context, id uuid.UUID, req *models.UpdateProductRequest) (*models.Product, error) {
 	if id == uuid.Nil {
@@ -269,7 +269,6 @@ func (s *CatalogService) UpdateProduct(ctx context.Context, id uuid.UUID, req *m
 		return nil, fmt.Errorf("failed to update product: %w", err)
 	}
 
-	// Очищаем кэш при обновлении товара
 	go s.clearSearchCache()
 
 	return product, nil
@@ -287,7 +286,55 @@ func (s *CatalogService) DeleteProduct(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
+// КОРЗИНА (CART)
+
+// AddToCart — добавляет товар в корзину
+func (s *CatalogService) AddToCart(ctx context.Context, userID, productID uuid.UUID, quantity int) error {
+	return s.cartRepo.AddToCart(ctx, userID, productID, quantity)
+}
+
+// GetCart — получает корзину пользователя
+func (s *CatalogService) GetCart(ctx context.Context, userID uuid.UUID) ([]models.CartItemWithProduct, error) {
+	return s.cartRepo.GetCartByUserID(ctx, userID)
+}
+
+// UpdateCartItem — обновляет количество товара в корзине
+func (s *CatalogService) UpdateCartItem(ctx context.Context, cartItemID uuid.UUID, quantity int) error {
+	if quantity <= 0 {
+		return errors.New("quantity must be greater than 0")
+	}
+	return s.cartRepo.UpdateCartItemQuantity(ctx, cartItemID, quantity)
+}
+
+// RemoveFromCart — удаляет товар из корзины
+func (s *CatalogService) RemoveFromCart(ctx context.Context, cartItemID uuid.UUID) error {
+	return s.cartRepo.RemoveFromCart(ctx, cartItemID)
+}
+
+// ИЗБРАННОЕ (FAVORITES)
+
+// AddFavorite — добавляет товар в избранное
+func (s *CatalogService) AddFavorite(ctx context.Context, userID, productID uuid.UUID) error {
+	return s.favoriteRepo.AddFavorite(ctx, userID, productID)
+}
+
+// GetFavorites — получает все избранные товары пользователя
+func (s *CatalogService) GetFavorites(ctx context.Context, userID uuid.UUID) ([]models.FavoriteWithProduct, error) {
+	return s.favoriteRepo.GetFavoritesByUserID(ctx, userID)
+}
+
+// RemoveFavorite — удаляет товар из избранного
+func (s *CatalogService) RemoveFavorite(ctx context.Context, userID, productID uuid.UUID) error {
+	return s.favoriteRepo.RemoveFavorite(ctx, userID, productID)
+}
+
+// IsFavorite — проверяет, находится ли товар в избранном
+func (s *CatalogService) IsFavorite(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
+	return s.favoriteRepo.IsFavorite(ctx, userID, productID)
+}
+
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+
 func generateSlug(name string) string {
 	slug := strings.ToLower(name)
 	slug = transliterate(slug)

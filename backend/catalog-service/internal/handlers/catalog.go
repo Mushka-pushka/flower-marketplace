@@ -256,3 +256,192 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 		json.NewEncoder(w).Encode(payload)
 	}
 }
+
+// ============================================================
+// КОРЗИНА (CART)
+// ============================================================
+
+// AddToCart — добавление товара в корзину
+func (h *CatalogHandler) AddToCart(w http.ResponseWriter, r *http.Request) {
+	// Временно: получаем user_id из запроса (позже будет из JWT)
+	var req models.AddToCartRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Временно используем тестового пользователя
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	err := h.catalogService.AddToCart(r.Context(), userID, req.ProductID, req.Quantity)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Товар добавлен в корзину"})
+}
+
+// GetCart — получение корзины пользователя
+func (h *CatalogHandler) GetCart(w http.ResponseWriter, r *http.Request) {
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	items, err := h.catalogService.GetCart(r.Context(), userID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Считаем общую сумму
+	var total float64
+	for _, item := range items {
+		total += item.TotalPrice
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"items": items,
+		"total": total,
+	})
+}
+
+// UpdateCartItem — обновление количества товара в корзине
+func (h *CatalogHandler) UpdateCartItem(w http.ResponseWriter, r *http.Request) {
+	// Получаем ID из параметров запроса (не из Path)
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	cartItemID, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	var req models.UpdateCartRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	err = h.catalogService.UpdateCartItem(r.Context(), cartItemID, req.Quantity)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Количество обновлено"})
+}
+
+// RemoveFromCart — удаление товара из корзины
+func (h *CatalogHandler) RemoveFromCart(w http.ResponseWriter, r *http.Request) {
+	// Получаем ID из параметров запроса (не из Path)
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	cartItemID, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	err = h.catalogService.RemoveFromCart(r.Context(), cartItemID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Товар удалён из корзины"})
+}
+
+// ИЗБРАННОЕ (FAVORITES)
+
+// AddFavorite — добавление товара в избранное
+func (h *CatalogHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
+	var req models.AddFavoriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	err := h.catalogService.AddFavorite(r.Context(), userID, req.ProductID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "product already in favorites" {
+			status = http.StatusConflict
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, map[string]string{"message": "Товар добавлен в избранное"})
+}
+
+// GetFavorites — получение списка избранных товаров
+func (h *CatalogHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	items, err := h.catalogService.GetFavorites(r.Context(), userID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, items)
+}
+
+// RemoveFavorite — удаление товара из избранного
+func (h *CatalogHandler) RemoveFavorite(w http.ResponseWriter, r *http.Request) {
+	productIDStr := r.URL.Query().Get("product_id")
+	if productIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "product_id parameter is required")
+		return
+	}
+
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid product_id format")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	err = h.catalogService.RemoveFavorite(r.Context(), userID, productID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Товар удалён из избранного"})
+}
+
+// CheckFavorite — проверка, находится ли товар в избранном
+func (h *CatalogHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
+	productIDStr := r.URL.Query().Get("product_id")
+	if productIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "product_id parameter is required")
+		return
+	}
+
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid product_id format")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	isFavorite, err := h.catalogService.IsFavorite(r.Context(), userID, productID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]bool{"is_favorite": isFavorite})
+}

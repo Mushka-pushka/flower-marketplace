@@ -52,19 +52,39 @@ func main() {
 	}
 	log.Printf("Connected to Valkey at %s:%s", cfg.ValkeyHost, cfg.ValkeyPort)
 
-	// ИНИЦИАЛИЗАЦИЯ
+	// ИНИЦИАЛИЗАЦИЯ РЕПОЗИТОРИЕВ
 	productRepo := repository.NewProductRepository(db)
-	catalogService := service.NewCatalogService(productRepo, cfg, valkeyClient)
+	cartRepo := repository.NewCartRepository(db)
+	favoriteRepo := repository.NewFavoriteRepository(db)
+
+	// ИНИЦИАЛИЗАЦИЯ СЕРВИСА
+	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, cfg, valkeyClient)
 	catalogHandler := handlers.NewCatalogHandler(catalogService)
 
 	// РОУТЫ
+
+	// ----- ТОВАРЫ (CRUD) -----
 	http.HandleFunc("POST /api/v1/catalog/products", catalogHandler.CreateProduct)
 	http.HandleFunc("GET /api/v1/catalog/products", catalogHandler.GetProductByID)
 	http.HandleFunc("GET /api/v1/catalog/products/slug/{slug}", catalogHandler.GetProductBySlug)
-	http.HandleFunc("GET /api/v1/catalog/search", catalogHandler.SearchProducts)
-	http.HandleFunc("GET /api/v1/catalog/categories", catalogHandler.GetCategories)
 	http.HandleFunc("PUT /api/v1/catalog/products/{id}", catalogHandler.UpdateProduct)
 	http.HandleFunc("DELETE /api/v1/catalog/products/{id}", catalogHandler.DeleteProduct)
+
+	// ----- ПОИСК И КАТЕГОРИИ -----
+	http.HandleFunc("GET /api/v1/catalog/search", catalogHandler.SearchProducts)
+	http.HandleFunc("GET /api/v1/catalog/categories", catalogHandler.GetCategories)
+
+	// ----- КОРЗИНА (CART) -----
+	http.HandleFunc("POST /api/v1/catalog/cart", catalogHandler.AddToCart)                // Добавить в корзину
+	http.HandleFunc("GET /api/v1/catalog/cart", catalogHandler.GetCart)                   // Получить корзину
+	http.HandleFunc("PUT /api/v1/catalog/cart", catalogHandler.UpdateCartItem)            // Обновить количество (через ?id=)
+	http.HandleFunc("DELETE /api/v1/catalog/cart", catalogHandler.RemoveFromCart)         // Удалить из корзины (через ?id=)
+
+	// ----- ИЗБРАННОЕ (FAVORITES) -----
+	http.HandleFunc("POST /api/v1/catalog/favorites", catalogHandler.AddFavorite)         // Добавить в избранное
+	http.HandleFunc("GET /api/v1/catalog/favorites", catalogHandler.GetFavorites)         // Список избранного
+	http.HandleFunc("DELETE /api/v1/catalog/favorites", catalogHandler.RemoveFavorite)    // Удалить из избранного (?product_id=)
+	http.HandleFunc("GET /api/v1/catalog/favorites/check", catalogHandler.CheckFavorite)  // Проверить (?product_id=)
 
 	// СЕРВЕР
 	server := &http.Server{
