@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log" 
 	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/config"
@@ -191,4 +192,73 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 // GetOrdersByCustomer — получение заказов покупателя
 func (s *OrderService) GetOrdersByCustomer(ctx context.Context, customerID uuid.UUID) ([]models.Order, error) {
 	return s.orderRepo.GetOrdersByCustomer(ctx, customerID)
+}
+
+// CancelOrder — отмена заказа
+func (s *OrderService) CancelOrder(ctx context.Context, orderID uuid.UUID, userID uuid.UUID, role string) error {
+	// Получаем заказ
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+
+	// Проверяем, что заказ принадлежит пользователю или пользователь — продавец/админ
+	if role == "customer" && order.CustomerID != userID {
+		return errors.New("you can only cancel your own orders")
+	}
+
+	// Проверяем, что заказ ещё не доставлен и не отменён
+	if order.CurrentStatus == "delivered" {
+		return errors.New("cannot cancel delivered order")
+	}
+	if order.CurrentStatus == "cancelled" {
+		return errors.New("order already cancelled")
+	}
+
+	// Обновляем статус
+	err = s.orderRepo.UpdateOrderStatus(ctx, orderID, "cancelled")
+	if err != nil {
+		return err
+	}
+
+	// Добавляем запись в историю
+	history := &models.StatusHistory{
+		ID:        uuid.New(),
+		OrderID:   orderID,
+		Status:    "cancelled",
+		ChangedBy: userID.String(),
+		Comment:   "Заказ отменён пользователем",
+		CreatedAt: time.Now(),
+	}
+	err = s.orderRepo.AddStatusHistory(ctx, history)
+	if err != nil {
+		return err
+	}
+
+	// Отправляем событие в RabbitMQ
+	go s.publishOrderCancelled(orderID)
+
+	return nil
+}
+
+// publishOrderCancelled — публикация события об отмене заказа
+func (s *OrderService) publishOrderCancelled(orderID uuid.UUID) {
+	event := map[string]interface{}{
+		"event":     "order.cancelled",
+		"order_id":  orderID.String(),
+		"timestamp": time.Now().Unix(),
+	}
+
+	body, _ := json.Marshal(event)
+	s.rabbitCh.Publish(
+		"",
+		"order.cancelled",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
+	log.Printf("Event published: order.cancelled for order %s", orderID)
 }

@@ -86,6 +86,7 @@ func main() {
 	http.HandleFunc("POST /api/v1/orders", orderHandler.CreateOrder)
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
 	http.HandleFunc("GET /api/v1/orders/customer", orderHandler.GetOrdersByCustomer)
+	http.HandleFunc("POST /api/v1/orders/cancel", orderHandler.CancelOrder)
 
 	// Сервер
 	server := &http.Server{

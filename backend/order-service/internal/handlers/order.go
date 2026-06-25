@@ -90,9 +90,7 @@ func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, http.StatusOK, orders)
 }
 
-// ============================================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ============================================================
 
 type ErrorResponse struct {
 	Error string `json:"error"`
@@ -111,4 +109,40 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	if payload != nil {
 		json.NewEncoder(w).Encode(payload)
 	}
+}
+
+// CancelOrder — отмена заказа
+func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := r.URL.Query().Get("id")
+	if orderIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	// Временно: получаем user_id из запроса (позже будет из JWT)
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+	role := "customer" // временно
+
+	err = h.orderService.CancelOrder(r.Context(), orderID, userID, role)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "you can only cancel your own orders":
+			status = http.StatusForbidden
+		case "cannot cancel delivered order":
+			status = http.StatusBadRequest
+		case "order already cancelled":
+			status = http.StatusBadRequest
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Заказ отменён"})
 }
