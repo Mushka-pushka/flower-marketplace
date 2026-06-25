@@ -76,3 +76,10 @@ type StatusHistory struct {
 	Comment   string    `json:"comment" db:"comment"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
+
+// UpdateOrderStatusRequest — запрос на обновление статуса заказа
+type UpdateOrderStatusRequest struct {
+	OrderID uuid.UUID `json:"order_id" binding:"required"`
+	Status  string    `json:"status" binding:"required"`
+	Comment string    `json:"comment"`
+}

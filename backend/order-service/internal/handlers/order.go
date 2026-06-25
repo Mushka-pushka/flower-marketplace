@@ -146,3 +146,55 @@ func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Заказ отменён"})
 }
+
+// GetOrdersByShop — получение заказов магазина
+func (h *OrderHandler) GetOrdersByShop(w http.ResponseWriter, r *http.Request) {
+	shopIDStr := r.URL.Query().Get("shop_id")
+	if shopIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "shop_id parameter is required")
+		return
+	}
+
+	shopID, err := uuid.Parse(shopIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid shop_id format")
+		return
+	}
+
+	orders, err := h.orderService.GetOrdersByShop(r.Context(), shopID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, orders)
+}
+
+// UpdateOrderStatusBySeller — обновление статуса заказа продавцом
+func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.Request) {
+	var req models.UpdateOrderStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Временно используем тестовый shop_id (позже будет из JWT)
+	shopID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+	err := h.orderService.UpdateOrderStatusBySeller(r.Context(), req.OrderID, shopID, req.Status, req.Comment)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "you can only update orders from your shop":
+			status = http.StatusForbidden
+		case "invalid status":
+			status = http.StatusBadRequest
+		case "cannot change status of delivered or cancelled order":
+			status = http.StatusBadRequest
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Статус заказа обновлён"})
+}

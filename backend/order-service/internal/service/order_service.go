@@ -107,7 +107,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 	err = s.publishOrderCreated(ctx, order)
 	if err != nil {
 		// Логируем ошибку, но не отменяем создание заказа
-		fmt.Printf("⚠️ Failed to publish order created event: %v\n", err)
+		fmt.Printf("Failed to publish order created event: %v\n", err)
 	}
 
 	return order, nil
@@ -261,4 +261,89 @@ func (s *OrderService) publishOrderCancelled(orderID uuid.UUID) {
 		},
 	)
 	log.Printf("Event published: order.cancelled for order %s", orderID)
+}
+
+// GetOrdersByShop — получает заказы магазина
+func (s *OrderService) GetOrdersByShop(ctx context.Context, shopID uuid.UUID) ([]models.Order, error) {
+	return s.orderRepo.GetOrdersByShopID(ctx, shopID)
+}
+
+// UpdateOrderStatusBySeller — обновление статуса заказа продавцом
+func (s *OrderService) UpdateOrderStatusBySeller(ctx context.Context, orderID, shopID uuid.UUID, status, comment string) error {
+	// Получаем заказ
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+
+	// Проверяем, что заказ принадлежит магазину продавца
+	if order.ShopID != shopID {
+		return errors.New("you can only update orders from your shop")
+	}
+
+	// Проверяем допустимость статуса
+	validStatuses := map[string]bool{
+		"confirmed": true,
+		"preparing": true,
+		"packing":   true,
+		"delivery":  true,
+		"delivered": true,
+		"cancelled": true,
+	}
+	if !validStatuses[status] {
+		return errors.New("invalid status")
+	}
+
+	// Нельзя изменить статус доставленного или отменённого заказа
+	if order.CurrentStatus == "delivered" || order.CurrentStatus == "cancelled" {
+		return errors.New("cannot change status of delivered or cancelled order")
+	}
+
+	// Обновляем статус
+	err = s.orderRepo.UpdateOrderStatus(ctx, orderID, status)
+	if err != nil {
+		return err
+	}
+
+	// Добавляем запись в историю
+	history := &models.StatusHistory{
+		ID:        uuid.New(),
+		OrderID:   orderID,
+		Status:    status,
+		ChangedBy: "seller",
+		Comment:   comment,
+		CreatedAt: time.Now(),
+	}
+	err = s.orderRepo.AddStatusHistory(ctx, history)
+	if err != nil {
+		return err
+	}
+
+	// Отправляем событие в RabbitMQ
+	go s.publishOrderStatusChanged(orderID, status)
+
+	return nil
+}
+
+// publishOrderStatusChanged — публикация события об изменении статуса
+func (s *OrderService) publishOrderStatusChanged(orderID uuid.UUID, status string) {
+	event := map[string]interface{}{
+		"event":     "order.status_changed",
+		"order_id":  orderID.String(),
+		"status":    status,
+		"timestamp": time.Now().Unix(),
+	}
+
+	body, _ := json.Marshal(event)
+	s.rabbitCh.Publish(
+		"",
+		"order.status_changed",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+		},
+	)
+	log.Printf("Event published: order.status_changed for order %s -> %s", orderID, status)
 }

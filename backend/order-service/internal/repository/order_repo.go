@@ -241,3 +241,45 @@ func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uu
 	}
 	return orders, nil
 }
+
+// GetOrdersByShopID — получает заказы магазина
+func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Order, error) {
+	query := `
+		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
+			total_amount, delivery_date, delivery_time, comment, current_status,
+			created_at, updated_at
+		FROM orders
+		WHERE shop_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, shopID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []models.Order
+	for rows.Next() {
+		var order models.Order
+		err := rows.Scan(
+			&order.ID,
+			&order.CustomerID,
+			&order.ShopID,
+			&order.DeliveryAddressID,
+			&order.PaymentTypeID,
+			&order.TotalAmount,
+			&order.DeliveryDate,
+			&order.DeliveryTime,
+			&order.Comment,
+			&order.CurrentStatus,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
+}

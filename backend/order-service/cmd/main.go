@@ -87,6 +87,8 @@ func main() {
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
 	http.HandleFunc("GET /api/v1/orders/customer", orderHandler.GetOrdersByCustomer)
 	http.HandleFunc("POST /api/v1/orders/cancel", orderHandler.CancelOrder)
+	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)                 // ?shop_id=...
+    http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller)      // body: {"order_id":"...", "status":"..."}
 
 	// Сервер
 	server := &http.Server{
