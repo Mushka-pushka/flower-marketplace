@@ -56,10 +56,12 @@ func main() {
 	productRepo := repository.NewProductRepository(db)
 	cartRepo := repository.NewCartRepository(db)
 	favoriteRepo := repository.NewFavoriteRepository(db)
+	reviewRepo := repository.NewReviewRepository(db)
 
 	// ИНИЦИАЛИЗАЦИЯ СЕРВИСА
-	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, cfg, valkeyClient)
+	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, reviewRepo, cfg, valkeyClient)
 	catalogHandler := handlers.NewCatalogHandler(catalogService)
+	
 
 	// РОУТЫ
 
@@ -85,6 +87,13 @@ func main() {
 	http.HandleFunc("GET /api/v1/catalog/favorites", catalogHandler.GetFavorites)         // Список избранного
 	http.HandleFunc("DELETE /api/v1/catalog/favorites", catalogHandler.RemoveFavorite)    // Удалить из избранного (?product_id=)
 	http.HandleFunc("GET /api/v1/catalog/favorites/check", catalogHandler.CheckFavorite)  // Проверить (?product_id=)
+
+	// ----- ОТЗЫВЫ (REVIEWS) -----
+    http.HandleFunc("POST /api/v1/catalog/reviews", catalogHandler.CreateReview)
+    http.HandleFunc("GET /api/v1/catalog/reviews", catalogHandler.GetProductReviews)      
+    http.HandleFunc("GET /api/v1/catalog/reviews/me", catalogHandler.GetMyReviews)
+    http.HandleFunc("PUT /api/v1/catalog/reviews", catalogHandler.UpdateReview)           
+    http.HandleFunc("DELETE /api/v1/catalog/reviews", catalogHandler.DeleteReview)        
 
 	// СЕРВЕР
 	server := &http.Server{

@@ -23,6 +23,7 @@ type CatalogService struct {
 	productRepo  *repository.ProductRepository
 	cartRepo     *repository.CartRepository
 	favoriteRepo  *repository.FavoriteRepository
+	reviewRepo    *repository.ReviewRepository
 	cfg          *config.Config
 	valkeyClient *redis.Client
 }
@@ -31,6 +32,7 @@ func NewCatalogService(
 	productRepo *repository.ProductRepository,
 	cartRepo *repository.CartRepository,
 	favoriteRepo *repository.FavoriteRepository,
+	reviewRepo *repository.ReviewRepository,
 	cfg *config.Config,
 	valkeyClient *redis.Client,
 ) *CatalogService {
@@ -38,6 +40,7 @@ func NewCatalogService(
 		productRepo:  productRepo,
 		cartRepo:     cartRepo,
 		favoriteRepo:  favoriteRepo,
+		reviewRepo:    reviewRepo,
 		cfg:          cfg,
 		valkeyClient: valkeyClient,
 	}
@@ -429,4 +432,110 @@ func uniqueStrings(input []string) []string {
 		}
 	}
 	return result
+}
+
+// ОТЗЫВЫ (REVIEWS)
+
+// CreateReview — создаёт отзыв
+func (s *CatalogService) CreateReview(ctx context.Context, req *models.CreateReviewRequest, userID uuid.UUID) (*models.Review, error) {
+	now := time.Now()
+	review := &models.Review{
+		ID:         uuid.New(),
+		ProductID:  req.ProductID,
+		UserID:     userID,
+		Rating:     req.Rating,
+		Comment:    req.Comment,
+		IsApproved: false, // отзывы требуют модерации
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+
+	if req.OrderID != uuid.Nil {
+		review.OrderID = &req.OrderID
+	}
+
+	err := s.reviewRepo.CreateReview(ctx, review)
+	if err != nil {
+		return nil, err
+	}
+
+	// Обновляем рейтинг товара
+	go s.updateProductRating(ctx, req.ProductID)
+
+	return review, nil
+}
+
+// GetProductReviews — получает отзывы на товар
+func (s *CatalogService) GetProductReviews(ctx context.Context, productID uuid.UUID) ([]models.ReviewWithUser, error) {
+	return s.reviewRepo.GetReviewsByProductID(ctx, productID)
+}
+
+// GetMyReviews — получает отзывы пользователя
+func (s *CatalogService) GetMyReviews(ctx context.Context, userID uuid.UUID) ([]models.ReviewWithUser, error) {
+	return s.reviewRepo.GetReviewsByUserID(ctx, userID)
+}
+
+// UpdateReview — обновляет отзыв
+func (s *CatalogService) UpdateReview(ctx context.Context, reviewID uuid.UUID, req *models.UpdateReviewRequest, userID uuid.UUID) (*models.Review, error) {
+	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Проверяем, что отзыв принадлежит пользователю
+	if review.UserID != userID {
+		return nil, errors.New("you can only update your own reviews")
+	}
+
+	if req.Rating > 0 {
+		review.Rating = req.Rating
+	}
+	if req.Comment != "" {
+		review.Comment = req.Comment
+	}
+	review.UpdatedAt = time.Now()
+
+	err = s.reviewRepo.UpdateReview(ctx, review)
+	if err != nil {
+		return nil, err
+	}
+
+	go s.updateProductRating(ctx, review.ProductID)
+
+	return review, nil
+}
+
+// DeleteReview — удаляет отзыв
+func (s *CatalogService) DeleteReview(ctx context.Context, reviewID uuid.UUID, userID uuid.UUID) error {
+	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
+	if err != nil {
+		return err
+	}
+
+	if review.UserID != userID {
+		return errors.New("you can only delete your own reviews")
+	}
+
+	err = s.reviewRepo.DeleteReview(ctx, reviewID)
+	if err == nil {
+		go s.updateProductRating(ctx, review.ProductID)
+	}
+	return err
+}
+
+// updateProductRating — обновляет рейтинг товара
+func (s *CatalogService) updateProductRating(ctx context.Context, productID uuid.UUID) {
+	avgRating, count, err := s.reviewRepo.GetAverageRating(ctx, productID)
+	if err != nil {
+		return
+	}
+
+	// Обновляем рейтинг в товаре
+	// Здесь можно добавить метод в productRepo для обновления рейтинга
+	log.Printf("Product %s: avg rating %.2f, %d reviews", productID, avgRating, count)
+}
+
+// ApproveReview — одобряет отзыв (для админа)
+func (s *CatalogService) ApproveReview(ctx context.Context, reviewID uuid.UUID) error {
+	return s.reviewRepo.ApproveReview(ctx, reviewID)
 }

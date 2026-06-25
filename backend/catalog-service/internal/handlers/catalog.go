@@ -445,3 +445,151 @@ func (h *CatalogHandler) CheckFavorite(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]bool{"is_favorite": isFavorite})
 }
+
+// ОТЗЫВЫ (REVIEWS)
+
+// CreateReview — создание отзыва
+func (h *CatalogHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateReviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	review, err := h.catalogService.CreateReview(r.Context(), &req, userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "review already exists for this order" {
+			status = http.StatusConflict
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, review)
+}
+
+// GetProductReviews — получение отзывов на товар
+func (h *CatalogHandler) GetProductReviews(w http.ResponseWriter, r *http.Request) {
+	productIDStr := r.URL.Query().Get("product_id")
+	if productIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "product_id parameter is required")
+		return
+	}
+
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid product_id format")
+		return
+	}
+
+	reviews, err := h.catalogService.GetProductReviews(r.Context(), productID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, reviews)
+}
+
+// GetMyReviews — получение моих отзывов
+func (h *CatalogHandler) GetMyReviews(w http.ResponseWriter, r *http.Request) {
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	reviews, err := h.catalogService.GetMyReviews(r.Context(), userID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, reviews)
+}
+
+// UpdateReview — обновление отзыва
+func (h *CatalogHandler) UpdateReview(w http.ResponseWriter, r *http.Request) {
+	reviewIDStr := r.URL.Query().Get("id")
+	if reviewIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	reviewID, err := uuid.Parse(reviewIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	var req models.UpdateReviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	review, err := h.catalogService.UpdateReview(r.Context(), reviewID, &req, userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "you can only update your own reviews" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, review)
+}
+
+// DeleteReview — удаление отзыва
+func (h *CatalogHandler) DeleteReview(w http.ResponseWriter, r *http.Request) {
+	reviewIDStr := r.URL.Query().Get("id")
+	if reviewIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	reviewID, err := uuid.Parse(reviewIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	err = h.catalogService.DeleteReview(r.Context(), reviewID, userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "you can only delete your own reviews" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Отзыв удалён"})
+}
+
+// ApproveReview — одобрение отзыва (для админа)
+func (h *CatalogHandler) ApproveReview(w http.ResponseWriter, r *http.Request) {
+	reviewIDStr := r.URL.Query().Get("id")
+	if reviewIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	reviewID, err := uuid.Parse(reviewIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	err = h.catalogService.ApproveReview(r.Context(), reviewID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Отзыв одобрен"})
+}
