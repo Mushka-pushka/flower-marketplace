@@ -593,3 +593,27 @@ func (h *CatalogHandler) ApproveReview(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Отзыв одобрен"})
 }
+
+// GetAutocompleteSuggestions — получение подсказок для поиска
+func (h *CatalogHandler) GetAutocompleteSuggestions(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		respondWithJSON(w, http.StatusOK, []models.AutocompleteSuggestion{})
+		return
+	}
+
+	limit := 10
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if val, err := strconv.Atoi(limitStr); err == nil && val > 0 {
+			limit = val
+		}
+	}
+
+	suggestions, err := h.catalogService.GetAutocompleteSuggestions(r.Context(), query, limit)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, suggestions)
+}

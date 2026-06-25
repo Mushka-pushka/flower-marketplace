@@ -57,9 +57,10 @@ func main() {
 	cartRepo := repository.NewCartRepository(db)
 	favoriteRepo := repository.NewFavoriteRepository(db)
 	reviewRepo := repository.NewReviewRepository(db)
+	autocompleteRepo := repository.NewAutocompleteRepository(db)
 
 	// ИНИЦИАЛИЗАЦИЯ СЕРВИСА
-	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, reviewRepo, cfg, valkeyClient)
+	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, reviewRepo, autocompleteRepo, cfg, valkeyClient)
 	catalogHandler := handlers.NewCatalogHandler(catalogService)
 	
 
@@ -93,7 +94,10 @@ func main() {
     http.HandleFunc("GET /api/v1/catalog/reviews", catalogHandler.GetProductReviews)      
     http.HandleFunc("GET /api/v1/catalog/reviews/me", catalogHandler.GetMyReviews)
     http.HandleFunc("PUT /api/v1/catalog/reviews", catalogHandler.UpdateReview)           
-    http.HandleFunc("DELETE /api/v1/catalog/reviews", catalogHandler.DeleteReview)        
+    http.HandleFunc("DELETE /api/v1/catalog/reviews", catalogHandler.DeleteReview) 
+	
+	// ----- АВТОДОПОЛНЕНИЕ -----
+    http.HandleFunc("GET /api/v1/catalog/autocomplete", catalogHandler.GetAutocompleteSuggestions) 
 
 	// СЕРВЕР
 	server := &http.Server{

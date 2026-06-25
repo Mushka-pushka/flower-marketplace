@@ -24,6 +24,7 @@ type CatalogService struct {
 	cartRepo     *repository.CartRepository
 	favoriteRepo  *repository.FavoriteRepository
 	reviewRepo    *repository.ReviewRepository
+	autocompleteRepo  *repository.AutocompleteRepository
 	cfg          *config.Config
 	valkeyClient *redis.Client
 }
@@ -33,6 +34,7 @@ func NewCatalogService(
 	cartRepo *repository.CartRepository,
 	favoriteRepo *repository.FavoriteRepository,
 	reviewRepo *repository.ReviewRepository,
+	autocompleteRepo *repository.AutocompleteRepository,
 	cfg *config.Config,
 	valkeyClient *redis.Client,
 ) *CatalogService {
@@ -41,6 +43,7 @@ func NewCatalogService(
 		cartRepo:     cartRepo,
 		favoriteRepo:  favoriteRepo,
 		reviewRepo:    reviewRepo,
+		autocompleteRepo:  autocompleteRepo,
 		cfg:          cfg,
 		valkeyClient: valkeyClient,
 	}
@@ -538,4 +541,11 @@ func (s *CatalogService) updateProductRating(ctx context.Context, productID uuid
 // ApproveReview — одобряет отзыв (для админа)
 func (s *CatalogService) ApproveReview(ctx context.Context, reviewID uuid.UUID) error {
 	return s.reviewRepo.ApproveReview(ctx, reviewID)
+}
+
+// АВТОДОПОЛНЕНИЕ
+
+// GetAutocompleteSuggestions — получает подсказки для поиска
+func (s *CatalogService) GetAutocompleteSuggestions(ctx context.Context, query string, limit int) ([]models.AutocompleteSuggestion, error) {
+	return s.autocompleteRepo.GetSuggestions(ctx, query, limit)
 }
