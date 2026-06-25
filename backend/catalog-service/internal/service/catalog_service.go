@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -14,21 +16,30 @@ import (
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type CatalogService struct {
-	productRepo *repository.ProductRepository
-	cfg         *config.Config
+	productRepo  *repository.ProductRepository
+	cfg          *config.Config
+	valkeyClient *redis.Client
 }
 
-func NewCatalogService(productRepo *repository.ProductRepository, cfg *config.Config) *CatalogService {
+func NewCatalogService(
+	productRepo *repository.ProductRepository,
+	cfg *config.Config,
+	valkeyClient *redis.Client,
+) *CatalogService {
 	return &CatalogService{
-		productRepo: productRepo,
-		cfg:         cfg,
+		productRepo:  productRepo,
+		cfg:          cfg,
+		valkeyClient: valkeyClient,
 	}
 }
 
-// CreateProduct — создание нового товара с валидацией
+// CRUD ОПЕРАЦИИ
+
+// CreateProduct — создание товара
 func (s *CatalogService) CreateProduct(ctx context.Context, req *models.CreateProductRequest) (*models.Product, error) {
 	if req.Name == "" {
 		return nil, errors.New("product name is required")
@@ -75,10 +86,13 @@ func (s *CatalogService) CreateProduct(ctx context.Context, req *models.CreatePr
 		return nil, fmt.Errorf("failed to create product: %w", err)
 	}
 
+	// Очищаем кэш при создании нового товара
+	go s.clearSearchCache()
+
 	return product, nil
 }
 
-// GetProductByID — получение товара по ID с инкрементом просмотров
+// GetProductByID — получение товара по ID
 func (s *CatalogService) GetProductByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
 	if id == uuid.Nil {
 		return nil, errors.New("invalid product id")
@@ -104,8 +118,11 @@ func (s *CatalogService) GetProductBySlug(ctx context.Context, slug string) (*mo
 	return s.productRepo.GetProductBySlug(ctx, slug)
 }
 
-// SearchProducts — расширенный семантический поиск товаров
+// СЕМАНТИЧЕСКИЙ ПОИСК С КЭШИРОВАНИЕМ
+
+// SearchProducts — расширенный семантический поиск с кэшированием в Valkey
 func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchRequest) (*models.SearchResponse, error) {
+	// Нормализуем запрос
 	if req.Query != "" {
 		tagsFromQuery := extractTagsFromQuery(req.Query)
 		if len(req.Tags) == 0 {
@@ -114,7 +131,6 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 			req.Tags = append(req.Tags, tagsFromQuery...)
 		}
 	}
-
 	req.Tags = uniqueStrings(req.Tags)
 
 	if req.Limit <= 0 {
@@ -126,33 +142,80 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 	if req.Offset < 0 {
 		req.Offset = 0
 	}
-
 	if req.SortBy == "" {
 		req.SortBy = "relevance"
 	}
 
+	// Формируем ключ для кэша
+	cacheKey := fmt.Sprintf("search:%s:%s:%v:%v:%v:%d:%d:%s",
+		req.Query,
+		req.Category,
+		req.Tags,
+		req.MinPrice,
+		req.MaxPrice,
+		req.Limit,
+		req.Offset,
+		req.SortBy,
+	)
+
+	// Пробуем получить из кэша
+	cached, err := s.valkeyClient.Get(ctx, cacheKey).Result()
+	if err == nil && cached != "" {
+		var resp models.SearchResponse
+		if err := json.Unmarshal([]byte(cached), &resp); err == nil {
+			log.Printf("Cache hit for: %s", cacheKey)
+			return &resp, nil
+		}
+	}
+
+	// Кэша нет — выполняем поиск
 	products, total, err := s.productRepo.SearchProducts(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("search failed: %w", err)
 	}
 
-	return &models.SearchResponse{
-		Items:      products,
-		Total:      total,
-		Limit:      req.Limit,
-		Offset:     req.Offset,
-		Query:      req.Query,
-		TagsUsed:   req.Tags,
-		SortBy:     req.SortBy,
-		HasMore:    int64(req.Offset+req.Limit) < total,
-	}, nil
+	// Формируем ответ
+	resp := &models.SearchResponse{
+		Items:    products,
+		Total:    total,
+		Limit:    req.Limit,
+		Offset:   req.Offset,
+		Query:    req.Query,
+		TagsUsed: req.Tags,
+		SortBy:   req.SortBy,
+		HasMore:  int64(req.Offset+req.Limit) < total,
+	}
+
+	// Сохраняем в кэш на 5 минут
+	data, _ := json.Marshal(resp)
+	s.valkeyClient.Set(ctx, cacheKey, data, 5*time.Minute)
+	log.Printf("Saved to cache: %s", cacheKey)
+
+	return resp, nil
 }
 
-// GetCategories — получение всех категорий с поддержкой иерархии
+// clearSearchCache — очищает все кэши поиска (используется при создании/обновлении товаров)
+func (s *CatalogService) clearSearchCache() {
+	ctx := context.Background()
+	iter := s.valkeyClient.Scan(ctx, 0, "search:*", 0).Iterator()
+	var keys []string
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if len(keys) > 0 {
+		s.valkeyClient.Del(ctx, keys...)
+		log.Printf("Cleared %d search cache entries", len(keys))
+	}
+}
+
+// КАТЕГОРИИ
+
+// GetCategories — получение всех категорий
 func (s *CatalogService) GetCategories(ctx context.Context, withProducts bool) ([]models.CategoryWithCount, error) {
 	return s.productRepo.GetCategoriesWithCount(ctx, withProducts)
 }
 
+// ОБНОВЛЕНИЕ И УДАЛЕНИЕ
 // UpdateProduct — обновление товара
 func (s *CatalogService) UpdateProduct(ctx context.Context, id uuid.UUID, req *models.UpdateProductRequest) (*models.Product, error) {
 	if id == uuid.Nil {
@@ -206,6 +269,9 @@ func (s *CatalogService) UpdateProduct(ctx context.Context, id uuid.UUID, req *m
 		return nil, fmt.Errorf("failed to update product: %w", err)
 	}
 
+	// Очищаем кэш при обновлении товара
+	go s.clearSearchCache()
+
 	return product, nil
 }
 
@@ -214,13 +280,14 @@ func (s *CatalogService) DeleteProduct(ctx context.Context, id uuid.UUID) error 
 	if id == uuid.Nil {
 		return errors.New("invalid product id")
 	}
-	return s.productRepo.DeleteProduct(ctx, id)
+	err := s.productRepo.DeleteProduct(ctx, id)
+	if err == nil {
+		go s.clearSearchCache()
+	}
+	return err
 }
 
-// ============================================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ============================================================
-
 func generateSlug(name string) string {
 	slug := strings.ToLower(name)
 	slug = transliterate(slug)

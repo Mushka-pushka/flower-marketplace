@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -24,11 +25,9 @@ func main() {
 
 	log.Printf("Catalog Service starting on port %s", cfg.Port)
 
-	// Подключение к PostgreSQL
+	// ПОДКЛЮЧЕНИЕ К POSTGRESQL
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
-
-	log.Printf("Connection string: %s", connString)
 
 	db, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
@@ -41,18 +40,33 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL")
 
-	// Инициализация
+	// ПОДКЛЮЧЕНИЕ К VALKEY (REDIS)
+	valkeyClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.ValkeyHost + ":" + cfg.ValkeyPort,
+		Password: "", // пароль не установлен
+		DB:       cfg.ValkeyDB,
+	})
+
+	if err := valkeyClient.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("Failed to connect to Valkey: %v", err)
+	}
+	log.Printf("Connected to Valkey at %s:%s", cfg.ValkeyHost, cfg.ValkeyPort)
+
+	// ИНИЦИАЛИЗАЦИЯ
 	productRepo := repository.NewProductRepository(db)
-	catalogService := service.NewCatalogService(productRepo, cfg)
+	catalogService := service.NewCatalogService(productRepo, cfg, valkeyClient)
 	catalogHandler := handlers.NewCatalogHandler(catalogService)
 
-	// Настройка роутера
+	// РОУТЫ
 	http.HandleFunc("POST /api/v1/catalog/products", catalogHandler.CreateProduct)
 	http.HandleFunc("GET /api/v1/catalog/products", catalogHandler.GetProductByID)
+	http.HandleFunc("GET /api/v1/catalog/products/slug/{slug}", catalogHandler.GetProductBySlug)
 	http.HandleFunc("GET /api/v1/catalog/search", catalogHandler.SearchProducts)
 	http.HandleFunc("GET /api/v1/catalog/categories", catalogHandler.GetCategories)
+	http.HandleFunc("PUT /api/v1/catalog/products/{id}", catalogHandler.UpdateProduct)
+	http.HandleFunc("DELETE /api/v1/catalog/products/{id}", catalogHandler.DeleteProduct)
 
-	// Сервер
+	// СЕРВЕР
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      http.DefaultServeMux,
@@ -68,7 +82,7 @@ func main() {
 		}
 	}()
 
-	// Graceful shutdown
+	// GRACEFUL SHUTDOWN
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
