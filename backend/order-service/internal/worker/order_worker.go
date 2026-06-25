@@ -9,7 +9,7 @@ import (
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/service"
 
-	"github.com/google/uuid" 
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -27,28 +27,26 @@ func NewOrderWorker(orderService *service.OrderService, rabbitCh *amqp.Channel) 
 
 // Start — запуск воркера
 func (w *OrderWorker) Start(ctx context.Context) error {
-	// Объявляем очередь
 	queue, err := w.rabbitCh.QueueDeclare(
-		"order.created", // имя очереди
-		true,            // durable
-		false,           // delete when unused
-		false,           // exclusive
-		false,           // no-wait
-		nil,             // arguments
+		"order.created",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to declare queue: %w", err)
 	}
 
-	// Начинаем потребление сообщений
 	msgs, err := w.rabbitCh.Consume(
-		queue.Name, // queue
-		"",         // consumer
-		false,      // auto-ack (отключаем, чтобы подтверждать вручную)
-		false,      // exclusive
-		false,      // no-local
-		false,      // no-wait
-		nil,        // args
+		queue.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to register consumer: %w", err)
@@ -56,7 +54,6 @@ func (w *OrderWorker) Start(ctx context.Context) error {
 
 	log.Println("Order Worker started, waiting for messages...")
 
-	// Обрабатываем сообщения
 	for msg := range msgs {
 		w.processMessage(ctx, msg)
 	}
@@ -107,60 +104,188 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 		return
 	}
 
-	// Имитация обработки заказа
 	log.Printf("Processing order %s", orderID)
 
-	// Шаг 1: Подтверждение заказа
-	time.Sleep(2 * time.Second)
-	err = w.orderService.UpdateOrderStatus(ctx, orderID, "confirmed", "system", "Заказ подтверждён")
+	// Получаем текущий статус заказа
+	order, err := w.orderService.GetOrderByID(ctx, orderID)
 	if err != nil {
-		log.Printf("Failed to update status to confirmed: %v", err)
-		msg.Nack(false, true) // retry
-		return
-	}
-	log.Printf("Order %s status updated to: confirmed", orderID)
-
-	// Шаг 2: Подготовка заказа
-	time.Sleep(3 * time.Second)
-	err = w.orderService.UpdateOrderStatus(ctx, orderID, "preparing", "system", "Заказ готовится")
-	if err != nil {
-		log.Printf("Failed to update status to preparing: %v", err)
+		log.Printf("Failed to get order: %v", err)
 		msg.Nack(false, true)
 		return
 	}
-	log.Printf("Order %s status updated to: preparing", orderID)
 
-	// Шаг 3: Упаковка
-	time.Sleep(2 * time.Second)
-	err = w.orderService.UpdateOrderStatus(ctx, orderID, "packing", "system", "Заказ упаковывается")
+	currentStatus := order.Order.CurrentStatus
+
+	// Если заказ уже отменён или доставлен — завершаем
+	if currentStatus == "cancelled" || currentStatus == "delivered" {
+		log.Printf("Order %s already %s, skipping", orderID, currentStatus)
+		msg.Ack(false)
+		return
+	}
+
+	// ШАГ 1: Ждём подтверждения продавца (pending → confirmed)
+	if currentStatus == "pending" {
+		log.Printf("Order %s waiting for seller confirmation...", orderID)
+		// Ждём, пока продавец не подтвердит заказ
+		for {
+			time.Sleep(2 * time.Second)
+			order, err = w.orderService.GetOrderByID(ctx, orderID)
+			if err != nil {
+				log.Printf("Failed to get order: %v", err)
+				msg.Nack(false, true)
+				return
+			}
+			if order.Order.CurrentStatus == "confirmed" {
+				log.Printf("Order %s confirmed by seller, proceeding...", orderID)
+				break
+			}
+			if order.Order.CurrentStatus == "cancelled" || order.Order.CurrentStatus == "delivered" {
+				log.Printf("Order %s %s, stopping worker", orderID, order.Order.CurrentStatus)
+				msg.Ack(false)
+				return
+			}
+		}
+	}
+
+	// Проверяем статус снова (на случай, если заказ отменили во время ожидания)
+	currentStatus = order.Order.CurrentStatus
+	if currentStatus == "cancelled" || currentStatus == "delivered" {
+		log.Printf("Order %s %s, skipping", orderID, currentStatus)
+		msg.Ack(false)
+		return
+	}
+
+	// ШАГ 2: Подготовка (confirmed → preparing)
+	if currentStatus == "confirmed" {
+		time.Sleep(3 * time.Second)
+		// Проверяем, не изменил ли продавец статус вручную
+		order, err = w.orderService.GetOrderByID(ctx, orderID)
+		if err != nil {
+			log.Printf("Failed to get order: %v", err)
+			msg.Nack(false, true)
+			return
+		}
+		if order.Order.CurrentStatus == "confirmed" {
+			err = w.orderService.UpdateOrderStatus(ctx, orderID, "preparing", "system", "Заказ готовится")
+			if err != nil {
+				log.Printf("Failed to update status to preparing: %v", err)
+				msg.Nack(false, true)
+				return
+			}
+			log.Printf("Order %s status updated to: preparing", orderID)
+		} else {
+			log.Printf("Order %s status changed by seller, skipping", orderID)
+		}
+	}
+
+	// Проверяем статус снова
+	order, err = w.orderService.GetOrderByID(ctx, orderID)
 	if err != nil {
-		log.Printf("Failed to update status to packing: %v", err)
+		log.Printf("Failed to get order: %v", err)
 		msg.Nack(false, true)
 		return
 	}
-	log.Printf("Order %s status updated to: packing", orderID)
+	currentStatus = order.Order.CurrentStatus
+	if currentStatus == "cancelled" || currentStatus == "delivered" {
+		log.Printf("Order %s %s, skipping", orderID, currentStatus)
+		msg.Ack(false)
+		return
+	}
 
-	// Шаг 4: Доставка
-	time.Sleep(2 * time.Second)
-	err = w.orderService.UpdateOrderStatus(ctx, orderID, "delivery", "system", "Заказ передан курьеру")
+	// ШАГ 3: Упаковка (preparing → packing)
+	if currentStatus == "preparing" {
+		time.Sleep(2 * time.Second)
+		order, err = w.orderService.GetOrderByID(ctx, orderID)
+		if err != nil {
+			log.Printf("Failed to get order: %v", err)
+			msg.Nack(false, true)
+			return
+		}
+		if order.Order.CurrentStatus == "preparing" {
+			err = w.orderService.UpdateOrderStatus(ctx, orderID, "packing", "system", "Заказ упаковывается")
+			if err != nil {
+				log.Printf("Failed to update status to packing: %v", err)
+				msg.Nack(false, true)
+				return
+			}
+			log.Printf("Order %s status updated to: packing", orderID)
+		} else {
+			log.Printf("Order %s status changed by seller, skipping", orderID)
+		}
+	}
+
+	// Проверяем статус снова
+	order, err = w.orderService.GetOrderByID(ctx, orderID)
 	if err != nil {
-		log.Printf("Failed to update status to delivery: %v", err)
+		log.Printf("Failed to get order: %v", err)
 		msg.Nack(false, true)
 		return
 	}
-	log.Printf("Order %s status updated to: delivery", orderID)
+	currentStatus = order.Order.CurrentStatus
+	if currentStatus == "cancelled" || currentStatus == "delivered" {
+		log.Printf("Order %s %s, skipping", orderID, currentStatus)
+		msg.Ack(false)
+		return
+	}
 
-	// Шаг 5: Доставлен
-	time.Sleep(3 * time.Second)
-	err = w.orderService.UpdateOrderStatus(ctx, orderID, "delivered", "system", "Заказ доставлен получателю")
+	// ШАГ 4: Доставка (packing → delivery)
+	if currentStatus == "packing" {
+		time.Sleep(2 * time.Second)
+		order, err = w.orderService.GetOrderByID(ctx, orderID)
+		if err != nil {
+			log.Printf("Failed to get order: %v", err)
+			msg.Nack(false, true)
+			return
+		}
+		if order.Order.CurrentStatus == "packing" {
+			err = w.orderService.UpdateOrderStatus(ctx, orderID, "delivery", "system", "Заказ передан курьеру")
+			if err != nil {
+				log.Printf("Failed to update status to delivery: %v", err)
+				msg.Nack(false, true)
+				return
+			}
+			log.Printf("Order %s status updated to: delivery", orderID)
+		} else {
+			log.Printf("Order %s status changed by seller, skipping", orderID)
+		}
+	}
+
+	// Проверяем статус снова
+	order, err = w.orderService.GetOrderByID(ctx, orderID)
 	if err != nil {
-		log.Printf("Failed to update status to delivered: %v", err)
+		log.Printf("Failed to get order: %v", err)
 		msg.Nack(false, true)
 		return
 	}
-	log.Printf("Order %s status updated to: delivered", orderID)
+	currentStatus = order.Order.CurrentStatus
+	if currentStatus == "cancelled" || currentStatus == "delivered" {
+		log.Printf("⏭Order %s %s, skipping", orderID, currentStatus)
+		msg.Ack(false)
+		return
+	}
 
-	// Подтверждаем успешную обработку
+	// ШАГ 5: Доставлен (delivery → delivered)
+	if currentStatus == "delivery" {
+		time.Sleep(3 * time.Second)
+		order, err = w.orderService.GetOrderByID(ctx, orderID)
+		if err != nil {
+			log.Printf("Failed to get order: %v", err)
+			msg.Nack(false, true)
+			return
+		}
+		if order.Order.CurrentStatus == "delivery" {
+			err = w.orderService.UpdateOrderStatus(ctx, orderID, "delivered", "system", "Заказ доставлен получателю")
+			if err != nil {
+				log.Printf("Failed to update status to delivered: %v", err)
+				msg.Nack(false, true)
+				return
+			}
+			log.Printf("Order %s status updated to: delivered", orderID)
+		} else {
+			log.Printf("Order %s status changed by seller, skipping", orderID)
+		}
+	}
+
 	msg.Ack(false)
 	log.Printf("Order %s processed successfully!", orderID)
 }
