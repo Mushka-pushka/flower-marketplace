@@ -23,11 +23,11 @@ import (
 func main() {
 	cfg := config.Load()
 
-	log.Printf("🔍 DB_USER: %s", cfg.DBUser)
-	log.Printf("🔍 DB_PASSWORD: %s", cfg.DBPassword)
-	log.Printf("🔍 DB_HOST: %s", cfg.DBHost)
-	log.Printf("🔍 DB_PORT: %s", cfg.DBPort)
-	log.Printf("🔍 DB_NAME: %s", cfg.DBName)
+	log.Printf("DB_USER: %s", cfg.DBUser)
+	log.Printf("DB_PASSWORD: %s", cfg.DBPassword)
+	log.Printf("DB_HOST: %s", cfg.DBHost)
+	log.Printf("DB_PORT: %s", cfg.DBPort)
+	log.Printf("DB_NAME: %s", cfg.DBName)
 
 	log.Printf("Auth Service starting on port %s", cfg.Port)
 
@@ -53,6 +53,9 @@ func main() {
 	authService := service.NewAuthService(userRepo, cfg)
 	authHandler := handlers.NewAuthHandler(authService)
 	authMiddleware := middleware.NewAuthMiddleware(authService)
+	adminRepo := repository.NewAdminRepository(db)
+    adminService := service.NewAdminService(adminRepo, cfg)
+    adminHandler := handlers.NewAdminHandler(adminService)
 
 	// Настраиваем роутер
 	http.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
@@ -60,6 +63,11 @@ func main() {
 	http.HandleFunc("GET /api/v1/auth/me", authMiddleware.JWT(authHandler.Me))
 	http.HandleFunc("PUT /api/v1/auth/profile", authHandler.UpdateProfile)
     http.HandleFunc("PUT /api/v1/auth/password", authHandler.ChangePassword)
+	// ----- АДМИНИСТРИРОВАНИЕ -----
+    http.HandleFunc("GET /api/v1/admin/sellers", adminHandler.GetSellers)
+    http.HandleFunc("PUT /api/v1/admin/sellers/verify", adminHandler.VerifySeller)
+    http.HandleFunc("PUT /api/v1/admin/users/status", adminHandler.UpdateUserStatus)
+    http.HandleFunc("GET /api/v1/admin/users", adminHandler.GetUsersList)
 
 	// Создаём сервер
 	server := &http.Server{

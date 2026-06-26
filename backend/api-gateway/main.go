@@ -25,6 +25,8 @@ func main() {
 			targetURL = catalogURL + r.URL.Path
 		case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
 			targetURL = orderURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
+			targetURL = authURL + r.URL.Path
 		default:
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
