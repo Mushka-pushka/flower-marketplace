@@ -25,6 +25,7 @@ type CatalogService struct {
 	favoriteRepo  *repository.FavoriteRepository
 	reviewRepo    *repository.ReviewRepository
 	autocompleteRepo  *repository.AutocompleteRepository
+	addressRepo       *repository.AddressRepository
 	cfg          *config.Config
 	valkeyClient *redis.Client
 }
@@ -35,6 +36,7 @@ func NewCatalogService(
 	favoriteRepo *repository.FavoriteRepository,
 	reviewRepo *repository.ReviewRepository,
 	autocompleteRepo *repository.AutocompleteRepository,
+	addressRepo *repository.AddressRepository,
 	cfg *config.Config,
 	valkeyClient *redis.Client,
 ) *CatalogService {
@@ -44,6 +46,7 @@ func NewCatalogService(
 		favoriteRepo:  favoriteRepo,
 		reviewRepo:    reviewRepo,
 		autocompleteRepo:  autocompleteRepo,
+		addressRepo:       addressRepo,
 		cfg:          cfg,
 		valkeyClient: valkeyClient,
 	}
@@ -548,4 +551,94 @@ func (s *CatalogService) ApproveReview(ctx context.Context, reviewID uuid.UUID) 
 // GetAutocompleteSuggestions — получает подсказки для поиска
 func (s *CatalogService) GetAutocompleteSuggestions(ctx context.Context, query string, limit int) ([]models.AutocompleteSuggestion, error) {
 	return s.autocompleteRepo.GetSuggestions(ctx, query, limit)
+}
+
+// АДРЕСА ДОСТАВКИ
+
+// CreateAddress — создаёт адрес доставки
+func (s *CatalogService) CreateAddress(ctx context.Context, userID uuid.UUID, req *models.CreateAddressRequest) (*models.DeliveryAddress, error) {
+	now := time.Now()
+	address := &models.DeliveryAddress{
+		ID:         uuid.New(),
+		UserID:     userID,
+		Name:       req.Name,
+		Address:    req.Address,
+		Entrance:   req.Entrance,
+		Floor:      req.Floor,
+		Intercom:   req.Intercom,
+		Comment:    req.Comment,
+		IsDefault:  req.IsDefault,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+
+	err := s.addressRepo.CreateAddress(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	return address, nil
+}
+
+// GetAddresses — получает все адреса пользователя
+func (s *CatalogService) GetAddresses(ctx context.Context, userID uuid.UUID) ([]models.DeliveryAddress, error) {
+	return s.addressRepo.GetAddressesByUserID(ctx, userID)
+}
+
+// UpdateAddress — обновляет адрес
+func (s *CatalogService) UpdateAddress(ctx context.Context, addressID, userID uuid.UUID, req *models.UpdateAddressRequest) (*models.DeliveryAddress, error) {
+	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
+	if err != nil {
+		return nil, err
+	}
+
+	if address.UserID != userID {
+		return nil, errors.New("you can only update your own addresses")
+	}
+
+	if req.Name != "" {
+		address.Name = req.Name
+	}
+	if req.Address != "" {
+		address.Address = req.Address
+	}
+	address.Entrance = req.Entrance
+	address.Floor = req.Floor
+	address.Intercom = req.Intercom
+	address.Comment = req.Comment
+	address.IsDefault = req.IsDefault
+	address.UpdatedAt = time.Now()
+
+	err = s.addressRepo.UpdateAddress(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	return address, nil
+}
+
+// DeleteAddress — удаляет адрес
+func (s *CatalogService) DeleteAddress(ctx context.Context, addressID, userID uuid.UUID) error {
+	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
+	if err != nil {
+		return err
+	}
+
+	if address.UserID != userID {
+		return errors.New("you can only delete your own addresses")
+	}
+
+	return s.addressRepo.DeleteAddress(ctx, addressID)
+}
+
+// SetDefaultAddress — устанавливает адрес по умолчанию
+func (s *CatalogService) SetDefaultAddress(ctx context.Context, addressID, userID uuid.UUID) error {
+	address, err := s.addressRepo.GetAddressByID(ctx, addressID)
+	if err != nil {
+		return err
+	}
+
+	if address.UserID != userID {
+		return errors.New("you can only set your own addresses as default")
+	}
+
+	return s.addressRepo.SetDefaultAddress(ctx, userID, addressID)
 }

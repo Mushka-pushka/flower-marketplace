@@ -617,3 +617,130 @@ func (h *CatalogHandler) GetAutocompleteSuggestions(w http.ResponseWriter, r *ht
 
 	respondWithJSON(w, http.StatusOK, suggestions)
 }
+
+// АДРЕСА ДОСТАВКИ
+
+// CreateAddress — создание адреса
+func (h *CatalogHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateAddressRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	address, err := h.catalogService.CreateAddress(r.Context(), userID, &req)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, address)
+}
+
+// GetAddresses — получение адресов пользователя
+func (h *CatalogHandler) GetAddresses(w http.ResponseWriter, r *http.Request) {
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	addresses, err := h.catalogService.GetAddresses(r.Context(), userID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, addresses)
+}
+
+// UpdateAddress — обновление адреса
+func (h *CatalogHandler) UpdateAddress(w http.ResponseWriter, r *http.Request) {
+	addressIDStr := r.URL.Query().Get("id")
+	if addressIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	var req models.UpdateAddressRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	address, err := h.catalogService.UpdateAddress(r.Context(), addressID, userID, &req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "you can only update your own addresses" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, address)
+}
+
+// DeleteAddress — удаление адреса
+func (h *CatalogHandler) DeleteAddress(w http.ResponseWriter, r *http.Request) {
+	addressIDStr := r.URL.Query().Get("id")
+	if addressIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	err = h.catalogService.DeleteAddress(r.Context(), addressID, userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "you can only delete your own addresses" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Адрес удалён"})
+}
+
+// SetDefaultAddress — установка адреса по умолчанию
+func (h *CatalogHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Request) {
+	addressIDStr := r.URL.Query().Get("id")
+	if addressIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+
+	err = h.catalogService.SetDefaultAddress(r.Context(), addressID, userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "you can only set your own addresses as default" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Адрес установлен по умолчанию"})
+}
