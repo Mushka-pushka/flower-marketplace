@@ -80,6 +80,9 @@ func main() {
 	orderRepo := repository.NewOrderRepository(db)
 	orderService := service.NewOrderService(orderRepo, cfg, rabbitCh)
 	orderHandler := handlers.NewOrderHandler(orderService)
+	analyticsRepo := repository.NewAnalyticsRepository(db)
+    analyticsService := service.NewAnalyticsService(analyticsRepo, cfg)
+    analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 
 	// Запуск воркера
 	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
@@ -89,13 +92,19 @@ func main() {
 		}
 	}()
 
-	// Настройка роутера
+	// РОУТЫ
+
+	// ----- ЗАКАЗЫ -----
 	http.HandleFunc("POST /api/v1/orders", orderHandler.CreateOrder)
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
 	http.HandleFunc("GET /api/v1/orders/customer", orderHandler.GetOrdersByCustomer)
 	http.HandleFunc("POST /api/v1/orders/cancel", orderHandler.CancelOrder)
 	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)                 
     http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller) 
+	// ----- АНАЛИТИКА (для продавца) -----
+    http.HandleFunc("GET /api/v1/analytics/seller", analyticsHandler.GetSellerAnalytics)         
+    http.HandleFunc("GET /api/v1/analytics/popular", analyticsHandler.GetPopularProducts)         
+    http.HandleFunc("GET /api/v1/analytics/statuses", analyticsHandler.GetOrderStatsByStatus)   
 	// ---- SWAGGER ----
     http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
     if r.URL.Path == "/swagger/doc.json" {
@@ -107,7 +116,7 @@ func main() {
         w.Header().Set("Content-Type", "application/json")
         w.Write(data)
         return
-    }
+    } 
 
     if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
         html := `
