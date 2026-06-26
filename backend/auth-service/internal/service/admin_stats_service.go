@@ -44,13 +44,14 @@ func (s *AdminStatsService) GetAdminStats(ctx context.Context) (*models.AdminSta
 	stats.VerifiedShops = verifiedShops
 
 	// 3. Статистика по заказам
-	totalOrders, byStatus, revenue, err := s.statsRepo.GetOrderStats(ctx)
+	totalOrders, byStatus, revenue, platformRevenue, err := s.statsRepo.GetOrderStats(ctx)
 	if err != nil {
 		return nil, err
 	}
 	stats.TotalOrders = totalOrders
 	stats.OrdersByStatus = byStatus
 	stats.TotalRevenue = revenue
+	stats.PlatformRevenue = platformRevenue
 
 	// 4. Статистика по товарам
 	totalProducts, activeProducts, err := s.statsRepo.GetProductStats(ctx)

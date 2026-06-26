@@ -31,6 +31,9 @@ func NewOrderService(orderRepo *repository.OrderRepository, cfg *config.Config, 
 }
 
 // CreateOrder — создание заказа и отправка события в RabbitMQ
+// Константа комиссии платформы (10%)
+const platformCommissionRate = 0.10
+
 func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderRequest) (*models.Order, error) {
 	if len(req.Items) == 0 {
 		return nil, errors.New("order must have at least one item")
@@ -44,6 +47,9 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 		totalAmount += 1000 * float64(item.Quantity) // Заглушка
 	}
 
+	// Рассчитываем комиссию платформы (10%)
+    commission := totalAmount * platformCommissionRate
+
 	now := time.Now()
 	order := &models.Order{
 		ID:                uuid.New(),
@@ -52,6 +58,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 		DeliveryAddressID: req.DeliveryAddressID,
 		PaymentTypeID:     req.PaymentTypeID,
 		TotalAmount:       totalAmount,
+		Commission:        commission,
 		DeliveryTime:      req.DeliveryTime,
 		Comment:           req.Comment,
 		CurrentStatus:     "pending",

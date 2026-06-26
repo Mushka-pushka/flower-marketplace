@@ -29,9 +29,9 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *models.Order) 
 	query := `
 		INSERT INTO orders (
 			id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount, delivery_date, delivery_time, comment, current_status,
+			total_amount, commission, delivery_date, delivery_time, comment, current_status,
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 
 	_, err := r.db.Exec(ctx, query,
@@ -41,6 +41,7 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order *models.Order) 
 		order.DeliveryAddressID,
 		order.PaymentTypeID,
 		order.TotalAmount,
+		order.Commission,
 		order.DeliveryDate,
 		order.DeliveryTime,
 		order.Comment,
@@ -93,7 +94,7 @@ func (r *OrderRepository) AddStatusHistory(ctx context.Context, history *models.
 func (r *OrderRepository) GetOrderByID(ctx context.Context, id uuid.UUID) (*models.Order, error) {
 	query := `
 		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount, delivery_date, delivery_time, comment, current_status,
+			total_amount,  commission, delivery_date, delivery_time, comment, current_status,
 			created_at, updated_at
 		FROM orders
 		WHERE id = $1
@@ -107,6 +108,7 @@ func (r *OrderRepository) GetOrderByID(ctx context.Context, id uuid.UUID) (*mode
 		&order.DeliveryAddressID,
 		&order.PaymentTypeID,
 		&order.TotalAmount,
+		&order.Commission,
 		&order.DeliveryDate,
 		&order.DeliveryTime,
 		&order.Comment,

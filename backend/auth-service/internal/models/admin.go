@@ -92,6 +92,7 @@ type AdminStats struct {
 	TotalOrders     int64            `json:"total_orders"`
 	OrdersByStatus  map[string]int64 `json:"orders_by_status"`
 	TotalRevenue    float64          `json:"total_revenue"`
+	PlatformRevenue float64          `json:"platform_revenue"`
 	TotalProducts   int64            `json:"total_products"`
 	ActiveProducts  int64            `json:"active_products"`
 	TotalCategories int64            `json:"total_categories"`

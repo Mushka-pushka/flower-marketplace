@@ -48,33 +48,38 @@ func (r *AdminStatsRepository) GetShopStats(ctx context.Context) (total, verifie
 	return total, verified, err
 }
 
-// GetOrderStats — статистика по заказам (из Order Service)
-// ВНИМАНИЕ: этот запрос идёт в ту же БД, где хранятся заказы
-func (r *AdminStatsRepository) GetOrderStats(ctx context.Context) (total int64, byStatus map[string]int64, revenue float64, err error) {
-	// Общее количество заказов и выручка
-	err = r.db.QueryRow(ctx, `SELECT COUNT(*), COALESCE(SUM(total_amount), 0) FROM orders`).Scan(&total, &revenue)
-	if err != nil {
-		return 0, nil, 0, err
-	}
+// GetOrderStats — статистика по заказам (с комиссией)
+func (r *AdminStatsRepository) GetOrderStats(ctx context.Context) (total int64, byStatus map[string]int64, revenue, platformRevenue float64, err error) {
+    // Общее количество заказов, общая выручка (оборот) и комиссия платформы
+    err = r.db.QueryRow(ctx, `
+        SELECT 
+            COUNT(*), 
+            COALESCE(SUM(total_amount), 0),
+            COALESCE(SUM(commission), 0)
+        FROM orders
+    `).Scan(&total, &revenue, &platformRevenue)
+    if err != nil {
+        return 0, nil, 0, 0, err
+    }
 
-	// Количество по статусам
-	rows, err := r.db.Query(ctx, `SELECT current_status, COUNT(*) FROM orders GROUP BY current_status`)
-	if err != nil {
-		return 0, nil, 0, err
-	}
-	defer rows.Close()
+    // Количество по статусам
+    rows, err := r.db.Query(ctx, `SELECT current_status, COUNT(*) FROM orders GROUP BY current_status`)
+    if err != nil {
+        return 0, nil, 0, 0, err
+    }
+    defer rows.Close()
 
-	byStatus = make(map[string]int64)
-	for rows.Next() {
-		var status string
-		var count int64
-		err := rows.Scan(&status, &count)
-		if err != nil {
-			return 0, nil, 0, err
-		}
-		byStatus[status] = count
-	}
-	return total, byStatus, revenue, nil
+    byStatus = make(map[string]int64)
+    for rows.Next() {
+        var status string
+        var count int64
+        err := rows.Scan(&status, &count)
+        if err != nil {
+            return 0, nil, 0, 0, err
+        }
+        byStatus[status] = count
+    }
+    return total, byStatus, revenue, platformRevenue, nil
 }
 
 // GetProductStats — статистика по товарам (из Catalog Service)

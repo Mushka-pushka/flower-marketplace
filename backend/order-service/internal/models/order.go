@@ -14,6 +14,7 @@ type Order struct {
 	DeliveryAddressID uuid.UUID  `json:"delivery_address_id" db:"delivery_address_id"`
 	PaymentTypeID     int        `json:"payment_type_id" db:"payment_type_id"`
 	TotalAmount       float64    `json:"total_amount" db:"total_amount"`
+	Commission        float64    `json:"commission" db:"commission"`
 	DeliveryDate      *time.Time `json:"delivery_date" db:"delivery_date"`
 	DeliveryTime      string     `json:"delivery_time" db:"delivery_time"`
 	Comment           string     `json:"comment" db:"comment"`
