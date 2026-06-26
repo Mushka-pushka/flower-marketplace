@@ -83,3 +83,22 @@ type UpdateOrderStatusRequest struct {
 	Status  string    `json:"status" binding:"required"`
 	Comment string    `json:"comment"`
 }
+
+// Courier — курьер
+type Courier struct {
+    ID          uuid.UUID `json:"id" db:"id"`
+    Name        string    `json:"name" db:"name"`
+    Phone       string    `json:"phone" db:"phone"`
+    IsAvailable bool      `json:"is_available" db:"is_available"`
+    CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+// DeliveryAssignment — назначение курьера на заказ
+type DeliveryAssignment struct {
+    ID          uuid.UUID  `json:"id" db:"id"`
+    OrderID     uuid.UUID  `json:"order_id" db:"order_id"`
+    CourierID   uuid.UUID  `json:"courier_id" db:"courier_id"`
+    AssignedAt  time.Time  `json:"assigned_at" db:"assigned_at"`
+    CompletedAt *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+    Status      string     `json:"status" db:"status"` // assigned, completed, failed
+}

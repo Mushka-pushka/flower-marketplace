@@ -355,3 +355,75 @@ func (s *OrderService) publishOrderStatusChanged(orderID uuid.UUID, status strin
 	)
 	log.Printf("Event published: order.status_changed for order %s -> %s", orderID, status)
 }
+
+// AssignCourier — назначает курьера на заказ
+func (s *OrderService) AssignCourier(ctx context.Context, orderID uuid.UUID) (*models.Courier, error) {
+    courier, err := s.orderRepo.GetAvailableCourier(ctx)
+    if err != nil {
+        return nil, fmt.Errorf("no available couriers: %w", err)
+    }
+
+    assignment := &models.DeliveryAssignment{
+        ID:         uuid.New(),
+        OrderID:    orderID,
+        CourierID:  courier.ID,
+        AssignedAt: time.Now(),
+        Status:     "assigned",
+    }
+
+    err = s.orderRepo.CreateDeliveryAssignment(ctx, assignment)
+    if err != nil {
+        return nil, err
+    }
+
+    // Отправляем событие delivery.assigned
+    go s.publishDeliveryAssigned(orderID, courier)
+
+    return courier, nil
+}
+
+// CompleteDelivery — завершает доставку
+func (s *OrderService) CompleteDelivery(ctx context.Context, orderID uuid.UUID) error {
+    err := s.orderRepo.CompleteDeliveryAssignment(ctx, orderID)
+    if err != nil {
+        return err
+    }
+
+    // Отправляем событие delivery.completed
+    go s.publishDeliveryCompleted(orderID)
+
+    return nil
+}
+
+// publishDeliveryAssigned — публикация события назначения курьера
+func (s *OrderService) publishDeliveryAssigned(orderID uuid.UUID, courier *models.Courier) {
+    event := map[string]interface{}{
+        "event":       "delivery.assigned",
+        "order_id":    orderID.String(),
+        "courier_id":  courier.ID.String(),
+        "courier_name": courier.Name,
+        "courier_phone": courier.Phone,
+        "timestamp":   time.Now().Unix(),
+    }
+    body, _ := json.Marshal(event)
+    s.rabbitCh.Publish("", "delivery.assigned", false, false, amqp.Publishing{
+        ContentType: "application/json",
+        Body:        body,
+    })
+    log.Printf("Event published: delivery.assigned for order %s (courier: %s)", orderID, courier.Name)
+}
+
+// publishDeliveryCompleted — публикация события завершения доставки
+func (s *OrderService) publishDeliveryCompleted(orderID uuid.UUID) {
+    event := map[string]interface{}{
+        "event":     "delivery.completed",
+        "order_id":  orderID.String(),
+        "timestamp": time.Now().Unix(),
+    }
+    body, _ := json.Marshal(event)
+    s.rabbitCh.Publish("", "delivery.completed", false, false, amqp.Publishing{
+        ContentType: "application/json",
+        Body:        body,
+    })
+    log.Printf("Event published: delivery.completed for order %s", orderID)
+}

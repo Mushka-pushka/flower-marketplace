@@ -283,3 +283,31 @@ func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUI
 	}
 	return orders, nil
 }
+
+// GetAvailableCourier — получает доступного курьера
+func (r *OrderRepository) GetAvailableCourier(ctx context.Context) (*models.Courier, error) {
+    query := `SELECT id, name, phone, is_available, created_at FROM couriers WHERE is_available = true LIMIT 1`
+    var courier models.Courier
+    err := r.db.QueryRow(ctx, query).Scan(&courier.ID, &courier.Name, &courier.Phone, &courier.IsAvailable, &courier.CreatedAt)
+    if err != nil {
+        return nil, err
+    }
+    return &courier, nil
+}
+
+// CreateDeliveryAssignment — создаёт назначение курьера
+func (r *OrderRepository) CreateDeliveryAssignment(ctx context.Context, assignment *models.DeliveryAssignment) error {
+    query := `
+        INSERT INTO delivery_assignments (id, order_id, courier_id, assigned_at, status)
+        VALUES ($1, $2, $3, $4, $5)
+    `
+    _, err := r.db.Exec(ctx, query, assignment.ID, assignment.OrderID, assignment.CourierID, assignment.AssignedAt, assignment.Status)
+    return err
+}
+
+// CompleteDeliveryAssignment — завершает назначение курьера
+func (r *OrderRepository) CompleteDeliveryAssignment(ctx context.Context, orderID uuid.UUID) error {
+    query := `UPDATE delivery_assignments SET status = 'completed', completed_at = NOW() WHERE order_id = $1`
+    _, err := r.db.Exec(ctx, query, orderID)
+    return err
+}

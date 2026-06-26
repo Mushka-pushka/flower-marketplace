@@ -126,7 +126,6 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 	// ШАГ 1: Ждём подтверждения продавца (pending → confirmed)
 	if currentStatus == "pending" {
 		log.Printf("Order %s waiting for seller confirmation...", orderID)
-		// Ждём, пока продавец не подтвердит заказ
 		for {
 			time.Sleep(2 * time.Second)
 			order, err = w.orderService.GetOrderByID(ctx, orderID)
@@ -147,7 +146,7 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 		}
 	}
 
-	// Проверяем статус снова (на случай, если заказ отменили во время ожидания)
+	// Проверяем статус снова
 	currentStatus = order.Order.CurrentStatus
 	if currentStatus == "cancelled" || currentStatus == "delivered" {
 		log.Printf("Order %s %s, skipping", orderID, currentStatus)
@@ -158,7 +157,6 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 	// ШАГ 2: Подготовка (confirmed → preparing)
 	if currentStatus == "confirmed" {
 		time.Sleep(3 * time.Second)
-		// Проверяем, не изменил ли продавец статус вручную
 		order, err = w.orderService.GetOrderByID(ctx, orderID)
 		if err != nil {
 			log.Printf("Failed to get order: %v", err)
@@ -238,6 +236,7 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 			return
 		}
 		if order.Order.CurrentStatus == "packing" {
+			// Обновляем статус на delivery
 			err = w.orderService.UpdateOrderStatus(ctx, orderID, "delivery", "system", "Заказ передан курьеру")
 			if err != nil {
 				log.Printf("Failed to update status to delivery: %v", err)
@@ -245,6 +244,14 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 				return
 			}
 			log.Printf("Order %s status updated to: delivery", orderID)
+
+			// Назначаем курьера и отправляем событие
+			courier, err := w.orderService.AssignCourier(ctx, orderID)
+			if err != nil {
+				log.Printf("Failed to assign courier: %v", err)
+			} else {
+				log.Printf("Courier %s assigned to order %s", courier.Name, orderID)
+			}
 		} else {
 			log.Printf("Order %s status changed by seller, skipping", orderID)
 		}
@@ -259,7 +266,7 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 	}
 	currentStatus = order.Order.CurrentStatus
 	if currentStatus == "cancelled" || currentStatus == "delivered" {
-		log.Printf("⏭Order %s %s, skipping", orderID, currentStatus)
+		log.Printf("Order %s %s, skipping", orderID, currentStatus)
 		msg.Ack(false)
 		return
 	}
@@ -274,6 +281,15 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 			return
 		}
 		if order.Order.CurrentStatus == "delivery" {
+			// Отмечаем завершение доставки
+			err = w.orderService.CompleteDelivery(ctx, orderID)
+			if err != nil {
+				log.Printf("Failed to complete delivery: %v", err)
+				msg.Nack(false, true)
+				return
+			}
+
+			// Обновляем статус на delivered
 			err = w.orderService.UpdateOrderStatus(ctx, orderID, "delivered", "system", "Заказ доставлен получателю")
 			if err != nil {
 				log.Printf("Failed to update status to delivered: %v", err)
@@ -286,6 +302,7 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 		}
 	}
 
+	// Подтверждаем успешную обработку
 	msg.Ack(false)
 	log.Printf("Order %s processed successfully!", orderID)
 }
