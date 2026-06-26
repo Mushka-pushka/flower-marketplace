@@ -272,10 +272,23 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID uuid.UUID, userI
 		return err
 	}
 
-	// Отправляем событие в RabbitMQ
-	go s.publishOrderCancelled(orderID)
+    // Отправляем событие в RabbitMQ
+    go s.publishOrderCancelled(orderID)
 
-	return nil
+    go func() {
+        userEmail := "customer@example.com"
+        userName := "Клиент"
+        
+        s.notifService.PublishOrderEmail(
+            orderID.String(),
+            userEmail,
+            userName,
+            "cancelled",
+            "order_status_changed",
+        )
+    }()
+
+    return nil
 }
 
 // publishOrderCancelled — публикация события об отмене заказа
