@@ -82,3 +82,17 @@ type UsersListRequestFull struct {
 	Limit    int    `json:"limit"`
 	Offset   int    `json:"offset"`
 }
+
+// AdminStats — общая статистика для администратора
+type AdminStats struct {
+	TotalUsers      int64            `json:"total_users"`
+	UsersByRole     map[string]int64 `json:"users_by_role"`
+	TotalShops      int64            `json:"total_shops"`
+	VerifiedShops   int64            `json:"verified_shops"`
+	TotalOrders     int64            `json:"total_orders"`
+	OrdersByStatus  map[string]int64 `json:"orders_by_status"`
+	TotalRevenue    float64          `json:"total_revenue"`
+	TotalProducts   int64            `json:"total_products"`
+	ActiveProducts  int64            `json:"active_products"`
+	TotalCategories int64            `json:"total_categories"`
+}

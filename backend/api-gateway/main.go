@@ -35,6 +35,8 @@ func main() {
                 targetURL = paymentURL + r.URL.Path
 			case strings.HasPrefix(r.URL.Path, "/api/v1/analytics/"):
                 targetURL = orderURL + r.URL.Path
+			case strings.HasPrefix(r.URL.Path, "/api/v1/admin/stats"):
+                targetURL = authURL + r.URL.Path
             default:
             http.Error(w, "Not found", http.StatusNotFound)
             return

@@ -73,6 +73,9 @@ func main() {
 	adminRepo := repository.NewAdminRepository(db)
     adminService := service.NewAdminService(adminRepo, cfg)
     adminHandler := handlers.NewAdminHandler(adminService)
+	statsRepo := repository.NewAdminStatsRepository(db)
+    statsService := service.NewAdminStatsService(statsRepo, cfg)
+    statsHandler := handlers.NewAdminStatsHandler(statsService)
 
 	// Настраиваем роутер
 	http.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
@@ -87,6 +90,8 @@ func main() {
     http.HandleFunc("GET /api/v1/admin/users", adminHandler.GetUsersList)
     http.HandleFunc("GET /api/v1/admin/users/list", adminHandler.GetUsersListWithFilters)
     http.HandleFunc("GET /api/v1/admin/users/details", adminHandler.GetUserByIDForAdmin)
+	// ----- АДМИН: ОБЩАЯ СТАТИСТИКА -----
+    http.HandleFunc("GET /api/v1/admin/stats", statsHandler.GetAdminStats)
     // ---- SWAGGER ----
     http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
     // Если запрос на doc.json
