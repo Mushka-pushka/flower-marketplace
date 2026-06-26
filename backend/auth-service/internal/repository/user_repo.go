@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 
@@ -107,4 +108,28 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 		return nil, err
 	}
 	return &user, nil
+}
+
+// UpdateProfile — обновляет данные пользователя
+func (r *UserRepository) UpdateProfile(ctx context.Context, user *models.User) error {
+	query := `
+		UPDATE users SET
+			first_name = $1, last_name = $2, phone = $3, updated_at = $4
+		WHERE id = $5
+	`
+	_, err := r.db.Exec(ctx, query,
+		user.FirstName,
+		user.LastName,
+		user.Phone,
+		user.UpdatedAt,
+		user.ID,
+	)
+	return err
+}
+
+// UpdatePassword — обновляет пароль пользователя
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, newPasswordHash string) error {
+	query := `UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3`
+	_, err := r.db.Exec(ctx, query, newPasswordHash, time.Now(), userID)
+	return err
 }

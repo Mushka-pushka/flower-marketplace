@@ -58,6 +58,8 @@ func main() {
 	http.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	http.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	http.HandleFunc("GET /api/v1/auth/me", authMiddleware.JWT(authHandler.Me))
+	http.HandleFunc("PUT /api/v1/auth/profile", authHandler.UpdateProfile)
+    http.HandleFunc("PUT /api/v1/auth/password", authHandler.ChangePassword)
 
 	// Создаём сервер
 	server := &http.Server{
