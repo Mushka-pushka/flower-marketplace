@@ -1,3 +1,9 @@
+// @title           Flower Marketplace Order Service API
+// @version         1.0
+// @description     Сервис управления заказами, доставкой и статусами
+// @host      localhost:8083
+// @BasePath  /api/v1
+
 package main
 
 import (
@@ -5,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"syscall"
@@ -87,8 +94,56 @@ func main() {
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
 	http.HandleFunc("GET /api/v1/orders/customer", orderHandler.GetOrdersByCustomer)
 	http.HandleFunc("POST /api/v1/orders/cancel", orderHandler.CancelOrder)
-	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)                 // ?shop_id=...
-    http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller)      // body: {"order_id":"...", "status":"..."}
+	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)                 
+    http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller) 
+	// ---- SWAGGER ----
+    http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
+    if r.URL.Path == "/swagger/doc.json" {
+        data, err := ioutil.ReadFile("./docs/swagger.json")
+        if err != nil {
+            http.Error(w, "Swagger docs not found", http.StatusNotFound)
+            return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        w.Write(data)
+        return
+    }
+
+    if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
+        html := `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Swagger UI</title>
+            <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
+        </head>
+        <body>
+            <div id="swagger-ui"></div>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
+            <script>
+                window.onload = function() {
+                    SwaggerUIBundle({
+                        url: "/swagger/doc.json",
+                        dom_id: '#swagger-ui',
+                        presets: [
+                            SwaggerUIBundle.presets.apis,
+                            SwaggerUIBundle.SwaggerUIStandalonePreset
+                        ],
+                        layout: "BaseLayout"
+                    });
+                };
+            </script>
+        </body>
+        </html>
+        `
+        w.Header().Set("Content-Type", "text/html")
+        w.Write([]byte(html))
+        return
+    }
+
+    http.NotFound(w, r)
+})     
 
 	// Сервер
 	server := &http.Server{

@@ -1,0 +1,313 @@
+basePath: /api/v1
+definitions:
+  handlers.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+    type: object
+  models.CreateOrderRequest:
+    properties:
+      comment:
+        type: string
+      customer_id:
+        type: string
+      delivery_address_id:
+        type: string
+      delivery_date:
+        type: string
+      delivery_time:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/models.OrderItemRequest'
+        type: array
+      payment_type_id:
+        type: integer
+      shop_id:
+        type: string
+    type: object
+  models.Order:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      current_status:
+        type: string
+      customer_id:
+        type: string
+      delivery_address_id:
+        type: string
+      delivery_date:
+        type: string
+      delivery_time:
+        type: string
+      id:
+        type: string
+      payment_type_id:
+        type: integer
+      shop_id:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  models.OrderItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      packaging:
+        type: string
+      price:
+        type: number
+      product_id:
+        type: string
+      quantity:
+        type: integer
+      total:
+        type: number
+    type: object
+  models.OrderItemRequest:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  models.OrderResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/models.OrderItem'
+        type: array
+      order:
+        $ref: '#/definitions/models.Order'
+      statuses:
+        items:
+          $ref: '#/definitions/models.StatusHistory'
+        type: array
+    type: object
+  models.StatusHistory:
+    properties:
+      changed_by:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      status:
+        type: string
+    type: object
+  models.UpdateOrderStatusRequest:
+    properties:
+      comment:
+        type: string
+      order_id:
+        type: string
+      status:
+        type: string
+    required:
+    - order_id
+    - status
+    type: object
+host: localhost:8083
+info:
+  contact: {}
+  description: Сервис управления заказами, доставкой и статусами
+  title: Flower Marketplace Order Service API
+  version: "1.0"
+paths:
+  /orders:
+    get:
+      description: Возвращает заказ с позициями и историей статусов
+      parameters:
+      - description: ID заказа
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение заказа по ID
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Создаёт заказ с товарами и отправляет событие в RabbitMQ
+      parameters:
+      - description: Данные заказа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Создание нового заказа
+      tags:
+      - orders
+  /orders/cancel:
+    post:
+      description: Покупатель или продавец отменяет заказ (только если он ещё не доставлен)
+      parameters:
+      - description: ID заказа
+        in: query
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Отмена заказа
+      tags:
+      - orders
+  /orders/customer:
+    get:
+      description: Возвращает все заказы конкретного покупателя
+      parameters:
+      - description: ID покупателя
+        in: query
+        name: customer_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Order'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение заказов покупателя
+      tags:
+      - orders
+  /orders/shop:
+    get:
+      description: Возвращает все заказы конкретного магазина
+      parameters:
+      - description: ID магазина
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Order'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение заказов магазина (для продавца)
+      tags:
+      - orders
+  /orders/status:
+    put:
+      consumes:
+      - application/json
+      description: Продавец изменяет статус заказа (confirmed, preparing, packing,
+        delivery, delivered, cancelled)
+      parameters:
+      - description: Новый статус
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateOrderStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Обновление статуса заказа продавцом
+      tags:
+      - orders
+swagger: "2.0"

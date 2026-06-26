@@ -18,7 +18,17 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 	return &OrderHandler{orderService: orderService}
 }
 
-// CreateOrder — создание заказа
+// CreateOrder godoc
+// @Summary      Создание нового заказа
+// @Description  Создаёт заказ с товарами и отправляет событие в RabbitMQ
+// @Tags         orders
+// @Accept       json
+// @Produce      json
+// @Param        request body models.CreateOrderRequest true "Данные заказа"
+// @Success      201 {object} models.Order
+// @Failure      400 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders [post]
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateOrderRequest
 
@@ -40,7 +50,16 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, order)
 }
 
-// GetOrder — получение заказа по ID
+// GetOrder godoc
+// @Summary      Получение заказа по ID
+// @Description  Возвращает заказ с позициями и историей статусов
+// @Tags         orders
+// @Produce      json
+// @Param        id query string true "ID заказа"
+// @Success      200 {object} models.OrderResponse
+// @Failure      400 {object} ErrorResponse
+// @Failure      404 {object} ErrorResponse
+// @Router       /orders [get]
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
@@ -67,7 +86,16 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, order)
 }
 
-// GetOrdersByCustomer — получение заказов покупателя
+// GetOrdersByCustomer godoc
+// @Summary      Получение заказов покупателя
+// @Description  Возвращает все заказы конкретного покупателя
+// @Tags         orders
+// @Produce      json
+// @Param        customer_id query string true "ID покупателя"
+// @Success      200 {array} models.Order
+// @Failure      400 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders/customer [get]
 func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Request) {
 	customerIDStr := r.URL.Query().Get("customer_id")
 	if customerIDStr == "" {
@@ -111,7 +139,16 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	}
 }
 
-// CancelOrder — отмена заказа
+// CancelOrder godoc
+// @Summary      Отмена заказа
+// @Description  Покупатель или продавец отменяет заказ (только если он ещё не доставлен)
+// @Tags         orders
+// @Param        id query string true "ID заказа"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders/cancel [post]
 func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	orderIDStr := r.URL.Query().Get("id")
 	if orderIDStr == "" {
@@ -147,7 +184,16 @@ func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Заказ отменён"})
 }
 
-// GetOrdersByShop — получение заказов магазина
+// GetOrdersByShop godoc
+// @Summary      Получение заказов магазина (для продавца)
+// @Description  Возвращает все заказы конкретного магазина
+// @Tags         orders
+// @Produce      json
+// @Param        shop_id query string true "ID магазина"
+// @Success      200 {array} models.Order
+// @Failure      400 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders/shop [get]
 func (h *OrderHandler) GetOrdersByShop(w http.ResponseWriter, r *http.Request) {
 	shopIDStr := r.URL.Query().Get("shop_id")
 	if shopIDStr == "" {
@@ -170,7 +216,18 @@ func (h *OrderHandler) GetOrdersByShop(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, orders)
 }
 
-// UpdateOrderStatusBySeller — обновление статуса заказа продавцом
+// UpdateOrderStatusBySeller godoc
+// @Summary      Обновление статуса заказа продавцом
+// @Description  Продавец изменяет статус заказа (confirmed, preparing, packing, delivery, delivered, cancelled)
+// @Tags         orders
+// @Accept       json
+// @Produce      json
+// @Param        request body models.UpdateOrderStatusRequest true "Новый статус"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders/status [put]
 func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdateOrderStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

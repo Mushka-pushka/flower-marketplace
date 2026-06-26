@@ -7,7 +7,7 @@ import (
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
 
-	"github.com/google/uuid" 
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -18,7 +18,16 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
-// Register — регистрация пользователя
+// Register godoc
+// @Summary      Регистрация нового пользователя
+// @Description  Создаёт нового пользователя с ролью customer или seller
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.RegisterRequest true "Данные для регистрации"
+// @Success      201 {object} models.UserResponse
+// @Failure      400 {object} ErrorResponse
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
 
@@ -49,7 +58,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Login — вход пользователя
+// Login godoc
+// @Summary      Вход в систему
+// @Description  Авторизация пользователя с выдачей JWT-токенов
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body models.LoginRequest true "Email и пароль"
+// @Success      200 {object} models.LoginResponse
+// @Failure      401 {object} ErrorResponse
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 
@@ -86,7 +104,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// Me — получение информации о текущем пользователе
+// Me godoc
+// @Summary      Получение профиля текущего пользователя
+// @Description  Возвращает данные авторизованного пользователя
+// @Tags         auth
+// @Produce      json
+// @Security     Bearer
+// @Success      200 {object} models.UserResponse
+// @Failure      401 {object} ErrorResponse
+// @Router       /auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value("user").(*models.User)
 	if !ok {
@@ -109,7 +135,18 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// UpdateProfile — обновление профиля пользователя
+// UpdateProfile godoc
+// @Summary      Обновление профиля пользователя
+// @Description  Изменяет имя, фамилию и телефон пользователя
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.UpdateProfileRequest true "Данные для обновления"
+// @Success      200 {object} models.UserResponse
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Router       /auth/profile [put]
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -138,7 +175,18 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ChangePassword — смена пароля пользователя
+// ChangePassword godoc
+// @Summary      Смена пароля пользователя
+// @Description  Меняет пароль при условии корректного старого пароля
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.ChangePasswordRequest true "Старый и новый пароль"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Router       /auth/password [put]
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	var req models.ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

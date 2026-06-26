@@ -1,0 +1,1154 @@
+basePath: /api/v1
+definitions:
+  handlers.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      details:
+        type: string
+      error:
+        type: string
+    type: object
+  models.AddFavoriteRequest:
+    properties:
+      product_id:
+        type: string
+    required:
+    - product_id
+    type: object
+  models.AddToCartRequest:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - product_id
+    - quantity
+    type: object
+  models.AutocompleteSuggestion:
+    properties:
+      score:
+        type: integer
+      slug:
+        type: string
+      text:
+        type: string
+      type:
+        description: '"product", "category", "tag"'
+        type: string
+    type: object
+  models.CategoryWithCount:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: string
+      product_count:
+        type: integer
+      slug:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  models.CreateAddressRequest:
+    properties:
+      address:
+        type: string
+      comment:
+        type: string
+      entrance:
+        type: string
+      floor:
+        type: string
+      intercom:
+        type: string
+      is_default:
+        type: boolean
+      name:
+        type: string
+    required:
+    - address
+    - name
+    type: object
+  models.CreateProductRequest:
+    properties:
+      category_id:
+        type: string
+      description:
+        type: string
+      is_featured:
+        type: boolean
+      name:
+        type: string
+      old_price:
+        type: number
+      packaging:
+        type: string
+      price:
+        type: number
+      shop_id:
+        type: string
+      stock:
+        minimum: 0
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      unit:
+        type: string
+    required:
+    - category_id
+    - name
+    - price
+    - shop_id
+    type: object
+  models.CreateReviewRequest:
+    properties:
+      comment:
+        type: string
+      order_id:
+        type: string
+      product_id:
+        type: string
+      rating:
+        maximum: 5
+        minimum: 1
+        type: integer
+    required:
+    - comment
+    - product_id
+    - rating
+    type: object
+  models.DeliveryAddress:
+    properties:
+      address:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      entrance:
+        type: string
+      floor:
+        type: string
+      id:
+        type: string
+      intercom:
+        type: string
+      is_default:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.FavoriteWithProduct:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      product_id:
+        type: string
+      product_image:
+        type: string
+      product_name:
+        type: string
+      product_price:
+        type: number
+      product_slug:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.Product:
+    properties:
+      category_id:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      is_featured:
+        type: boolean
+      name:
+        type: string
+      old_price:
+        type: number
+      packaging:
+        type: string
+      price:
+        type: number
+      rating:
+        type: number
+      shop_id:
+        type: string
+      slug:
+        type: string
+      stock:
+        type: integer
+      tags:
+        description: для семантического поиска!
+        items:
+          type: string
+        type: array
+      unit:
+        description: '"шт", "букет"'
+        type: string
+      updated_at:
+        type: string
+      views_count:
+        type: integer
+    type: object
+  models.Review:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_approved:
+        type: boolean
+      order_id:
+        type: string
+      product_id:
+        type: string
+      rating:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.ReviewWithUser:
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_approved:
+        type: boolean
+      order_id:
+        type: string
+      product_id:
+        type: string
+      rating:
+        type: integer
+      updated_at:
+        type: string
+      user_email:
+        type: string
+      user_id:
+        type: string
+      user_name:
+        type: string
+    type: object
+  models.SearchResponse:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/models.Product'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      query:
+        type: string
+      sort_by:
+        type: string
+      tags_used:
+        items:
+          type: string
+        type: array
+      total:
+        type: integer
+    type: object
+  models.UpdateAddressRequest:
+    properties:
+      address:
+        type: string
+      comment:
+        type: string
+      entrance:
+        type: string
+      floor:
+        type: string
+      intercom:
+        type: string
+      is_default:
+        type: boolean
+      name:
+        type: string
+    type: object
+  models.UpdateCartRequest:
+    properties:
+      quantity:
+        minimum: 1
+        type: integer
+    required:
+    - quantity
+    type: object
+  models.UpdateProductRequest:
+    properties:
+      category_id:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      is_featured:
+        type: boolean
+      name:
+        type: string
+      old_price:
+        type: number
+      packaging:
+        type: string
+      price:
+        type: number
+      stock:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      unit:
+        type: string
+    type: object
+  models.UpdateReviewRequest:
+    properties:
+      comment:
+        type: string
+      rating:
+        maximum: 5
+        minimum: 1
+        type: integer
+    type: object
+host: localhost:8082
+info:
+  contact: {}
+  description: Сервис управления товарами, категориями и поиском
+  title: Flower Marketplace Catalog Service API
+  version: "1.0"
+paths:
+  /admin/reviews/approve:
+    put:
+      description: Администратор одобряет отзыв для публикации
+      parameters:
+      - description: ID отзыва
+        in: query
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Одобрение отзыва (админ)
+      tags:
+      - admin
+  /catalog/addresses:
+    delete:
+      description: Удаляет адрес пользователя
+      parameters:
+      - description: ID адреса
+        in: query
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Удаление адреса доставки
+      tags:
+      - addresses
+    get:
+      description: Возвращает все адреса доставки текущего пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.DeliveryAddress'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение адресов пользователя
+      tags:
+      - addresses
+    post:
+      consumes:
+      - application/json
+      description: Добавляет новый адрес для пользователя
+      parameters:
+      - description: Данные адреса
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateAddressRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.DeliveryAddress'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Создание адреса доставки
+      tags:
+      - addresses
+    put:
+      consumes:
+      - application/json
+      description: Изменяет данные существующего адреса
+      parameters:
+      - description: ID адреса
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateAddressRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DeliveryAddress'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Обновление адреса доставки
+      tags:
+      - addresses
+  /catalog/addresses/default:
+    post:
+      description: Делает выбранный адрес основным для пользователя
+      parameters:
+      - description: ID адреса
+        in: query
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Установка адреса по умолчанию
+      tags:
+      - addresses
+  /catalog/autocomplete:
+    get:
+      description: Возвращает подсказки по товарам, категориям и тегам
+      parameters:
+      - description: Поисковый запрос
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 10
+        description: Количество подсказок
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.AutocompleteSuggestion'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Автодополнение поиска
+      tags:
+      - catalog
+  /catalog/cart:
+    delete:
+      description: Удаляет конкретный товар из корзины пользователя
+      parameters:
+      - description: ID позиции в корзине
+        in: query
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Удаление товара из корзины
+      tags:
+      - cart
+    get:
+      description: Возвращает все товары в корзине с общей суммой
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение корзины пользователя
+      tags:
+      - cart
+    post:
+      consumes:
+      - application/json
+      description: Увеличивает количество товара в корзине или добавляет новый
+      parameters:
+      - description: Товар и количество
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.AddToCartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Добавление товара в корзину
+      tags:
+      - cart
+    put:
+      consumes:
+      - application/json
+      description: Изменяет количество конкретного товара в корзине
+      parameters:
+      - description: ID позиции в корзине
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Новое количество
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateCartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Обновление количества товара в корзине
+      tags:
+      - cart
+  /catalog/categories:
+    get:
+      description: Возвращает список всех категорий с возможностью подсчёта товаров
+      parameters:
+      - description: Подсчёт товаров в категориях
+        in: query
+        name: with_count
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CategoryWithCount'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение категорий
+      tags:
+      - catalog
+  /catalog/favorites:
+    delete:
+      description: Удаляет товар из списка избранных
+      parameters:
+      - description: ID товара
+        in: query
+        name: product_id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Удаление товара из избранного
+      tags:
+      - favorites
+    get:
+      description: Возвращает все товары, добавленные в избранное
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.FavoriteWithProduct'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение списка избранных товаров
+      tags:
+      - favorites
+    post:
+      consumes:
+      - application/json
+      description: Сохраняет товар в список избранных
+      parameters:
+      - description: ID товара
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.AddFavoriteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Добавление товара в избранное
+      tags:
+      - favorites
+  /catalog/favorites/check:
+    get:
+      description: Проверяет, находится ли товар в избранном у пользователя
+      parameters:
+      - description: ID товара
+        in: query
+        name: product_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Проверка наличия товара в избранном
+      tags:
+      - favorites
+  /catalog/products:
+    get:
+      description: Возвращает товар по его UUID
+      parameters:
+      - description: UUID товара
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение товара по ID
+      tags:
+      - catalog
+    post:
+      consumes:
+      - application/json
+      description: Добавляет новый товар в каталог
+      parameters:
+      - description: Данные товара
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Создание нового товара
+      tags:
+      - catalog
+  /catalog/products/{id}:
+    delete:
+      description: Мягкое удаление товара (установка is_active = false)
+      parameters:
+      - description: UUID товара
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Удаление товара
+      tags:
+      - catalog
+    put:
+      consumes:
+      - application/json
+      description: Изменяет данные существующего товара
+      parameters:
+      - description: UUID товара
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Данные для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Обновление товара
+      tags:
+      - catalog
+  /catalog/products/slug/{slug}:
+    get:
+      description: Возвращает товар по его URL-идентификатору
+      parameters:
+      - description: Slug товара
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение товара по slug
+      tags:
+      - catalog
+  /catalog/reviews:
+    delete:
+      description: Удаляет отзыв пользователя
+      parameters:
+      - description: ID отзыва
+        in: query
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Удаление отзыва
+      tags:
+      - reviews
+    get:
+      description: Возвращает все одобренные отзывы для конкретного товара
+      parameters:
+      - description: ID товара
+        in: query
+        name: product_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ReviewWithUser'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение отзывов на товар
+      tags:
+      - reviews
+    post:
+      consumes:
+      - application/json
+      description: Добавляет отзыв на товар с рейтингом
+      parameters:
+      - description: Данные отзыва
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Review'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Создание отзыва
+      tags:
+      - reviews
+    put:
+      consumes:
+      - application/json
+      description: Изменяет текст или рейтинг отзыва
+      parameters:
+      - description: ID отзыва
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Новые данные
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Review'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Обновление отзыва
+      tags:
+      - reviews
+  /catalog/reviews/me:
+    get:
+      description: Возвращает все отзывы текущего пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ReviewWithUser'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Получение моих отзывов
+      tags:
+      - reviews
+  /catalog/search:
+    get:
+      description: Поиск по тексту, тегам, категориям и цене с пагинацией
+      parameters:
+      - description: Поисковый запрос
+        in: query
+        name: q
+        type: string
+      - description: Slug категории
+        in: query
+        name: category
+        type: string
+      - description: Теги через запятую
+        in: query
+        name: tags
+        type: string
+      - description: Минимальная цена
+        in: query
+        name: min_price
+        type: number
+      - description: Максимальная цена
+        in: query
+        name: max_price
+        type: number
+      - description: 'Сортировка: price_asc, price_desc, rating, relevance, newest'
+        in: query
+        name: sort_by
+        type: string
+      - default: 24
+        description: Количество на страницу
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SearchResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Семантический поиск товаров
+      tags:
+      - catalog
+swagger: "2.0"

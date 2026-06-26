@@ -1,9 +1,26 @@
+// @title           Flower Marketplace Auth Service API
+// @version         1.0
+// @description     Сервис аутентификации и управления пользователями
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.email  support@flowermarketplace.com
+
+// @host      localhost:8081
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description Введите токен в формате: Bearer <token>
+
 package main
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"io/ioutil"  
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,14 +37,14 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+// @title           Flower Marketplace Auth Service API
+// @version         1.0
+// @description     Сервис аутентификации и управления пользователями
+// @host      localhost:8081
+// @BasePath  /api/v1
+
 func main() {
 	cfg := config.Load()
-
-	log.Printf("DB_USER: %s", cfg.DBUser)
-	log.Printf("DB_PASSWORD: %s", cfg.DBPassword)
-	log.Printf("DB_HOST: %s", cfg.DBHost)
-	log.Printf("DB_PORT: %s", cfg.DBPort)
-	log.Printf("DB_NAME: %s", cfg.DBName)
 
 	log.Printf("Auth Service starting on port %s", cfg.Port)
 
@@ -68,6 +85,57 @@ func main() {
     http.HandleFunc("PUT /api/v1/admin/sellers/verify", adminHandler.VerifySeller)
     http.HandleFunc("PUT /api/v1/admin/users/status", adminHandler.UpdateUserStatus)
     http.HandleFunc("GET /api/v1/admin/users", adminHandler.GetUsersList)
+    // ---- SWAGGER ----
+http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
+    // Если запрос на doc.json
+    if r.URL.Path == "/swagger/doc.json" {
+        data, err := ioutil.ReadFile("./docs/swagger.json")
+        if err != nil {
+            http.Error(w, "Swagger docs not found", http.StatusNotFound)
+            return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        w.Write(data)
+        return
+    }
+
+    // Если запрос на index.html или статику
+    if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
+        // Отдаём стандартный HTML-интерфейс Swagger UI
+        html := `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Swagger UI</title>
+            <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
+        </head>
+        <body>
+            <div id="swagger-ui"></div>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
+            <script>
+                window.onload = function() {
+                    SwaggerUIBundle({
+                        url: "/swagger/doc.json",
+                        dom_id: '#swagger-ui',
+                        presets: [
+                            SwaggerUIBundle.presets.apis,
+                            SwaggerUIBundle.SwaggerUIStandalonePreset
+                        ],
+                        layout: "BaseLayout"
+                    });
+                };
+            </script>
+        </body>
+        </html>
+        `
+        w.Header().Set("Content-Type", "text/html")
+        w.Write([]byte(html))
+        return
+    }
+
+    http.NotFound(w, r)
+})
 
 	// Создаём сервер
 	server := &http.Server{
