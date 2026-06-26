@@ -15,7 +15,6 @@ import (
 
 var (
 	ErrProductNotFound  = errors.New("product not found")
-	ErrCategoryNotFound = errors.New("category not found")
 	ErrSlugExists       = errors.New("slug already exists")
 )
 
@@ -341,7 +340,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	}
 
 	// ============================================================
-	// ПОДСЧЁТ ОБЩЕГО КОЛИЧЕСТВА (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+	// ПОДСЧЁТ ОБЩЕГО КОЛИЧЕСТВА 
 	// ============================================================
 
 	var countConditions []string

@@ -26,6 +26,7 @@ type CatalogService struct {
 	reviewRepo    *repository.ReviewRepository
 	autocompleteRepo  *repository.AutocompleteRepository
 	addressRepo       *repository.AddressRepository
+	categoryAdminRepo  *repository.CategoryAdminRepository
 	cfg          *config.Config
 	valkeyClient *redis.Client
 }
@@ -37,6 +38,7 @@ func NewCatalogService(
 	reviewRepo *repository.ReviewRepository,
 	autocompleteRepo *repository.AutocompleteRepository,
 	addressRepo *repository.AddressRepository,
+	categoryAdminRepo *repository.CategoryAdminRepository,
 	cfg *config.Config,
 	valkeyClient *redis.Client,
 ) *CatalogService {
@@ -47,6 +49,7 @@ func NewCatalogService(
 		reviewRepo:    reviewRepo,
 		autocompleteRepo:  autocompleteRepo,
 		addressRepo:       addressRepo,
+		categoryAdminRepo:  categoryAdminRepo,
 		cfg:          cfg,
 		valkeyClient: valkeyClient,
 	}
@@ -641,4 +644,76 @@ func (s *CatalogService) SetDefaultAddress(ctx context.Context, addressID, userI
 	}
 
 	return s.addressRepo.SetDefaultAddress(ctx, userID, addressID)
+}
+
+// ============================================================
+// АДМИН: УПРАВЛЕНИЕ КАТЕГОРИЯМИ
+// ============================================================
+
+// AdminCreateCategory — создаёт категорию (админ)
+func (s *CatalogService) AdminCreateCategory(ctx context.Context, req *models.CreateCategoryRequest) (*models.Category, error) {
+	category := &models.Category{
+		ID:          uuid.New(),
+		Name:        req.Name,
+		Slug:        req.Slug,
+		Description: req.Description,
+		ParentID:    req.ParentID,
+		ImageURL:    req.ImageURL,
+		SortOrder:   req.SortOrder,
+		CreatedAt:   time.Now(),
+	}
+
+	err := s.categoryAdminRepo.CreateCategory(ctx, category)
+	if err != nil {
+		return nil, err
+	}
+	return category, nil
+}
+
+// AdminGetAllCategories — получает все категории (админ)
+func (s *CatalogService) AdminGetAllCategories(ctx context.Context) ([]models.Category, error) {
+	return s.categoryAdminRepo.GetAllCategoriesAdmin(ctx)
+}
+
+// AdminGetCategoryByID — получает категорию по ID (админ)
+func (s *CatalogService) AdminGetCategoryByID(ctx context.Context, id uuid.UUID) (*models.Category, error) {
+	return s.categoryAdminRepo.GetCategoryByID(ctx, id)
+}
+
+// AdminUpdateCategory — обновляет категорию (админ)
+func (s *CatalogService) AdminUpdateCategory(ctx context.Context, id uuid.UUID, req *models.UpdateCategoryRequest) (*models.Category, error) {
+	category, err := s.categoryAdminRepo.GetCategoryByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Name != "" {
+		category.Name = req.Name
+	}
+	if req.Slug != "" {
+		category.Slug = req.Slug
+	}
+	if req.Description != "" {
+		category.Description = req.Description
+	}
+	if req.ParentID != nil {
+		category.ParentID = req.ParentID
+	}
+	if req.ImageURL != "" {
+		category.ImageURL = req.ImageURL
+	}
+	if req.SortOrder > 0 {
+		category.SortOrder = req.SortOrder
+	}
+
+	err = s.categoryAdminRepo.UpdateCategory(ctx, category)
+	if err != nil {
+		return nil, err
+	}
+	return category, nil
+}
+
+// AdminDeleteCategory — удаляет категорию (админ)
+func (s *CatalogService) AdminDeleteCategory(ctx context.Context, id uuid.UUID) error {
+	return s.categoryAdminRepo.DeleteCategory(ctx, id)
 }

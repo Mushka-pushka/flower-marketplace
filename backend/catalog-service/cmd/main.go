@@ -59,9 +59,10 @@ func main() {
 	reviewRepo := repository.NewReviewRepository(db)
 	autocompleteRepo := repository.NewAutocompleteRepository(db)
 	addressRepo := repository.NewAddressRepository(db)
+	categoryAdminRepo := repository.NewCategoryAdminRepository(db)
 
 	// ИНИЦИАЛИЗАЦИЯ СЕРВИСА
-	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, reviewRepo, autocompleteRepo, addressRepo, cfg, valkeyClient)
+	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, reviewRepo, autocompleteRepo, addressRepo, categoryAdminRepo, cfg, valkeyClient)
 	catalogHandler := handlers.NewCatalogHandler(catalogService)
 	
 
@@ -106,6 +107,13 @@ func main() {
     http.HandleFunc("PUT /api/v1/catalog/addresses", catalogHandler.UpdateAddress)       
     http.HandleFunc("DELETE /api/v1/catalog/addresses", catalogHandler.DeleteAddress)    
     http.HandleFunc("POST /api/v1/catalog/addresses/default", catalogHandler.SetDefaultAddress) 
+
+	// ----- АДМИН: КАТЕГОРИИ -----
+    http.HandleFunc("POST /api/v1/admin/categories", catalogHandler.AdminCreateCategory)
+    http.HandleFunc("GET /api/v1/admin/categories", catalogHandler.AdminGetAllCategories)
+    http.HandleFunc("GET /api/v1/admin/categories/id", catalogHandler.AdminGetCategoryByID) 
+    http.HandleFunc("PUT /api/v1/admin/categories", catalogHandler.AdminUpdateCategory)      
+    http.HandleFunc("DELETE /api/v1/admin/categories", catalogHandler.AdminDeleteCategory)   
 
 	// СЕРВЕР
 	server := &http.Server{

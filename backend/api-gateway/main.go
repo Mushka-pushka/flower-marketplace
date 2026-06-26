@@ -19,18 +19,21 @@ func main() {
 
 		// Определяем, куда перенаправить запрос
 		switch {
-		case strings.HasPrefix(r.URL.Path, "/api/v1/auth/"):
-			targetURL = authURL + r.URL.Path
-		case strings.HasPrefix(r.URL.Path, "/api/v1/catalog/"):
-			targetURL = catalogURL + r.URL.Path
-		case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
-			targetURL = orderURL + r.URL.Path
-		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/"):
-			targetURL = authURL + r.URL.Path
-		default:
-			http.Error(w, "Not found", http.StatusNotFound)
-			return
-		}
+            case strings.HasPrefix(r.URL.Path, "/api/v1/auth/"):
+                targetURL = authURL + r.URL.Path
+            case strings.HasPrefix(r.URL.Path, "/api/v1/admin/sellers") ||
+                strings.HasPrefix(r.URL.Path, "/api/v1/admin/users"):
+                targetURL = authURL + r.URL.Path
+            case strings.HasPrefix(r.URL.Path, "/api/v1/admin/categories"):
+                targetURL = catalogURL + r.URL.Path
+            case strings.HasPrefix(r.URL.Path, "/api/v1/catalog/"):
+                targetURL = catalogURL + r.URL.Path
+            case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
+                targetURL = orderURL + r.URL.Path
+            default:
+            http.Error(w, "Not found", http.StatusNotFound)
+            return
+        }
 
 		if r.URL.RawQuery != "" {
 			targetURL += "?" + r.URL.RawQuery
