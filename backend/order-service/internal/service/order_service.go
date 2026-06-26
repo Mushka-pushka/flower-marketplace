@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log" 
+	"log"
 	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/config"
@@ -20,13 +20,20 @@ type OrderService struct {
 	orderRepo *repository.OrderRepository
 	cfg       *config.Config
 	rabbitCh  *amqp.Channel
+	notifService *NotificationService
 }
 
-func NewOrderService(orderRepo *repository.OrderRepository, cfg *config.Config, rabbitCh *amqp.Channel) *OrderService {
+func NewOrderService(
+	orderRepo *repository.OrderRepository,
+	cfg *config.Config,
+	rabbitCh *amqp.Channel,
+	notifService *NotificationService, 
+) *OrderService {
 	return &OrderService{
-		orderRepo: orderRepo,
-		cfg:       cfg,
-		rabbitCh:  rabbitCh,
+		orderRepo:    orderRepo,
+		cfg:          cfg,
+		rabbitCh:     rabbitCh,
+		notifService: notifService,
 	}
 }
 
@@ -201,6 +208,21 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 	// ОТПРАВКА СОБЫТИЯ order.status_changed
 	go s.publishOrderStatusChanged(orderID, status)
 
+	// ОТПРАВКА EMAIL-УВЕДОМЛЕНИЯ
+	go func() {
+		// Временно используем заглушку
+		userEmail := "customer@example.com"
+		userName := "Клиент"
+		
+		s.notifService.PublishOrderEmail(
+			orderID.String(),
+			userEmail,
+			userName,
+			status,
+			"order_status_changed",
+		)
+	}()
+
 	return nil
 }
 
@@ -336,6 +358,21 @@ func (s *OrderService) UpdateOrderStatusBySeller(ctx context.Context, orderID, s
 
 	// Отправляем событие в RabbitMQ
 	go s.publishOrderStatusChanged(orderID, status)
+
+	// ОТПРАВКА EMAIL-УВЕДОМЛЕНИЯ
+	go func() {
+		// Получаем пользователя (пока заглушка, позже будет из БД)
+		userEmail := "customer@example.com"
+		userName := "Клиент"
+		
+		s.notifService.PublishOrderEmail(
+			orderID.String(),
+			userEmail,
+			userName,
+			status,
+			"order_status_changed",
+		)
+	}()
 
 	return nil
 }

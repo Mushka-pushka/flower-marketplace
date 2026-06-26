@@ -76,21 +76,38 @@ func main() {
 	}
 	log.Println("RabbitMQ queue declared")
 
-	// Инициализация
-	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo, cfg, rabbitCh)
-	orderHandler := handlers.NewOrderHandler(orderService)
-	analyticsRepo := repository.NewAnalyticsRepository(db)
+	// ИНИЦИАЛИЗАЦИЯ
+
+    // Репозитории
+    orderRepo := repository.NewOrderRepository(db)
+    analyticsRepo := repository.NewAnalyticsRepository(db)
+    notifRepo := repository.NewNotificationRepository(db)
+
+    // Сервисы
+    notifService := service.NewNotificationService(notifRepo, cfg, rabbitCh)
     analyticsService := service.NewAnalyticsService(analyticsRepo, cfg)
+    orderService := service.NewOrderService(orderRepo, cfg, rabbitCh, notifService)
+
+    // Хендлеры
+    orderHandler := handlers.NewOrderHandler(orderService)
     analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 
-	// Запуск воркера
-	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
-	go func() {
-		if err := orderWorker.Start(context.Background()); err != nil {
-			log.Printf("Worker error: %v", err)
-		}
-	}()
+    // Воркеры
+    notifWorker := worker.NewNotificationWorker(notifService, rabbitCh)
+    orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
+
+   // Запуск воркеров
+    go func() {
+        if err := orderWorker.Start(context.Background()); err != nil {
+            log.Printf("Order worker error: %v", err)
+        }
+    }()
+
+    go func() {
+        if err := notifWorker.Start(context.Background()); err != nil {
+            log.Printf("Notification worker error: %v", err)
+        }
+    }()
 
 	// РОУТЫ
 
