@@ -12,6 +12,7 @@ func main() {
 	authURL := "http://localhost:8081"
 	catalogURL := "http://localhost:8082"
 	orderURL := "http://localhost:8083"
+	paymentURL := "http://localhost:8084"
 
 	// Главный обработчик всех запросов
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +31,8 @@ func main() {
                 targetURL = catalogURL + r.URL.Path
             case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
                 targetURL = orderURL + r.URL.Path
+			case strings.HasPrefix(r.URL.Path, "/api/v1/payments"):
+                targetURL = paymentURL + r.URL.Path
             default:
             http.Error(w, "Not found", http.StatusNotFound)
             return
