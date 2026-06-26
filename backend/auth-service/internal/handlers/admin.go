@@ -7,6 +7,7 @@ import (
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
+    "github.com/google/uuid"
 )
 
 type AdminHandler struct {
@@ -106,4 +107,63 @@ func (h *AdminHandler) GetUsersList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, users)
+}
+
+// GetUsersListWithFilters — получение списка пользователей с фильтрацией
+func (h *AdminHandler) GetUsersListWithFilters(w http.ResponseWriter, r *http.Request) {
+	req := models.UsersListRequest{
+		Role:   r.URL.Query().Get("role"),
+		Search: r.URL.Query().Get("search"),
+	}
+
+	if v := r.URL.Query().Get("is_active"); v != "" {
+		b := v == "true"
+		req.IsActive = &b
+	}
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			req.Limit = val
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if val, err := strconv.Atoi(o); err == nil && val >= 0 {
+			req.Offset = val
+		}
+	}
+
+	resp, err := h.adminService.GetUsersListWithFilters(r.Context(), &req)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, resp)
+}
+
+// GetUserByIDForAdmin — получение детальной информации о пользователе
+func (h *AdminHandler) GetUserByIDForAdmin(w http.ResponseWriter, r *http.Request) {
+	userIDStr := r.URL.Query().Get("id")
+	if userIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	user, err := h.adminService.GetUserByIDForAdmin(r.Context(), userID)
+	if err != nil {
+		status := http.StatusNotFound
+		if err.Error() == "user not found" {
+			status = http.StatusNotFound
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, user)
 }

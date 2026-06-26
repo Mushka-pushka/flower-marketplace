@@ -85,8 +85,10 @@ func main() {
     http.HandleFunc("PUT /api/v1/admin/sellers/verify", adminHandler.VerifySeller)
     http.HandleFunc("PUT /api/v1/admin/users/status", adminHandler.UpdateUserStatus)
     http.HandleFunc("GET /api/v1/admin/users", adminHandler.GetUsersList)
+    http.HandleFunc("GET /api/v1/admin/users/list", adminHandler.GetUsersListWithFilters)
+    http.HandleFunc("GET /api/v1/admin/users/details", adminHandler.GetUserByIDForAdmin)
     // ---- SWAGGER ----
-http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
+    http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
     // Если запрос на doc.json
     if r.URL.Path == "/swagger/doc.json" {
         data, err := ioutil.ReadFile("./docs/swagger.json")

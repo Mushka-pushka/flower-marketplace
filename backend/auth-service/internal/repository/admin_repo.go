@@ -2,11 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type AdminRepository struct {
@@ -151,4 +154,169 @@ func (r *AdminRepository) GetUsersList(ctx context.Context, role string, isActiv
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+// GetUsersListWithFilters — получает список пользователей с фильтрацией и поиском
+func (r *AdminRepository) GetUsersListWithFilters(ctx context.Context, req *models.UsersListRequest) ([]models.UserDetails, int64, error) {
+	if req.Limit <= 0 {
+		req.Limit = 20
+	}
+	if req.Offset < 0 {
+		req.Offset = 0
+	}
+
+	query := `
+		SELECT 
+			u.id, u.email, u.phone, u.first_name, u.last_name, u.role, u.is_active, u.created_at, u.updated_at,
+			s.id as shop_id, s.name as shop_name, s.is_verified, s.rating
+		FROM users u
+		LEFT JOIN shops s ON s.seller_id = u.id
+		WHERE 1=1
+	`
+
+	countQuery := `SELECT COUNT(*) FROM users u WHERE 1=1`
+	args := []interface{}{}
+	countArgs := []interface{}{}
+	argIndex := 1
+	countArgIndex := 1
+
+	// Фильтр по роли
+	if req.Role != "" {
+		query += " AND u.role = $" + string(rune('0'+argIndex))
+		args = append(args, req.Role)
+		argIndex++
+		countQuery += " AND u.role = $" + string(rune('0'+countArgIndex))
+		countArgs = append(countArgs, req.Role)
+		countArgIndex++
+	}
+
+	// Поиск по email или имени
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		query += " AND (u.email ILIKE $" + string(rune('0'+argIndex)) + " OR u.first_name ILIKE $" + string(rune('0'+argIndex+1)) + " OR u.last_name ILIKE $" + string(rune('0'+argIndex+2)) + ")"
+		args = append(args, searchTerm, searchTerm, searchTerm)
+		argIndex += 3
+
+		countQuery += " AND (u.email ILIKE $" + string(rune('0'+countArgIndex)) + " OR u.first_name ILIKE $" + string(rune('0'+countArgIndex+1)) + " OR u.last_name ILIKE $" + string(rune('0'+countArgIndex+2)) + ")"
+		countArgs = append(countArgs, searchTerm, searchTerm, searchTerm)
+		countArgIndex += 3
+	}
+
+	// Фильтр по статусу
+	if req.IsActive != nil {
+		query += " AND u.is_active = $" + string(rune('0'+argIndex))
+		args = append(args, *req.IsActive)
+		argIndex++
+		countQuery += " AND u.is_active = $" + string(rune('0'+countArgIndex))
+		countArgs = append(countArgs, *req.IsActive)
+		countArgIndex++
+	}
+
+	query += " ORDER BY u.created_at DESC LIMIT $" + string(rune('0'+argIndex)) + " OFFSET $" + string(rune('0'+argIndex+1))
+	args = append(args, req.Limit, req.Offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var users []models.UserDetails
+	for rows.Next() {
+		var u models.UserDetails
+		var shopID *uuid.UUID
+		var shopName *string
+		var shopVerified *bool
+		var shopRating *float64
+
+		err := rows.Scan(
+			&u.ID,
+			&u.Email,
+			&u.Phone,
+			&u.FirstName,
+			&u.LastName,
+			&u.Role,
+			&u.IsActive,
+			&u.CreatedAt,
+			&u.UpdatedAt,
+			&shopID,
+			&shopName,
+			&shopVerified,
+			&shopRating,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if shopID != nil {
+			u.Shop = &models.ShopInfo{
+				ID:         *shopID,
+				Name:       *shopName,
+				IsVerified: *shopVerified,
+				Rating:     *shopRating,
+			}
+		}
+
+		users = append(users, u)
+	}
+
+	// Подсчёт общего количества
+	var total int64
+	err = r.db.QueryRow(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// GetUserByIDForAdmin — получает детальную информацию о пользователе для админа
+func (r *AdminRepository) GetUserByIDForAdmin(ctx context.Context, userID uuid.UUID) (*models.UserDetails, error) {
+	query := `
+		SELECT 
+			u.id, u.email, u.phone, u.first_name, u.last_name, u.role, u.is_active, u.created_at, u.updated_at,
+			s.id as shop_id, s.name as shop_name, s.is_verified, s.rating
+		FROM users u
+		LEFT JOIN shops s ON s.seller_id = u.id
+		WHERE u.id = $1
+	`
+
+	var u models.UserDetails
+	var shopID *uuid.UUID
+	var shopName *string
+	var shopVerified *bool
+	var shopRating *float64
+
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&u.ID,
+		&u.Email,
+		&u.Phone,
+		&u.FirstName,
+		&u.LastName,
+		&u.Role,
+		&u.IsActive,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&shopID,
+		&shopName,
+		&shopVerified,
+		&shopRating,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	if shopID != nil {
+		u.Shop = &models.ShopInfo{
+			ID:         *shopID,
+			Name:       *shopName,
+			IsVerified: *shopVerified,
+			Rating:     *shopRating,
+		}
+	}
+
+	return &u, nil
 }

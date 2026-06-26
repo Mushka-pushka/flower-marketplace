@@ -43,3 +43,24 @@ func (s *AdminService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, i
 func (s *AdminService) GetUsersList(ctx context.Context, role string, isActive *bool, limit, offset int) ([]models.User, error) {
 	return s.adminRepo.GetUsersList(ctx, role, isActive, limit, offset)
 }
+
+// GetUsersListWithFilters — получает список пользователей с фильтрацией
+func (s *AdminService) GetUsersListWithFilters(ctx context.Context, req *models.UsersListRequest) (*models.UsersListResponse, error) {
+	users, total, err := s.adminRepo.GetUsersListWithFilters(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.UsersListResponse{
+		Users:   users,
+		Total:   total,
+		Limit:   req.Limit,
+		Offset:  req.Offset,
+		HasMore: int64(req.Offset+req.Limit) < total,
+	}, nil
+}
+
+// GetUserByIDForAdmin — получает детальную информацию о пользователе
+func (s *AdminService) GetUserByIDForAdmin(ctx context.Context, userID uuid.UUID) (*models.UserDetails, error) {
+	return s.adminRepo.GetUserByIDForAdmin(ctx, userID)
+}

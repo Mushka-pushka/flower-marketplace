@@ -37,6 +37,47 @@ type UpdateUserStatusRequest struct {
 // UsersListRequest — запрос на получение списка пользователей
 type UsersListRequest struct {
 	Role     string `json:"role"`
+	Search   string `json:"search"` 
+	IsActive *bool  `json:"is_active"`
+	Limit    int    `json:"limit"`
+	Offset   int    `json:"offset"`
+}
+
+// UserDetails — детальная информация о пользователе
+type UserDetails struct {
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Role      string    `json:"role"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Shop      *ShopInfo `json:"shop,omitempty"`
+}
+
+// ShopInfo — информация о магазине (для продавцов)
+type ShopInfo struct {
+	ID         uuid.UUID `json:"id"`
+	Name       string    `json:"name"`
+	IsVerified bool      `json:"is_verified"`
+	Rating     float64   `json:"rating"`
+}
+
+// UsersListResponse — ответ со списком пользователей
+type UsersListResponse struct {
+	Users      []UserDetails `json:"users"`
+	Total      int64         `json:"total"`
+	Limit      int           `json:"limit"`
+	Offset     int           `json:"offset"`
+	HasMore    bool          `json:"has_more"`
+}
+
+// UsersListRequestFull — запрос на получение списка пользователей с поиском
+type UsersListRequestFull struct {
+	Role     string `json:"role"`
+	Search   string `json:"search"`
 	IsActive *bool  `json:"is_active"`
 	Limit    int    `json:"limit"`
 	Offset   int    `json:"offset"`
