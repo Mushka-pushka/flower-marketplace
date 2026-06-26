@@ -186,7 +186,15 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 		Comment:   comment,
 		CreatedAt: time.Now(),
 	}
-	return s.orderRepo.AddStatusHistory(ctx, history)
+	err = s.orderRepo.AddStatusHistory(ctx, history)
+	if err != nil {
+		return err
+	}
+
+	// ОТПРАВКА СОБЫТИЯ order.status_changed
+	go s.publishOrderStatusChanged(orderID, status)
+
+	return nil
 }
 
 // GetOrdersByCustomer — получение заказов покупателя
