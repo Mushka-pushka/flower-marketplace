@@ -28,3 +28,19 @@ export const createOrder = async (data: {
   const response = await client.post('/orders', data)
   return response.data
 }
+
+// Получение заказов пользователя
+export const getMyOrders = async (customerId: string): Promise<Order[]> => {
+  const response = await client.get('/orders/customer', { params: { customer_id: customerId } })
+  return response.data
+}
+
+// Получение деталей заказа
+export const getOrderDetails = async (orderId: string): Promise<{
+  order: Order
+  items: { product_id: string; name: string; quantity: number; price: number }[]
+  statuses: { status: string; changed_by: string; comment: string; created_at: string }[]
+}> => {
+  const response = await client.get('/orders', { params: { id: orderId } })
+  return response.data
+}

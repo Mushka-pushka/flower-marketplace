@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import OrdersPage from './OrdersPage'
 
 type TabType = 'orders' | 'favorites' | 'cart' | 'settings'
 
@@ -38,12 +39,7 @@ const ProfilePage = () => {
 
       {/* Контент вкладок */}
       <div className="bg-white rounded-lg shadow p-6">
-        {activeTab === 'orders' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">📦 Мои заказы</h2>
-            <p className="text-gray-500">Здесь будут ваши заказы</p>
-          </div>
-        )}
+        {activeTab === 'orders' && <OrdersPage />}
 
         {activeTab === 'favorites' && (
           <div>
