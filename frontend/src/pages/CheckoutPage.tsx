@@ -49,7 +49,6 @@ const CheckoutPage = () => {
     setPaymentStatus('processing')
 
     try {
-      // 1. Создаём заказ
       const orderData = {
         customer_id: '6b75b13b-2b7b-4df1-b700-b39ac0bc1d45',
         shop_id: '11111111-1111-1111-1111-111111111111',
@@ -67,7 +66,6 @@ const CheckoutPage = () => {
       const order = await createOrder(orderData)
       console.log('✅ Заказ создан:', order)
 
-      // 2. Создаём платёж
       const paymentData = {
         order_id: order.id,
         amount: totalPrice,
@@ -77,7 +75,6 @@ const CheckoutPage = () => {
       const payment = await createPayment(paymentData)
       console.log('💳 Платёж создан:', payment)
 
-      // 3. Ожидаем подтверждения платежа
       let attempts = 0
       const maxAttempts = 10
       let paymentCompleted = false
@@ -118,11 +115,11 @@ const CheckoutPage = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">📦 Оформление заказа</h1>
+    <div className="max-w-3xl mx-auto animate-fade-in-up">
+      <h1 className="text-4xl font-bold gradient-text mb-6">📦 Оформление заказа</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 bg-white rounded-lg shadow p-6">
+        <div className="md:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-pink-50/50">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -134,7 +131,7 @@ const CheckoutPage = () => {
                 value={form.address}
                 onChange={handleChange}
                 placeholder="г. Минск, ул. Независимости, д. 10, кв. 25"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                className="input-primary w-full px-4 py-2 rounded-lg"
                 required
               />
             </div>
@@ -150,7 +147,7 @@ const CheckoutPage = () => {
                   value={form.entrance}
                   onChange={handleChange}
                   placeholder="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  className="input-primary w-full px-4 py-2 rounded-lg"
                 />
               </div>
               <div>
@@ -163,7 +160,7 @@ const CheckoutPage = () => {
                   value={form.floor}
                   onChange={handleChange}
                   placeholder="5"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  className="input-primary w-full px-4 py-2 rounded-lg"
                 />
               </div>
               <div>
@@ -176,7 +173,7 @@ const CheckoutPage = () => {
                   value={form.intercom}
                   onChange={handleChange}
                   placeholder="25"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  className="input-primary w-full px-4 py-2 rounded-lg"
                 />
               </div>
             </div>
@@ -191,7 +188,7 @@ const CheckoutPage = () => {
                   name="deliveryDate"
                   value={form.deliveryDate}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  className="input-primary w-full px-4 py-2 rounded-lg"
                   required
                 />
               </div>
@@ -203,7 +200,7 @@ const CheckoutPage = () => {
                   name="deliveryTime"
                   value={form.deliveryTime}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  className="input-primary w-full px-4 py-2 rounded-lg"
                   required
                 >
                   <option value="">Выберите время</option>
@@ -224,7 +221,7 @@ const CheckoutPage = () => {
                 name="paymentMethod"
                 value={form.paymentMethod}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                className="input-primary w-full px-4 py-2 rounded-lg"
                 required
               >
                 <option value="card">Картой курьеру</option>
@@ -243,7 +240,7 @@ const CheckoutPage = () => {
                 onChange={handleChange}
                 placeholder="Позвоните за 15 минут до доставки"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                className="input-primary w-full px-4 py-2 rounded-lg"
               />
             </div>
 
@@ -256,7 +253,7 @@ const CheckoutPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition disabled:opacity-50"
+              className="btn-primary w-full py-3 rounded-full text-lg font-medium"
             >
               {loading ? 'Обработка...' : '✅ Оформить заказ'}
             </button>
@@ -264,7 +261,7 @@ const CheckoutPage = () => {
         </div>
 
         <div className="md:col-span-1">
-          <div className="bg-white rounded-lg shadow p-6 sticky top-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 sticky top-4 border border-pink-50/50">
             <h2 className="font-semibold text-gray-700 mb-4">🛒 Ваш заказ</h2>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {items.map((item) => (
@@ -274,7 +271,7 @@ const CheckoutPage = () => {
                 </div>
               ))}
             </div>
-            <div className="border-t pt-3 mt-3">
+            <div className="border-t pt-3 mt-3 border-pink-100">
               <div className="flex justify-between font-semibold text-lg">
                 <span>Итого</span>
                 <span className="text-pink-600">{totalPrice} BYN</span>

@@ -25,10 +25,10 @@ const Login = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded-lg shadow">
-      <h2 className="text-2xl font-bold text-center mb-6">Вход</h2>
+    <div className="max-w-md mx-auto mt-12 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-pink-50/50 animate-fade-in-up">
+      <h2 className="text-3xl font-bold gradient-text text-center mb-6">Вход</h2>
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded mb-4 text-sm">
+        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
           {error}
         </div>
       )}
@@ -39,7 +39,7 @@ const Login = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-400"
+            className="input-primary w-full px-4 py-2 rounded-lg"
             required
           />
         </div>
@@ -49,14 +49,14 @@ const Login = () => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-400"
+            className="input-primary w-full px-4 py-2 rounded-lg"
             required
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-pink-500 text-white py-2 rounded hover:bg-pink-600 transition disabled:opacity-50"
+          className="btn-primary w-full py-3 rounded-full text-lg font-medium"
         >
           {loading ? 'Вход...' : 'Войти'}
         </button>

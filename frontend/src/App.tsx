@@ -5,11 +5,11 @@ import Login from './components/auth/Login'
 import Register from './components/auth/Register'
 import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
-import { CartProvider } from './context/CartContext'
-import { useCart } from './context/CartContext'
 import CheckoutPage from './pages/CheckoutPage'
 import CheckoutSuccess from './pages/CheckoutSuccess'
+import { CartProvider } from './context/CartContext'
 import { FavoritesProvider } from './context/FavoritesContext'
+import { useCart } from './context/CartContext'
 import './index.css'
 
 function AppContent() {
@@ -17,26 +17,24 @@ function AppContent() {
   const { totalItems } = useCart()
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50">
+      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-pink-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="text-2xl font-bold text-pink-600">
+          <Link to="/" className="text-3xl font-bold gradient-text">
             🌸 Цветочный маркетплейс
           </Link>
-          <nav className="flex gap-6 items-center">
-            <Link to="/" className="text-gray-600 hover:text-pink-600">Главная</Link>
-            <Link to="/catalog" className="text-gray-600 hover:text-pink-600">Каталог</Link>
+          <nav className="flex gap-6 items-center text-gray-700">
+            <Link to="/" className="hover:text-pink-500 transition">Главная</Link>
+            <Link to="/catalog" className="hover:text-pink-500 transition">Каталог</Link>
             {!token ? (
               <>
-                <Link to="/login" className="text-gray-600 hover:text-pink-600">Вход</Link>
-                <Link to="/register" className="text-gray-600 hover:text-pink-600">Регистрация</Link>
+                <Link to="/login" className="hover:text-pink-500 transition">Вход</Link>
+                <Link to="/register" className="hover:text-pink-500 transition">Регистрация</Link>
               </>
             ) : (
               <>
-                <Link to="/profile" className="text-gray-600 hover:text-pink-600" title="Профиль">
-                  👤
-                </Link>
-                <Link to="/cart" className="relative text-gray-600 hover:text-pink-600" title="Корзина">
+                <Link to="/profile" className="hover:text-pink-500 transition text-xl" title="Профиль">👤</Link>
+                <Link to="/cart" className="relative hover:text-pink-500 transition text-xl" title="Корзина">
                   🛒
                   {totalItems > 0 && (
                     <span className="absolute -top-2 -right-3 bg-pink-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -49,7 +47,7 @@ function AppContent() {
                     localStorage.removeItem('access_token')
                     window.location.href = '/'
                   }}
-                  className="text-gray-600 hover:text-pink-600"
+                  className="hover:text-pink-500 transition"
                 >
                   Выйти
                 </button>
@@ -79,7 +77,7 @@ function App() {
   return (
     <BrowserRouter>
       <CartProvider>
-        <FavoritesProvider>  
+        <FavoritesProvider>
           <AppContent />
         </FavoritesProvider>
       </CartProvider>

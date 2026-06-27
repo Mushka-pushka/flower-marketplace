@@ -1,1 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
 @import "tailwindcss";
+
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  background: linear-gradient(145deg, #fdf6f0 0%, #fce4ec 50%, #f3e5f5 100%);
+  min-height: 100vh;
+  color: #1a1a2e;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', serif;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-secondary {
+  background: linear-gradient(135deg, #f06292, #ce93d8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  color: white;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(236, 64, 122, 0.3);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-outline-primary {
+  border: 2px solid #ec407a;
+  color: #ec407a;
+  background: transparent;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-outline-primary:hover {
+  background: linear-gradient(135deg, #ec407a, #ab47bc);
+  color: white;
+  border-color: transparent;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(236, 64, 122, 0.2);
+}
+
+.input-primary {
+  border: 2px solid #f3e5f5;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.input-primary:focus {
+  border-color: #ab47bc;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(171, 71, 188, 0.1);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 0.3s ease-in-out 2;
+}
+
+@media (max-width: 1024px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 15px;
+  }
+}

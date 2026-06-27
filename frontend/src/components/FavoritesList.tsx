@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom' 
 import { useFavorites } from '../context/FavoritesContext'
 import ProductModal from './ProductModal'
 
@@ -17,29 +18,36 @@ const FavoritesList = () => {
   }
 
   if (items.length === 0) {
-    return <p className="text-gray-500">У вас пока нет избранных товаров</p>
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-400 text-lg">💔 У вас пока нет избранных товаров</p>
+        <Link to="/catalog" className="text-pink-500 hover:underline mt-2 inline-block">
+          Перейти в каталог
+        </Link>
+      </div>
+    )
   }
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {items.map((item) => (
           <div
             key={item.id}
             onClick={() => openModal(item.product_id)}
-            className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition cursor-pointer flex flex-col"
+            className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-5 cursor-pointer flex flex-col card-hover border border-pink-50/50"
           >
-            <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-4xl text-gray-300">
+            <div className="aspect-square bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl flex items-center justify-center text-4xl">
               🌸
             </div>
-            <h3 className="font-semibold text-gray-800 mt-2 truncate">{item.name}</h3>
-            <p className="text-pink-600 font-bold text-lg">{item.price} BYN</p>
+            <h3 className="font-semibold text-gray-800 mt-3 truncate text-lg">{item.name}</h3>
+            <p className="text-pink-600 font-bold text-xl">{item.price} BYN</p>
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 removeFavorite(item.product_id)
               }}
-              className="mt-2 text-red-400 hover:text-red-600 text-sm self-start"
+              className="mt-3 text-gray-400 hover:text-red-500 text-sm self-start transition"
             >
               🗑️ Удалить
             </button>

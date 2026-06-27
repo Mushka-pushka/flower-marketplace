@@ -18,19 +18,19 @@ const ProfilePage = () => {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">👤 Личный кабинет</h1>
+    <div className="max-w-4xl mx-auto animate-fade-in-up">
+      <h1 className="text-4xl font-bold gradient-text mb-6">👤 Личный кабинет</h1>
 
       {/* Вкладки */}
-      <div className="flex gap-2 mb-6 border-b pb-2">
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-pink-100 pb-2">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as TabType)}
-            className={`px-4 py-2 rounded-lg transition ${
+            className={`px-5 py-2.5 rounded-full transition-all duration-300 font-medium ${
               activeTab === tab.id
-                ? 'bg-pink-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'btn-primary shadow-lg'
+                : 'text-gray-600 hover:bg-pink-50 hover:text-pink-600'
             }`}
           >
             {tab.label}
@@ -39,30 +39,30 @@ const ProfilePage = () => {
       </div>
 
       {/* Контент вкладок */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-pink-50/50">
         {activeTab === 'orders' && <OrdersPage />}
 
-        {activeTab === 'favorites' && (
-          <div>
-            <h2 className="text-xl font-semibold mb-4">❤️ Избранное</h2>
-            <FavoritesList />
-          </div>
-        )}
+        {activeTab === 'favorites' && <FavoritesList />}
 
         {activeTab === 'cart' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">🛒 Корзина</h2>
+            <h2 className="text-2xl font-semibold gradient-text mb-4">🛒 Корзина</h2>
             {items.length === 0 ? (
-              <p className="text-gray-500">Корзина пуста</p>
+              <p className="text-gray-400 text-lg">Корзина пуста</p>
             ) : (
-              <div>
+              <div className="space-y-2">
                 {items.map((item) => (
-                  <div key={item.id} className="flex justify-between py-2 border-b">
-                    <span>{item.name}</span>
-                    <span>{item.quantity} × {item.price} BYN</span>
+                  <div key={item.id} className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-700">{item.name}</span>
+                    <span className="text-pink-600 font-medium">
+                      {item.quantity} × {item.price} BYN
+                    </span>
                   </div>
                 ))}
-                <Link to="/cart" className="text-pink-500 hover:underline mt-4 inline-block">
+                <Link
+                  to="/cart"
+                  className="text-pink-500 hover:text-pink-700 font-medium mt-4 inline-block transition"
+                >
                   Перейти в корзину →
                 </Link>
               </div>
@@ -72,8 +72,8 @@ const ProfilePage = () => {
 
         {activeTab === 'settings' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">⚙️ Настройки профиля</h2>
-            <p className="text-gray-500">Здесь будут настройки пользователя</p>
+            <h2 className="text-2xl font-semibold gradient-text mb-4">⚙️ Настройки профиля</h2>
+            <p className="text-gray-400 text-lg">Здесь будут настройки пользователя</p>
           </div>
         )}
       </div>

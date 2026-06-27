@@ -31,7 +31,7 @@ const Catalog = () => {
         limit: 24,
       }
       const response = await searchProducts(params)
-      setProducts(response?.items || []) // <-- ЗАЩИТА ОТ null
+      setProducts(response?.items || [])
     } catch (err: any) {
       console.error('Ошибка загрузки товаров:', err)
       setError(err.response?.data?.error || 'Ошибка загрузки товаров')
@@ -82,9 +82,9 @@ const Catalog = () => {
   }
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold">🌺 Каталог цветов</h1>
+        <h1 className="text-4xl font-bold gradient-text">🌺 Каталог цветов</h1>
         <SearchBar onSearch={handleSearch} initialValue={filters.q} />
       </div>
 
@@ -109,14 +109,14 @@ const Catalog = () => {
             <div
               key={product.id}
               onClick={() => openModal(product.id)}
-              className="bg-white rounded-lg shadow hover:shadow-lg transition p-4 cursor-pointer h-full flex flex-col"
+              className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-5 cursor-pointer h-full flex flex-col card-hover border border-pink-50/50"
             >
-              <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400 text-4xl">
+              <div className="aspect-square bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl mb-3 flex items-center justify-center text-4xl">
                 🌸
               </div>
-              <h3 className="font-semibold text-gray-800 truncate">{product.name}</h3>
+              <h3 className="font-semibold text-gray-800 truncate text-lg">{product.name}</h3>
               <div className="flex items-baseline gap-0.5 mt-1">
-                <span className="text-pink-600 font-bold text-xl">{product.price}</span>
+                <span className="text-pink-600 font-bold text-2xl">{product.price}</span>
                 <span className="text-gray-500 text-sm font-medium">BYN</span>
               </div>
               {product.old_price && (
@@ -125,7 +125,7 @@ const Catalog = () => {
               {product.tags && product.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {product.tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">
+                    <span key={tag} className="bg-pink-50 text-pink-600 text-xs px-2 py-0.5 rounded-full">
                       {tag}
                     </span>
                   ))}
