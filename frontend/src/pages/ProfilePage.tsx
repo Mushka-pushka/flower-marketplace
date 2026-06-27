@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import OrdersPage from './OrdersPage'
+import FavoritesList from '../components/FavoritesList'
 
 type TabType = 'orders' | 'favorites' | 'cart' | 'settings'
 
@@ -44,7 +45,7 @@ const ProfilePage = () => {
         {activeTab === 'favorites' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">❤️ Избранное</h2>
-            <p className="text-gray-500">Здесь будут избранные товары</p>
+            <FavoritesList />
           </div>
         )}
 

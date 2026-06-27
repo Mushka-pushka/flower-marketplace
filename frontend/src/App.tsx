@@ -9,6 +9,7 @@ import { CartProvider } from './context/CartContext'
 import { useCart } from './context/CartContext'
 import CheckoutPage from './pages/CheckoutPage'
 import CheckoutSuccess from './pages/CheckoutSuccess'
+import { FavoritesProvider } from './context/FavoritesContext'
 import './index.css'
 
 function AppContent() {
@@ -78,7 +79,9 @@ function App() {
   return (
     <BrowserRouter>
       <CartProvider>
-        <AppContent />
+        <FavoritesProvider>  
+          <AppContent />
+        </FavoritesProvider>
       </CartProvider>
     </BrowserRouter>
   )

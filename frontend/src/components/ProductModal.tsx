@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getProductById } from '../api/catalog.api'
 import type { Product } from '../api/catalog.api'
 import { useCart } from '../context/CartContext'
+import { useFavorites } from '../context/FavoritesContext' // <-- ДОБАВИТЬ
 
 interface ProductModalProps {
   productId: string | null
@@ -15,6 +16,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
   const [showNotification, setShowNotification] = useState(false)
 
   const { addToCart } = useCart()
+  const { toggleFavorite, isFavorite } = useFavorites() // <-- ДОБАВИТЬ
 
   useEffect(() => {
     if (!productId) return
@@ -66,6 +68,16 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
     }
   }
 
+  const handleToggleFavorite = () => {
+    if (product) {
+      toggleFavorite({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      })
+    }
+  }
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
@@ -78,7 +90,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
         {/* Уведомление */}
         {showNotification && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
-            Товар добавлен в корзину!
+            ✅ Товар добавлен в корзину!
           </div>
         )}
 
@@ -134,12 +146,22 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
                   </div>
                 )}
 
-                <button
-                  onClick={handleAddToCart}
-                  className="mt-6 w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition text-lg font-medium"
-                >
-                  🛒 Добавить в корзину
-                </button>
+                {/* Кнопки: В корзину + В избранное */}
+                <div className="mt-6 space-y-3">
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition text-lg font-medium"
+                  >
+                    🛒 Добавить в корзину
+                  </button>
+
+                  <button
+                    onClick={handleToggleFavorite}
+                    className="w-full flex items-center justify-center gap-2 border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50 transition text-lg font-medium"
+                  >
+                    {isFavorite(product.id) ? '❤️ В избранном' : '🤍 В избранное'}
+                  </button>
+                </div>
 
                 <div className="mt-6 border-t pt-4">
                   <h4 className="font-semibold text-gray-700">⭐ Отзывы</h4>
