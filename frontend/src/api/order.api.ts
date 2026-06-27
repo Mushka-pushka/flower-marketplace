@@ -15,6 +15,33 @@ export interface Order {
   updated_at: string
 }
 
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  quantity: number
+  price: number
+  total: number
+  packaging: string
+  created_at: string
+}
+
+export interface OrderStatus {
+  id: string
+  order_id: string
+  status: string
+  changed_by: string
+  comment: string
+  created_at: string
+}
+
+export interface OrderDetails {
+  order: Order
+  items: OrderItem[]
+  statuses: OrderStatus[]
+}
+
+// Создание заказа
 export const createOrder = async (data: {
   customer_id: string
   shop_id: string
@@ -36,11 +63,7 @@ export const getMyOrders = async (customerId: string): Promise<Order[]> => {
 }
 
 // Получение деталей заказа
-export const getOrderDetails = async (orderId: string): Promise<{
-  order: Order
-  items: { product_id: string; name: string; quantity: number; price: number }[]
-  statuses: { status: string; changed_by: string; comment: string; created_at: string }[]
-}> => {
+export const getOrderDetails = async (orderId: string): Promise<OrderDetails> => {
   const response = await client.get('/orders', { params: { id: orderId } })
   return response.data
 }
