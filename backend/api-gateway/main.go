@@ -8,56 +8,61 @@ import (
 )
 
 func main() {
-	// Настройки сервисов
 	authURL := "http://localhost:8081"
 	catalogURL := "http://localhost:8082"
 	orderURL := "http://localhost:8083"
 	paymentURL := "http://localhost:8084"
 
-	// Главный обработчик всех запросов
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// CORS ЗАГОЛОВКИ
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Обработка preflight-запроса (OPTIONS)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		var targetURL string
 
-		// Определяем, куда перенаправить запрос
 		switch {
-            case strings.HasPrefix(r.URL.Path, "/api/v1/auth/"):
-                targetURL = authURL + r.URL.Path
-            case strings.HasPrefix(r.URL.Path, "/api/v1/admin/sellers") ||
-                strings.HasPrefix(r.URL.Path, "/api/v1/admin/users"):
-                targetURL = authURL + r.URL.Path
-            case strings.HasPrefix(r.URL.Path, "/api/v1/admin/categories"):
-                targetURL = catalogURL + r.URL.Path
-            case strings.HasPrefix(r.URL.Path, "/api/v1/catalog/"):
-                targetURL = catalogURL + r.URL.Path
-            case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
-                targetURL = orderURL + r.URL.Path
-			case strings.HasPrefix(r.URL.Path, "/api/v1/payments"):
-                targetURL = paymentURL + r.URL.Path
-			case strings.HasPrefix(r.URL.Path, "/api/v1/analytics/"):
-                targetURL = orderURL + r.URL.Path
-			case strings.HasPrefix(r.URL.Path, "/api/v1/admin/stats"):
-                targetURL = authURL + r.URL.Path
-            default:
-            http.Error(w, "Not found", http.StatusNotFound)
-            return
-        }
+		case strings.HasPrefix(r.URL.Path, "/api/v1/auth/"):
+			targetURL = authURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/sellers") ||
+			strings.HasPrefix(r.URL.Path, "/api/v1/admin/users"):
+			targetURL = authURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/stats"):
+			targetURL = authURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/categories"):
+			targetURL = catalogURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/catalog/"):
+			targetURL = catalogURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
+			targetURL = orderURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/payments"):
+			targetURL = paymentURL + r.URL.Path
+		case strings.HasPrefix(r.URL.Path, "/api/v1/analytics/"):
+			targetURL = orderURL + r.URL.Path
+		default:
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
 
 		if r.URL.RawQuery != "" {
 			targetURL += "?" + r.URL.RawQuery
 		}
 
-		// Создаём запрос к нужному сервису
 		proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// Копируем заголовки
 		proxyReq.Header = r.Header.Clone()
 		proxyReq.Header.Set("X-Forwarded-For", r.RemoteAddr)
 
-		// Выполняем запрос
 		client := &http.Client{}
 		resp, err := client.Do(proxyReq)
 		if err != nil {
@@ -66,7 +71,7 @@ func main() {
 		}
 		defer resp.Body.Close()
 
-		// Копируем ответ обратно клиенту
+		// Копируем заголовки и тело ответа
 		for key, values := range resp.Header {
 			for _, value := range values {
 				w.Header().Add(key, value)
@@ -80,5 +85,6 @@ func main() {
 	log.Println("Auth Service: http://localhost:8081")
 	log.Println("Catalog Service: http://localhost:8082")
 	log.Println("Order Service: http://localhost:8083")
+	log.Println("Payment Service: http://localhost:8084")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
