@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getProductById } from '../api/catalog.api'
 import type { Product } from '../api/catalog.api'
+import { useCart } from '../context/CartContext'
 
 interface ProductModalProps {
   productId: string | null
@@ -11,6 +12,9 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showNotification, setShowNotification] = useState(false)
+
+  const { addToCart } = useCart()
 
   useEffect(() => {
     if (!productId) return
@@ -39,7 +43,28 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
     return () => window.removeEventListener('keydown', handleEsc)
   }, [onClose])
 
+  // Авто-скрытие уведомления через 2 секунды
+  useEffect(() => {
+    if (showNotification) {
+      const timer = setTimeout(() => {
+        setShowNotification(false)
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [showNotification])
+
   if (!productId) return null
+
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+      })
+      setShowNotification(true)
+    }
+  }
 
   return (
     <div 
@@ -47,9 +72,16 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto relative"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Уведомление */}
+        {showNotification && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
+            Товар добавлен в корзину!
+          </div>
+        )}
+
         {/* Заголовок модалки */}
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="text-xl font-bold text-gray-800">Детали товара</h2>
@@ -102,7 +134,10 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
                   </div>
                 )}
 
-                <button className="mt-6 w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition text-lg font-medium">
+                <button
+                  onClick={handleAddToCart}
+                  className="mt-6 w-full bg-pink-500 text-white py-3 rounded-lg hover:bg-pink-600 transition text-lg font-medium"
+                >
                   🛒 Добавить в корзину
                 </button>
 
