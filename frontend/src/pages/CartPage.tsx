@@ -68,9 +68,12 @@ const CartPage = () => {
           >
             Очистить корзину
           </button>
-          <button className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition">
+          <Link
+            to="/checkout"
+            className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 transition"
+          >
             Оформить заказ
-          </button>
+          </Link>
         </div>
       </div>
     </div>

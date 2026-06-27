@@ -7,6 +7,8 @@ import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
 import { CartProvider } from './context/CartContext'
 import { useCart } from './context/CartContext'
+import CheckoutPage from './pages/CheckoutPage'
+import CheckoutSuccess from './pages/CheckoutSuccess'
 import './index.css'
 
 function AppContent() {
@@ -64,6 +66,8 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
         </Routes>
       </main>
     </div>
