@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { useAuth } from './AuthContext'
 
 interface FavoriteItem {
   id: string
@@ -17,26 +18,34 @@ interface FavoritesContextType {
   toggleFavorite: (product: { id: string; name: string; price: number }) => void
 }
 
-const FAVORITES_STORAGE_KEY = 'flower_favorites'
-
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined)
 
 export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
-  const [items, setItems] = useState<FavoriteItem[]>(() => {
-    const saved = localStorage.getItem(FAVORITES_STORAGE_KEY)
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {
-        return []
-      }
-    }
-    return []
-  })
+  const { user } = useAuth()
+  const [items, setItems] = useState<FavoriteItem[]>([])
+
+  const getStorageKey = () => {
+    return user ? `flower_favorites_${user.id}` : 'flower_favorites_guest'
+  }
 
   useEffect(() => {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(items))
-  }, [items])
+    const key = getStorageKey()
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      try {
+        setItems(JSON.parse(saved))
+      } catch {
+        setItems([])
+      }
+    } else {
+      setItems([])
+    }
+  }, [user])
+
+  useEffect(() => {
+    const key = getStorageKey()
+    localStorage.setItem(key, JSON.stringify(items))
+  }, [items, user])
 
   const addFavorite = (product: { id: string; name: string; price: number }) => {
     setItems((prev) => {

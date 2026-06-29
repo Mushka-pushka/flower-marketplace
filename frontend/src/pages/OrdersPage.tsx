@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  FaBox,
+  FaTimes,
+  FaShoppingBag,
+} from 'react-icons/fa'
 import { getMyOrders, getOrderDetails } from '../api/order.api'
 import type { Order, OrderDetails } from '../api/order.api'
 import OrderTimeline from '../components/OrderTimeline'
@@ -16,9 +21,11 @@ const OrdersPage = () => {
       try {
         setLoading(true)
         const data = await getMyOrders('6b75b13b-2b7b-4df1-b700-b39ac0bc1d45')
-        setOrders(data)
+        setOrders(Array.isArray(data) ? data : [])
       } catch (err: any) {
+        console.error('Ошибка загрузки заказов:', err)
         setError(err.response?.data?.error || 'Ошибка загрузки заказов')
+        setOrders([])
       } finally {
         setLoading(false)
       }
@@ -27,7 +34,6 @@ const OrdersPage = () => {
     fetchOrders()
   }, [])
 
-  // Блокировка скролла при открытой модалке
   useEffect(() => {
     if (isModalOpen) {
       document.body.style.overflow = 'hidden'
@@ -51,13 +57,13 @@ const OrdersPage = () => {
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: '⏳ Ожидает подтверждения',
-      confirmed: '✅ Подтверждён',
-      preparing: '🌸 Собирается',
-      packing: '📦 Упаковывается',
-      delivery: '🚚 В доставке',
-      delivered: '🎉 Доставлен',
-      cancelled: '❌ Отменён',
+      pending: 'Ожидает подтверждения',
+      confirmed: 'Подтверждён',
+      preparing: 'Собирается',
+      packing: 'Упаковывается',
+      delivery: 'В доставке',
+      delivered: 'Доставлен',
+      cancelled: 'Отменён',
     }
     return map[status] || status
   }
@@ -76,36 +82,42 @@ const OrdersPage = () => {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Загрузка заказов...</div>
+    return <div className="text-center py-8 text-gray-400">Загрузка заказов...</div>
   }
 
   if (error) {
     return <div className="text-center py-8 text-red-500">{error}</div>
   }
 
-  if (orders.length === 0) {
+  if (!orders || orders.length === 0) {
     return (
       <div>
-        <h2 className="text-2xl font-semibold gradient-text mb-4">📦 Мои заказы</h2>
-        <p className="text-gray-400 text-lg">У вас пока нет заказов</p>
+        <h2 className="text-2xl font-bold text-[#1C1C1C] mb-4 flex items-center gap-2">
+          <FaBox className="text-[#8A9A86]" />
+          Мои заказы
+        </h2>
+        <p className="text-gray-400 text-base">У вас пока нет заказов</p>
       </div>
     )
   }
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold gradient-text mb-4">📦 Мои заказы</h2>
-      <div className="space-y-4">
+      <h2 className="text-2xl font-bold text-[#1C1C1C] mb-4 flex items-center gap-2">
+        <FaBox className="text-[#8A9A86]" />
+        Мои заказы
+      </h2>
+      <div className="space-y-3">
         {orders.map((order) => (
           <div
             key={order.id}
             onClick={() => handleOrderClick(order.id)}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-5 cursor-pointer card-hover border border-pink-50/50"
+            className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 p-4 cursor-pointer border border-gray-100"
           >
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-gray-500">Заказ #{order.id.slice(0, 8)}</p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-400">Заказ #{order.id.slice(0, 8)}</p>
+                <p className="text-sm text-gray-400">
                   {new Date(order.created_at).toLocaleDateString('ru-RU', {
                     day: '2-digit',
                     month: '2-digit',
@@ -114,17 +126,16 @@ const OrdersPage = () => {
                 </p>
               </div>
               <div className="text-right">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(order.current_status)}`}>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.current_status)}`}>
                   {getStatusLabel(order.current_status)}
                 </span>
-                <p className="text-lg font-bold text-pink-600 mt-1">{order.total_amount} BYN</p>
+                <p className="text-lg font-bold text-[#8A9A86] mt-1">{order.total_amount} BYN</p>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Модальное окно с деталями заказа через createPortal */}
       {isModalOpen &&
         selectedOrder &&
         createPortal(
@@ -133,30 +144,30 @@ const OrdersPage = () => {
             onClick={() => setIsModalOpen(false)}
           >
             <div
-              className="bg-white/90 backdrop-blur-md rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-pink-50/50 animate-fade-in-up"
+              className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-[0_8px_40px_rgba(0,0,0,0.08)] border border-gray-100 animate-fade-in-up"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Заголовок — теперь НЕ sticky, скроллится вместе с содержимым */}
-              <div className="flex justify-between items-center mb-4 pb-3 border-b border-pink-100">
-                <h2 className="text-2xl font-bold gradient-text">
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                <h2 className="text-xl font-bold text-[#1C1C1C] flex items-center gap-2">
+                  <FaShoppingBag className="text-[#8A9A86]" />
                   Заказ #{selectedOrder.order.id.slice(0, 8)}
                 </h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 text-4xl leading-none transition flex-shrink-0"
+                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none transition flex-shrink-0"
                 >
-                  ×
+                  <FaTimes />
                 </button>
               </div>
 
               <div className="mb-4">
-                <p className="text-sm text-gray-500">
-                  Сумма: <span className="font-bold text-pink-600">{selectedOrder.order.total_amount} BYN</span>
+                <p className="text-sm text-gray-400">
+                  Сумма: <span className="font-bold text-[#8A9A86]">{selectedOrder.order.total_amount} BYN</span>
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-400">
                   Статус:{' '}
                   <span
-                    className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
+                    className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
                       selectedOrder.order.current_status
                     )}`}
                   >
@@ -165,23 +176,23 @@ const OrdersPage = () => {
                 </p>
               </div>
 
-              <div className="border-t border-pink-100 pt-4">
-                <h3 className="font-semibold text-gray-700 mb-3">📜 История статусов</h3>
+              <div className="border-t border-gray-100 pt-4">
+                <h3 className="font-semibold text-[#1C1C1C] mb-3">История статусов</h3>
                 <OrderTimeline statuses={selectedOrder.statuses} />
               </div>
 
-              <div className="border-t border-pink-100 pt-4 mt-4">
-                <h3 className="font-semibold text-gray-700 mb-2">🛍️ Товары</h3>
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <h3 className="font-semibold text-[#1C1C1C] mb-2">Товары</h3>
                 <div className="space-y-2">
                   {selectedOrder.items.map((item) => (
                     <div
                       key={item.id}
                       className="flex justify-between text-sm border-b border-gray-100 pb-2 last:border-0"
                     >
-                      <span className="text-gray-600">
+                      <span className="text-gray-400">
                         {item.quantity} × {item.price} BYN
                       </span>
-                      <span className="text-gray-800 font-medium">{item.total} BYN</span>
+                      <span className="text-[#1C1C1C] font-medium">{item.total} BYN</span>
                     </div>
                   ))}
                 </div>

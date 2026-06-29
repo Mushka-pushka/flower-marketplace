@@ -1,0 +1,15 @@
+import { FaFolderOpen } from 'react-icons/fa'
+
+const AdminCategoriesPage = () => {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-[#1C1C1C] mb-2 flex items-center gap-2">
+        <FaFolderOpen className="text-[#8A9A86]" />
+        Управление категориями
+      </h2>
+      <p className="text-gray-400 text-base">Добавление, редактирование, удаление категорий</p>
+    </div>
+  )
+}
+
+export default AdminCategoriesPage

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { FaUserPlus } from 'react-icons/fa'
 import { register } from '../../api/auth.api'
 
 const Register = () => {
@@ -35,75 +36,78 @@ const Register = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-12 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-pink-50/50 animate-fade-in-up">
-      <h2 className="text-3xl font-bold gradient-text text-center mb-6">Регистрация</h2>
+    <div className="max-w-md mx-auto mt-16 bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-8 animate-fade-in-up border border-gray-100">
+      <h2 className="text-3xl font-bold text-[#1C1C1C] text-center mb-2">Регистрация</h2>
+      <p className="text-center text-gray-400 text-sm mb-6">Создайте новый аккаунт</p>
+
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+        <div className="bg-red-50 text-red-500 p-3 rounded-lg mb-4 text-sm">
           {error}
         </div>
       )}
+
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-medium mb-1">Имя</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Имя</label>
           <input
             type="text"
             name="first_name"
             value={form.first_name}
             onChange={handleChange}
-            className="input-primary w-full px-4 py-2 rounded-lg"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-medium mb-1">Фамилия</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Фамилия</label>
           <input
             type="text"
             name="last_name"
             value={form.last_name}
             onChange={handleChange}
-            className="input-primary w-full px-4 py-2 rounded-lg"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-medium mb-1">Email</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Email</label>
           <input
             type="email"
             name="email"
             value={form.email}
             onChange={handleChange}
-            className="input-primary w-full px-4 py-2 rounded-lg"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-medium mb-1">Пароль</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Пароль</label>
           <input
             type="password"
             name="password"
             value={form.password}
             onChange={handleChange}
-            className="input-primary w-full px-4 py-2 rounded-lg"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-medium mb-1">Телефон</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Телефон</label>
           <input
             type="text"
             name="phone"
             value={form.phone}
             onChange={handleChange}
-            className="input-primary w-full px-4 py-2 rounded-lg"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
           />
         </div>
         <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-medium mb-1">Роль</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Роль</label>
           <select
             name="role"
             value={form.role}
             onChange={handleChange}
-            className="input-primary w-full px-4 py-2 rounded-lg"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition bg-white"
           >
             <option value="customer">Покупатель</option>
             <option value="seller">Продавец</option>
@@ -112,13 +116,18 @@ const Register = () => {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary w-full py-3 rounded-full text-lg font-medium"
+          className="w-full bg-[#8A9A86] text-white py-3 rounded-xl hover:bg-[#7A8A76] transition flex items-center justify-center gap-2 text-base font-medium"
         >
+          <FaUserPlus />
           {loading ? 'Регистрация...' : 'Зарегистрироваться'}
         </button>
       </form>
-      <p className="text-center text-sm text-gray-500 mt-4">
-        Уже есть аккаунт? <Link to="/login" className="text-pink-500 hover:underline">Войти</Link>
+
+      <p className="text-center text-sm text-gray-400 mt-4">
+        Уже есть аккаунт?{' '}
+        <Link to="/login" className="text-[#8A9A86] hover:underline font-medium">
+          Войти
+        </Link>
       </p>
     </div>
   )

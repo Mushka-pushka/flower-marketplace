@@ -35,12 +35,13 @@ export const register = async (data: RegisterRequest): Promise<User> => {
   return response.data
 }
 
-// Вход
+// Вход (с сохранением пользователя в localStorage)
 export const login = async (email: string, password: string): Promise<LoginResponse> => {
   const response = await client.post('/auth/login', { email, password })
   if (response.data.access_token) {
     localStorage.setItem('access_token', response.data.access_token)
     localStorage.setItem('refresh_token', response.data.refresh_token)
+    localStorage.setItem('user', JSON.stringify(response.data.user)) 
   }
   return response.data
 }
@@ -49,6 +50,7 @@ export const login = async (email: string, password: string): Promise<LoginRespo
 export const logout = () => {
   localStorage.removeItem('access_token')
   localStorage.removeItem('refresh_token')
+  localStorage.removeItem('user') 
 }
 
 // Получение профиля

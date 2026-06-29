@@ -1,3 +1,13 @@
+import {
+  FaBox,
+  FaCheckCircle,
+  FaLeaf,
+  FaBoxOpen,
+  FaTruck,
+  FaGift,
+  FaTimesCircle,
+} from 'react-icons/fa'
+
 interface StatusHistory {
   id: string
   status: string
@@ -25,16 +35,16 @@ const OrderTimeline = ({ statuses }: OrderTimelineProps) => {
   }
 
   const getStatusIcon = (status: string) => {
-    const map: Record<string, string> = {
-      pending: '📦',
-      confirmed: '✅',
-      preparing: '🌸',
-      packing: '📦',
-      delivery: '🚚',
-      delivered: '🎉',
-      cancelled: '❌',
+    const map: Record<string, React.ReactNode> = {
+      pending: <FaBox className="text-yellow-500" />,
+      confirmed: <FaCheckCircle className="text-blue-500" />,
+      preparing: <FaLeaf className="text-purple-500" />,
+      packing: <FaBoxOpen className="text-indigo-500" />,
+      delivery: <FaTruck className="text-orange-500" />,
+      delivered: <FaGift className="text-green-500" />,
+      cancelled: <FaTimesCircle className="text-red-500" />,
     }
-    return map[status] || '📌'
+    return map[status] || <FaBox className="text-gray-500" />
   }
 
   const getStatusColor = (status: string) => {
@@ -56,22 +66,19 @@ const OrderTimeline = ({ statuses }: OrderTimelineProps) => {
 
   return (
     <div className="relative pl-8">
-      {/* Вертикальная линия */}
-      <div className="absolute left-3 top-2 bottom-0 w-0.5 bg-gradient-to-b from-pink-300 via-purple-300 to-pink-300" />
+      <div className="absolute left-3 top-2 bottom-0 w-0.5 bg-gray-200" />
 
       {sorted.map((item, index) => (
         <div key={item.id} className={`relative mb-6 last:mb-0 ${index === 0 ? 'pt-0' : 'pt-4'}`}>
-          {/* Точка на линии */}
           <div className={`absolute -left-[22px] w-5 h-5 rounded-full border-2 shadow-sm flex items-center justify-center ${getStatusColor(item.status)} z-10`}>
             <span className="text-[10px]">{getStatusIcon(item.status)}</span>
           </div>
 
           <div className="ml-4">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{getStatusIcon(item.status)}</span>
-              <span className="font-semibold text-gray-800">{getStatusLabel(item.status)}</span>
+              <span className="font-semibold text-[#1C1C1C]">{getStatusLabel(item.status)}</span>
             </div>
-            <div className="text-sm text-gray-500 mt-0.5">
+            <div className="text-sm text-gray-400 mt-0.5">
               {new Date(item.created_at).toLocaleString('ru-RU', {
                 day: '2-digit',
                 month: '2-digit',
@@ -79,8 +86,8 @@ const OrderTimeline = ({ statuses }: OrderTimelineProps) => {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
-              {item.changed_by === 'seller' && ' ✍️ продавец'}
-              {item.changed_by === 'system' && ' ⚙️ система'}
+              {item.changed_by === 'seller' && ' продавец'}
+              {item.changed_by === 'system' && ' система'}
             </div>
             {item.comment && (
               <div className="text-sm text-gray-400 mt-0.5 italic bg-gray-50 px-3 py-1 rounded-full inline-block">

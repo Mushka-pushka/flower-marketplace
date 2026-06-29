@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { useAuth } from './AuthContext'
 
 interface CartItem {
   id: string
@@ -20,29 +21,36 @@ interface CartContextType {
   totalPrice: number
 }
 
-// Ключ для хранения в localStorage
-const CART_STORAGE_KEY = 'flower_cart'
-
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
-  // Загружаем корзину из localStorage при инициализации
-  const [items, setItems] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem(CART_STORAGE_KEY)
+  const { user } = useAuth()
+  const [items, setItems] = useState<CartItem[]>([])
+
+  const getStorageKey = () => {
+    return user ? `flower_cart_${user.id}` : 'flower_cart_guest'
+  }
+
+  // Загрузка корзины при смене пользователя
+  useEffect(() => {
+    const key = getStorageKey()
+    const saved = localStorage.getItem(key)
     if (saved) {
       try {
-        return JSON.parse(saved)
+        setItems(JSON.parse(saved))
       } catch {
-        return []
+        setItems([])
       }
+    } else {
+      setItems([])
     }
-    return []
-  })
+  }, [user])
 
-  // Сохраняем корзину в localStorage при каждом изменении
+  // Сохранение корзины при изменении
   useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
-  }, [items])
+    const key = getStorageKey()
+    localStorage.setItem(key, JSON.stringify(items))
+  }, [items, user])
 
   const addToCart = (product: { id: string; name: string; price: number }) => {
     setItems((prev) => {

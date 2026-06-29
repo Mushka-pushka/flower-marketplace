@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { FaLeaf } from 'react-icons/fa'
 import { searchProducts } from '../api/catalog.api'
 import type { Product } from '../api/catalog.api'
 import ProductModal from '../components/ProductModal'
@@ -74,7 +75,7 @@ const Catalog = () => {
   }
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">Загрузка...</div>
+    return <div className="text-center py-12 text-gray-400">Загрузка...</div>
   }
 
   if (error) {
@@ -84,7 +85,7 @@ const Catalog = () => {
   return (
     <div className="animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-4xl font-bold gradient-text">🌺 Каталог цветов</h1>
+        <h1 className="text-3xl font-bold text-[#1C1C1C]">Каталог цветов</h1>
         <SearchBar onSearch={handleSearch} initialValue={filters.q} />
       </div>
 
@@ -100,24 +101,24 @@ const Catalog = () => {
 
       {products.length === 0 ? (
         <div className="text-center py-12 mt-6">
-          <p className="text-gray-500 text-lg">🌸 Товаров не найдено</p>
+          <p className="text-gray-400 text-lg">Товаров не найдено</p>
           <p className="text-gray-400 text-sm mt-2">Попробуйте изменить параметры фильтра</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-6">
           {products.map((product) => (
             <div
               key={product.id}
               onClick={() => openModal(product.id)}
-              className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 p-5 cursor-pointer h-full flex flex-col card-hover border border-pink-50/50"
+              className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 p-5 cursor-pointer h-full flex flex-col border border-gray-100"
             >
-              <div className="aspect-square bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl mb-3 flex items-center justify-center text-4xl">
-                🌸
+              <div className="aspect-square bg-gray-50 rounded-xl mb-3 flex items-center justify-center text-4xl overflow-hidden">
+                <FaLeaf className="text-gray-300 text-5xl" />
               </div>
-              <h3 className="font-semibold text-gray-800 truncate text-lg">{product.name}</h3>
+              <h3 className="font-semibold text-[#1C1C1C] truncate text-base">{product.name}</h3>
               <div className="flex items-baseline gap-0.5 mt-1">
-                <span className="text-pink-600 font-bold text-2xl">{product.price}</span>
-                <span className="text-gray-500 text-sm font-medium">BYN</span>
+                <span className="text-[#8A9A86] font-bold text-xl">{product.price}</span>
+                <span className="text-gray-400 text-sm font-medium">BYN</span>
               </div>
               {product.old_price && (
                 <p className="text-gray-400 text-sm line-through">{product.old_price} BYN</p>
@@ -125,7 +126,7 @@ const Catalog = () => {
               {product.tags && product.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {product.tags.slice(0, 3).map((tag) => (
-                    <span key={tag} className="bg-pink-50 text-pink-600 text-xs px-2 py-0.5 rounded-full">
+                    <span key={tag} className="bg-gray-50 text-[#1C1C1C] text-xs px-2 py-0.5 rounded-full border border-gray-200">
                       {tag}
                     </span>
                   ))}
