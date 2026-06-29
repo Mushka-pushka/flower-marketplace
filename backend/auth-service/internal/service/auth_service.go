@@ -226,3 +226,23 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, req 
 
 	return s.userRepo.UpdatePassword(ctx, userID, string(newHash))
 }
+
+// ValidateTokenAndGetUserID — проверяет JWT и возвращает user_id
+func (s *AuthService) ValidateTokenAndGetUserID(tokenString string) (uuid.UUID, error) {
+	claims, err := s.ValidateToken(tokenString)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	userIDStr, ok := claims["sub"].(string)
+	if !ok {
+		return uuid.Nil, errors.New("invalid token: missing subject")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	return userID, nil
+}

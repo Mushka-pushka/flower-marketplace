@@ -8,8 +8,10 @@ import {
 import { getMyOrders, getOrderDetails } from '../api/order.api'
 import type { Order, OrderDetails } from '../api/order.api'
 import OrderTimeline from '../components/OrderTimeline'
+import { useAuth } from '../context/AuthContext'
 
 const OrdersPage = () => {
+  const { user } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,9 +20,14 @@ const OrdersPage = () => {
 
   useEffect(() => {
     const fetchOrders = async () => {
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
-        const data = await getMyOrders('6b75b13b-2b7b-4df1-b700-b39ac0bc1d45')
+        const data = await getMyOrders(user.id)
         setOrders(Array.isArray(data) ? data : [])
       } catch (err: any) {
         console.error('Ошибка загрузки заказов:', err)
@@ -32,7 +39,7 @@ const OrdersPage = () => {
     }
 
     fetchOrders()
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (isModalOpen) {

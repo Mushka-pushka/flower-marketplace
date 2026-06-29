@@ -8,12 +8,13 @@ interface CartItem {
   name: string
   price: number
   quantity: number
+  shop_id: string  
   image?: string
 }
 
 interface CartContextType {
   items: CartItem[]
-  addToCart: (product: { id: string; name: string; price: number }) => void
+  addToCart: (product: { id: string; name: string; price: number; shop_id: string }) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -31,7 +32,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return user ? `flower_cart_${user.id}` : 'flower_cart_guest'
   }
 
-  // Загрузка корзины при смене пользователя
   useEffect(() => {
     const key = getStorageKey()
     const saved = localStorage.getItem(key)
@@ -46,13 +46,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user])
 
-  // Сохранение корзины при изменении
   useEffect(() => {
     const key = getStorageKey()
     localStorage.setItem(key, JSON.stringify(items))
   }, [items, user])
 
-  const addToCart = (product: { id: string; name: string; price: number }) => {
+  const addToCart = (product: { id: string; name: string; price: number; shop_id: string }) => {
     setItems((prev) => {
       const existing = prev.find((item) => item.product_id === product.id)
       if (existing) {
@@ -69,6 +68,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           product_id: product.id,
           name: product.name,
           price: product.price,
+          shop_id: product.shop_id, 
           quantity: 1,
         },
       ]

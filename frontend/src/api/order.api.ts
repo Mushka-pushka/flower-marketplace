@@ -67,3 +67,13 @@ export const getOrderDetails = async (orderId: string): Promise<OrderDetails> =>
   const response = await client.get('/orders', { params: { id: orderId } })
   return response.data
 }
+
+// Проверка, может ли пользователь оставить отзыв на товар
+export const canReviewProduct = async (productId: string): Promise<boolean> => {
+  try {
+    const response = await client.get('/orders/can-review', { params: { product_id: productId } })
+    return response.data.can_review
+  } catch {
+    return false
+  }
+}

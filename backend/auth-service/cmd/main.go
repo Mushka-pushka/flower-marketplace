@@ -83,6 +83,7 @@ func main() {
 	http.HandleFunc("GET /api/v1/auth/me", authMiddleware.JWT(authHandler.Me))
 	http.HandleFunc("PUT /api/v1/auth/profile", authHandler.UpdateProfile)
     http.HandleFunc("PUT /api/v1/auth/password", authHandler.ChangePassword)
+	http.HandleFunc("POST /api/v1/auth/validate", authHandler.ValidateToken)
 	// ----- АДМИНИСТРИРОВАНИЕ -----
     http.HandleFunc("GET /api/v1/admin/sellers", adminHandler.GetSellers)
     http.HandleFunc("PUT /api/v1/admin/sellers/verify", adminHandler.VerifySeller)

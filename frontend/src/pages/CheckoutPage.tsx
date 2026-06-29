@@ -1,21 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FaShoppingCart,
-  FaCreditCard,
-  FaMoneyBillWave,
-  FaWallet,
+  FaExclamationCircle,
 } from 'react-icons/fa'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { createOrder } from '../api/order.api'
 import { createPayment, getPaymentStatus } from '../api/payment.api'
+import { createAddress } from '../api/catalog.api'
 
 const CheckoutPage = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { items, totalPrice, clearCart } = useCart()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle')
+  const [shopId, setShopId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     address: '',
@@ -28,24 +30,60 @@ const CheckoutPage = () => {
     paymentMethod: 'card',
   })
 
+  useEffect(() => {
+    if (items.length === 0) return
+    const firstItemShopId = items[0]?.shop_id
+    if (!firstItemShopId) return
+    const allSameShop = items.every(item => item.shop_id === firstItemShopId)
+    if (!allSameShop) {
+      setError('Все товары в корзине должны быть из одного магазина')
+      setShopId(null)
+      return
+    }
+    setShopId(firstItemShopId)
+    setError('')
+  }, [items])
+
   if (items.length === 0) {
     return (
       <div className="text-center py-16">
         <FaShoppingCart className="text-5xl text-gray-300 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-[#1C1C1C] mb-2">Корзина пуста</h2>
-        <button
-          onClick={() => navigate('/catalog')}
-          className="text-[#8A9A86] hover:underline font-medium inline-block"
-        >
+        <button onClick={() => navigate('/catalog')} className="text-[#8A9A86] hover:underline font-medium inline-block">
           Перейти в каталог
         </button>
       </div>
     )
   }
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
+  if (!user) {
+    return (
+      <div className="text-center py-16">
+        <FaExclamationCircle className="text-5xl text-amber-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-[#1C1C1C] mb-2">Войдите в аккаунт</h2>
+        <p className="text-gray-400 mb-4">Чтобы оформить заказ, войдите в свой аккаунт</p>
+        <button onClick={() => navigate('/login')} className="text-[#8A9A86] hover:underline font-medium inline-block">
+          Войти
+        </button>
+      </div>
+    )
+  }
+
+  // ЕСЛИ shopId === null — ПОКАЗЫВАЕМ ОШИБКУ
+  if (!shopId) {
+    return (
+      <div className="text-center py-16">
+        <FaExclamationCircle className="text-5xl text-amber-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-[#1C1C1C] mb-2">Не удалось определить магазин</h2>
+        <p className="text-gray-400 mb-4">Попробуйте добавить товары заново</p>
+        <button onClick={() => navigate('/catalog')} className="text-[#8A9A86] hover:underline font-medium inline-block">
+          Перейти в каталог
+        </button>
+      </div>
+    )
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
@@ -56,11 +94,35 @@ const CheckoutPage = () => {
     setPaymentStatus('processing')
 
     try {
+      const customerId = user.id
+
+      const paymentTypeMap: Record<string, number> = {
+        card: 1,
+        cash: 2,
+        online: 3,
+      }
+
+      // 1. Создаём адрес доставки
+      const addressData = {
+        user_id: user.id,
+        name: 'Доставка',
+        address: form.address,
+        entrance: form.entrance,
+        floor: form.floor,
+        intercom: form.intercom,
+        comment: form.comment,
+        is_default: false,
+      }
+
+      const address = await createAddress(addressData)
+      console.log('Адрес создан:', address)
+
+      // 2. Создаём заказ (shopId уже точно string, потому что прошли проверку)
       const orderData = {
-        customer_id: '6b75b13b-2b7b-4df1-b700-b39ac0bc1d45',
-        shop_id: '11111111-1111-1111-1111-111111111111',
-        delivery_address_id: '11111111-1111-1111-1111-111111111111',
-        payment_type_id: form.paymentMethod === 'card' ? 1 : form.paymentMethod === 'cash' ? 2 : 3,
+        customer_id: customerId,
+        shop_id: shopId, // <-- ТЕПЕРЬ ТОЧНО string
+        delivery_address_id: address.id,
+        payment_type_id: paymentTypeMap[form.paymentMethod] || 1,
         delivery_date: form.deliveryDate,
         delivery_time: form.deliveryTime,
         comment: form.comment,
@@ -73,6 +135,7 @@ const CheckoutPage = () => {
       const order = await createOrder(orderData)
       console.log('Заказ создан:', order)
 
+      // 3. Создаём платёж
       const paymentData = {
         order_id: order.id,
         amount: totalPrice,
@@ -82,6 +145,7 @@ const CheckoutPage = () => {
       const payment = await createPayment(paymentData)
       console.log('Платёж создан:', payment)
 
+      // 4. Ожидаем оплату
       let attempts = 0
       const maxAttempts = 10
       let paymentCompleted = false
@@ -234,15 +298,9 @@ const CheckoutPage = () => {
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition bg-white text-[#1C1C1C]"
                 required
               >
-                <option value="card">
-                  <FaCreditCard /> Картой курьеру
-                </option>
-                <option value="cash">
-                  <FaMoneyBillWave /> Наличными курьеру
-                </option>
-                <option value="online">
-                  <FaWallet /> Онлайн на сайте
-                </option>
+                <option value="card">Картой курьеру</option>
+                <option value="cash">Наличными курьеру</option>
+                <option value="online">Онлайн на сайте</option>
               </select>
             </div>
 

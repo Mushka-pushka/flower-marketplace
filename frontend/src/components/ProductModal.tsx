@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import Reviews from './Reviews'
 import {
   FaTimes,
   FaShoppingCart,
@@ -101,6 +102,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
         id: product.id,
         name: product.name,
         price: product.price,
+        shop_id: product.shop_id,
       })
       setIsInCart(true)
       setShowNotification(true)
@@ -244,8 +246,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
                 </div>
 
                 <div className="mt-6 border-t border-gray-100 pt-4">
-                  <h4 className="font-semibold text-[#1C1C1C]">⭐ Отзывы</h4>
-                  <p className="text-gray-400 text-sm">Отзывы появятся позже</p>
+                  <Reviews productId={product.id} />
                 </div>
               </div>
             </div>

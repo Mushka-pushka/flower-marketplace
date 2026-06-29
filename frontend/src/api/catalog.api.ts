@@ -75,3 +75,45 @@ export const getAutocomplete = async (query: string, limit?: number): Promise<{ 
   const response = await client.get('/catalog/autocomplete', { params: { q: query, limit } })
   return response.data
 }
+
+export interface Review {
+  id: string
+  product_id: string
+  user_id: string
+  rating: number
+  comment: string
+  is_approved: boolean
+  user_name?: string
+  created_at: string
+}
+
+// Получение отзывов на товар
+export const getProductReviews = async (productId: string): Promise<Review[]> => {
+  const response = await client.get('/catalog/reviews', { params: { product_id: productId } })
+  return response.data
+}
+
+// Создание отзыва
+export const createReview = async (data: {
+  product_id: string
+  rating: number
+  comment: string
+}): Promise<Review> => {
+  const response = await client.post('/catalog/reviews', data)
+  return response.data
+}
+
+export const createAddress = async (data: {
+  user_id: string    
+  name: string
+  address: string
+  entrance?: string
+  floor?: string
+  intercom?: string
+  comment?: string
+  is_default?: boolean
+}): Promise<any> => {
+  const response = await client.post('/catalog/addresses', data)
+  return response.data
+}
+

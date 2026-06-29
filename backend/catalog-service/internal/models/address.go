@@ -23,6 +23,7 @@ type DeliveryAddress struct {
 
 // CreateAddressRequest — запрос на создание адреса
 type CreateAddressRequest struct {
+	UserID    uuid.UUID `json:"user_id" binding:"required"`
 	Name      string `json:"name" binding:"required"`
 	Address   string `json:"address" binding:"required"`
 	Entrance  string `json:"entrance"`

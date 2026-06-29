@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -14,19 +15,26 @@ func main() {
 	paymentURL := "http://localhost:8084"
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// CORS ЗАГОЛОВКИ
+		// ---- CORS ----
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-		// Обработка preflight-запроса (OPTIONS)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		var targetURL string
+		// ---- ПОЛУЧАЕМ USER_ID ЧЕРЕЗ AUTH SERVICE ----
+		var userID string
+		tokenStr := r.Header.Get("Authorization")
+		if tokenStr != "" && strings.HasPrefix(tokenStr, "Bearer ") {
+			tokenStr = strings.TrimPrefix(tokenStr, "Bearer ")
+			userID = getUserIDFromAuthService(tokenStr)
+		}
 
+		// ---- МАРШРУТИЗАЦИЯ ----
+		var targetURL string
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/auth/"):
 			targetURL = authURL + r.URL.Path
@@ -50,10 +58,7 @@ func main() {
 			return
 		}
 
-		if r.URL.RawQuery != "" {
-			targetURL += "?" + r.URL.RawQuery
-		}
-
+		// ---- ДОБАВЛЯЕМ USER_ID В ЗАГОЛОВОК ----
 		proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -61,6 +66,9 @@ func main() {
 		}
 
 		proxyReq.Header = r.Header.Clone()
+		if userID != "" {
+			proxyReq.Header.Set("X-User-ID", userID)
+		}
 		proxyReq.Header.Set("X-Forwarded-For", r.RemoteAddr)
 
 		client := &http.Client{}
@@ -71,7 +79,6 @@ func main() {
 		}
 		defer resp.Body.Close()
 
-		// Копируем заголовки и тело ответа
 		for key, values := range resp.Header {
 			for _, value := range values {
 				w.Header().Add(key, value)
@@ -87,4 +94,36 @@ func main() {
 	log.Println("Order Service: http://localhost:8083")
 	log.Println("Payment Service: http://localhost:8084")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+// getUserIDFromAuthService — проверяет токен через Auth Service и возвращает user_id
+func getUserIDFromAuthService(token string) string {
+	req, err := http.NewRequest("POST", "http://localhost:8081/api/v1/auth/validate", nil)
+	if err != nil {
+		log.Println("Failed to create validation request:", err)
+		return ""
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Failed to validate token:", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Println("Token validation failed with status:", resp.StatusCode)
+		return ""
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Println("Failed to decode validation response:", err)
+		return ""
+	}
+
+	log.Println("Token validated, user_id:", result["user_id"])
+	return result["user_id"]
 }

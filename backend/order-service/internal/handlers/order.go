@@ -235,10 +235,31 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Временно используем тестовый shop_id (позже будет из JWT)
-	shopID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	// ---- ЧИТАЕМ USER_ID ИЗ ЗАГОЛОВКА ----
+	userIDStr := r.Header.Get("X-User-ID")
+	if userIDStr == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
 
-	err := h.orderService.UpdateOrderStatusBySeller(r.Context(), req.OrderID, shopID, req.Status, req.Comment)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
+
+	// ---- ПОЛУЧАЕМ shop_id ПО USER_ID ----
+	shopID, err := h.orderService.GetShopIDBySellerID(r.Context(), userID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to get shop")
+		return
+	}
+	if shopID == uuid.Nil {
+		respondWithError(w, http.StatusForbidden, "seller has no shop")
+		return
+	}
+
+	err = h.orderService.UpdateOrderStatusBySeller(r.Context(), req.OrderID, shopID, req.Status, req.Comment)
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch err.Error() {
@@ -254,4 +275,30 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Статус заказа обновлён"})
+}
+
+// CanReview — проверяет, может ли пользователь оставить отзыв на товар
+func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
+    productIDStr := r.URL.Query().Get("product_id")
+    if productIDStr == "" {
+        respondWithError(w, http.StatusBadRequest, "product_id is required")
+        return
+    }
+
+    productID, err := uuid.Parse(productIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid product_id")
+        return
+    }
+
+    // Получаем user_id из контекста (JWT)
+    userID := r.Context().Value("user_id").(uuid.UUID)
+
+    canReview, err := h.orderService.CanReview(r.Context(), userID, productID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
 }

@@ -817,21 +817,25 @@ func (h *CatalogHandler) GetAutocompleteSuggestions(w http.ResponseWriter, r *ht
 // @Failure      500 {object} ErrorResponse
 // @Router       /catalog/addresses [post]
 func (h *CatalogHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
-	var req models.CreateAddressRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+    var req models.CreateAddressRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
 
-	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+    userID := req.UserID
+    if userID == uuid.Nil {
+        respondWithError(w, http.StatusBadRequest, "user_id is required")
+        return
+    }
 
-	address, err := h.catalogService.CreateAddress(r.Context(), userID, &req)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    address, err := h.catalogService.CreateAddress(r.Context(), userID, &req)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
 
-	respondWithJSON(w, http.StatusCreated, address)
+    respondWithJSON(w, http.StatusCreated, address)
 }
 
 // GetAddresses godoc

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
@@ -154,7 +155,6 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Временно: получаем user_id из контекста (позже будет из JWT)
 	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
 
 	user, err := h.authService.UpdateProfile(r.Context(), userID, &req)
@@ -207,6 +207,40 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Пароль успешно изменён"})
+}
+
+// ============================================================
+// ВАЛИДАЦИЯ JWT (ДЛЯ API GATEWAY)
+// ============================================================
+
+// ValidateToken godoc
+// @Summary      Проверка JWT-токена и получение user_id
+// @Description  Проверяет валидность JWT-токена и возвращает user_id
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Success      200 {object} map[string]string
+// @Failure      401 {object} ErrorResponse
+// @Router       /auth/validate [post]
+func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
+	tokenStr := r.Header.Get("Authorization")
+	if tokenStr == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing token")
+		return
+	}
+
+	if strings.HasPrefix(tokenStr, "Bearer ") {
+		tokenStr = strings.TrimPrefix(tokenStr, "Bearer ")
+	}
+
+	userID, err := h.authService.ValidateTokenAndGetUserID(tokenStr)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid token")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"user_id": userID.String()})
 }
 
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ

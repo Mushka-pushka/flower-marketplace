@@ -64,12 +64,12 @@ func main() {
 
 	// Объявляем очередь
 	_, err = rabbitCh.QueueDeclare(
-		"order.created", // name
-		true,            // durable
-		false,           // delete when unused
-		false,           // exclusive
-		false,           // no-wait
-		nil,             // arguments
+		"order.created",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare queue: %v", err)
@@ -78,36 +78,27 @@ func main() {
 
 	// ИНИЦИАЛИЗАЦИЯ
 
-    // Репозитории
-    orderRepo := repository.NewOrderRepository(db)
-    analyticsRepo := repository.NewAnalyticsRepository(db)
-    notifRepo := repository.NewNotificationRepository(db)
+	// Репозитории
+	orderRepo := repository.NewOrderRepository(db)
+	analyticsRepo := repository.NewAnalyticsRepository(db)
 
-    // Сервисы
-    notifService := service.NewNotificationService(notifRepo, cfg, rabbitCh)
-    analyticsService := service.NewAnalyticsService(analyticsRepo, cfg)
-    orderService := service.NewOrderService(orderRepo, cfg, rabbitCh, notifService)
+	// Сервисы
+	analyticsService := service.NewAnalyticsService(analyticsRepo, cfg)
+	orderService := service.NewOrderService(orderRepo, cfg, rabbitCh)
 
-    // Хендлеры
-    orderHandler := handlers.NewOrderHandler(orderService)
-    analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
+	// Хендлеры
+	orderHandler := handlers.NewOrderHandler(orderService)
+	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 
-    // Воркеры
-    notifWorker := worker.NewNotificationWorker(notifService, rabbitCh)
-    orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
+	// Воркеры
+	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
 
-   // Запуск воркеров
-    go func() {
-        if err := orderWorker.Start(context.Background()); err != nil {
-            log.Printf("Order worker error: %v", err)
-        }
-    }()
-
-    go func() {
-        if err := notifWorker.Start(context.Background()); err != nil {
-            log.Printf("Notification worker error: %v", err)
-        }
-    }()
+	// Запуск воркера
+	go func() {
+		if err := orderWorker.Start(context.Background()); err != nil {
+			log.Printf("Order worker error: %v", err)
+		}
+	}()
 
 	// РОУТЫ
 
@@ -116,62 +107,65 @@ func main() {
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
 	http.HandleFunc("GET /api/v1/orders/customer", orderHandler.GetOrdersByCustomer)
 	http.HandleFunc("POST /api/v1/orders/cancel", orderHandler.CancelOrder)
-	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)                 
-    http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller) 
+	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)
+	http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller)
+
 	// ----- АНАЛИТИКА (для продавца) -----
-    http.HandleFunc("GET /api/v1/analytics/seller", analyticsHandler.GetSellerAnalytics)         
-    http.HandleFunc("GET /api/v1/analytics/popular", analyticsHandler.GetPopularProducts)         
-    http.HandleFunc("GET /api/v1/analytics/statuses", analyticsHandler.GetOrderStatsByStatus)   
-	// ---- SWAGGER ----
-    http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
-    if r.URL.Path == "/swagger/doc.json" {
-        data, err := ioutil.ReadFile("./docs/swagger.json")
-        if err != nil {
-            http.Error(w, "Swagger docs not found", http.StatusNotFound)
-            return
-        }
-        w.Header().Set("Content-Type", "application/json")
-        w.Write(data)
-        return
-    } 
+	http.HandleFunc("GET /api/v1/analytics/seller", analyticsHandler.GetSellerAnalytics)
+	http.HandleFunc("GET /api/v1/analytics/popular", analyticsHandler.GetPopularProducts)
+	http.HandleFunc("GET /api/v1/analytics/statuses", analyticsHandler.GetOrderStatsByStatus)
 
-    if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
-        html := `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Swagger UI</title>
-            <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
-        </head>
-        <body>
-            <div id="swagger-ui"></div>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
-            <script>
-                window.onload = function() {
-                    SwaggerUIBundle({
-                        url: "/swagger/doc.json",
-                        dom_id: '#swagger-ui',
-                        presets: [
-                            SwaggerUIBundle.presets.apis,
-                            SwaggerUIBundle.SwaggerUIStandalonePreset
-                        ],
-                        layout: "BaseLayout"
-                    });
-                };
-            </script>
-        </body>
-        </html>
-        `
-        w.Header().Set("Content-Type", "text/html")
-        w.Write([]byte(html))
-        return
-    }
+	// ----- SWAGGER -----
+	http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/swagger/doc.json" {
+			data, err := ioutil.ReadFile("./docs/swagger.json")
+			if err != nil {
+				http.Error(w, "Swagger docs not found", http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(data)
+			return
+		}
 
-    http.NotFound(w, r)
-})     
+		if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
+			html := `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<meta charset="UTF-8">
+				<title>Swagger UI</title>
+				<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
+			</head>
+			<body>
+				<div id="swagger-ui"></div>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
+				<script>
+					window.onload = function() {
+						SwaggerUIBundle({
+							url: "/swagger/doc.json",
+							dom_id: '#swagger-ui',
+							presets: [
+								SwaggerUIBundle.presets.apis,
+								SwaggerUIBundle.SwaggerUIStandalonePreset
+							],
+							layout: "BaseLayout"
+						});
+					};
+				</script>
+			</body>
+			</html>
+			`
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(html))
+			return
+		}
 
-	// Сервер
+		http.NotFound(w, r)
+	})
+
+	// СЕРВЕР
+	
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      http.DefaultServeMux,

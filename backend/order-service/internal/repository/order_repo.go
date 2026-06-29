@@ -286,30 +286,32 @@ func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUI
 	return orders, nil
 }
 
-// GetAvailableCourier — получает доступного курьера
-func (r *OrderRepository) GetAvailableCourier(ctx context.Context) (*models.Courier, error) {
-    query := `SELECT id, name, phone, is_available, created_at FROM couriers WHERE is_available = true LIMIT 1`
-    var courier models.Courier
-    err := r.db.QueryRow(ctx, query).Scan(&courier.ID, &courier.Name, &courier.Phone, &courier.IsAvailable, &courier.CreatedAt)
-    if err != nil {
-        return nil, err
-    }
-    return &courier, nil
+// GetShopIDBySellerID — возвращает shop_id продавца по его user_id
+func (r *OrderRepository) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+	query := `SELECT id FROM shops WHERE seller_id = $1`
+	var shopID uuid.UUID
+	err := r.db.QueryRow(ctx, query, sellerID).Scan(&shopID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, nil // продавец не имеет магазина
+		}
+		return uuid.Nil, err
+	}
+	return shopID, nil
 }
 
-// CreateDeliveryAssignment — создаёт назначение курьера
-func (r *OrderRepository) CreateDeliveryAssignment(ctx context.Context, assignment *models.DeliveryAssignment) error {
-    query := `
-        INSERT INTO delivery_assignments (id, order_id, courier_id, assigned_at, status)
-        VALUES ($1, $2, $3, $4, $5)
-    `
-    _, err := r.db.Exec(ctx, query, assignment.ID, assignment.OrderID, assignment.CourierID, assignment.AssignedAt, assignment.Status)
-    return err
-}
-
-// CompleteDeliveryAssignment — завершает назначение курьера
-func (r *OrderRepository) CompleteDeliveryAssignment(ctx context.Context, orderID uuid.UUID) error {
-    query := `UPDATE delivery_assignments SET status = 'completed', completed_at = NOW() WHERE order_id = $1`
-    _, err := r.db.Exec(ctx, query, orderID)
-    return err
+// CanReview — проверяет, может ли пользователь оставить отзыв на товар
+func (r *OrderRepository) CanReview(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM orders o
+			JOIN order_items oi ON oi.order_id = o.id
+			WHERE o.customer_id = $1 
+			  AND oi.product_id = $2 
+			  AND o.current_status = 'delivered'
+		)
+	`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, userID, productID).Scan(&exists)
+	return exists, err
 }
