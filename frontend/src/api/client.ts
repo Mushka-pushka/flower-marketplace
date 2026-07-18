@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+import { API_BASE_URL, STORAGE_KEYS, ROUTES } from '../constants'
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -30,7 +29,7 @@ const showError = (message: string) => {
 
 // Интерсептор для добавления JWT-токена
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
+  const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -59,7 +58,7 @@ client.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token')
+        const refreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)
         if (!refreshToken) {
           throw new Error('No refresh token')
         }
@@ -71,8 +70,8 @@ client.interceptors.response.use(
         )
 
         const { access_token, refresh_token } = response.data
-        localStorage.setItem('access_token', access_token)
-        localStorage.setItem('refresh_token', refresh_token)
+        localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, access_token)
+        localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refresh_token)
 
         // Обновляем все ожидающие запросы
         onTokenRefreshed(access_token)
@@ -82,11 +81,11 @@ client.interceptors.response.use(
         return client(originalRequest)
       } catch (refreshError) {
         // Если refresh не удался - logout
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
+        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN)
+        localStorage.removeItem(STORAGE_KEYS.USER)
         showError('Сессия истекла. Пожалуйста, войдите заново.')
-        window.location.href = '/login'
+        window.location.href = ROUTES.LOGIN
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
@@ -103,10 +102,10 @@ client.interceptors.response.use(
 
     // Для других 401 ошибок (не связанных с refresh)
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
+      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN)
+      localStorage.removeItem(STORAGE_KEYS.USER)
+      window.location.href = ROUTES.LOGIN
     }
 
     return Promise.reject(error)

@@ -43,6 +43,29 @@ export interface SearchResponse {
   has_more: boolean
 }
 
+// Интерфейс для автодополнения
+export interface AutocompleteSuggestion {
+  text: string
+  type: 'product' | 'category' | 'tag'
+  slug: string
+  score: number
+}
+
+// Интерфейс для адреса доставки
+export interface DeliveryAddress {
+  id: string
+  user_id: string
+  name: string
+  address: string
+  entrance: string
+  floor: string
+  intercom: string
+  comment: string
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
 // Получение категорий
 export const getCategories = async (): Promise<Category[]> => {
   const response = await client.get('/catalog/categories')
@@ -71,8 +94,13 @@ export const getProductById = async (id: string): Promise<Product> => {
 }
 
 // Автодополнение
-export const getAutocomplete = async (query: string, limit?: number): Promise<{ text: string; type: string; slug: string; score: number }[]> => {
-  const response = await client.get('/catalog/autocomplete', { params: { q: query, limit } })
+export const getAutocomplete = async (
+  query: string, 
+  limit?: number
+): Promise<AutocompleteSuggestion[]> => {
+  const response = await client.get('/catalog/autocomplete', { 
+    params: { q: query, limit } 
+  })
   return response.data
 }
 
@@ -103,6 +131,7 @@ export const createReview = async (data: {
   return response.data
 }
 
+// Создание адреса доставки
 export const createAddress = async (data: {  
   name: string
   address: string
@@ -111,23 +140,9 @@ export const createAddress = async (data: {
   intercom?: string
   comment?: string
   is_default?: boolean
-}): Promise<any> => {
+}): Promise<DeliveryAddress> => {
   const response = await client.post('/catalog/addresses', data)
   return response.data
-}
-
-export interface DeliveryAddress {
-  id: string
-  user_id: string
-  name: string
-  address: string
-  entrance: string
-  floor: string
-  intercom: string
-  comment: string
-  is_default: boolean
-  created_at: string
-  updated_at: string
 }
 
 // Обновление отзыва

@@ -10,6 +10,16 @@ interface User {
   phone: string
 }
 
+// Добавляем тип для сохранения в localStorage
+interface StoredUser {
+  id: string
+  email: string
+  role: 'customer' | 'seller' | 'admin'
+  first_name: string
+  last_name: string
+  phone: string
+}
+
 interface AuthContextType {
   user: User | null
   token: string | null
@@ -28,18 +38,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Загружаем данные из localStorage при старте
     const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-        setUser(JSON.parse(storedUser))
-    }
     const storedToken = localStorage.getItem('access_token')
     
     if (storedUser && storedToken) {
       try {
-        setUser(JSON.parse(storedUser))
+        const parsed: StoredUser = JSON.parse(storedUser)
+        setUser(parsed)
         setToken(storedToken)
       } catch {
         localStorage.removeItem('user')
         localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
       }
     }
     setIsLoading(false)

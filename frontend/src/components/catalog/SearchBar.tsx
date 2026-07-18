@@ -1,13 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
 import { FaSearch } from 'react-icons/fa'
 import { getAutocomplete } from '../../api/catalog.api'
-
-interface Suggestion {
-  text: string
-  type: string
-  slug: string
-  score: number
-}
+import type { AutocompleteSuggestion } from '../../api/catalog.api'
 
 interface SearchBarProps {
   onSearch: (query: string) => void
@@ -16,15 +10,18 @@ interface SearchBarProps {
 
 const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
   const [query, setQuery] = useState(initialValue)
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setShowSuggestions(false)
+        setSelectedIndex(-1)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -35,6 +32,7 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
     const fetchSuggestions = async () => {
       if (query.length < 2) {
         setSuggestions([])
+        setSelectedIndex(-1)
         return
       }
       setLoading(true)
@@ -42,6 +40,7 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
         const data = await getAutocomplete(query, 6)
         setSuggestions(data)
         setShowSuggestions(true)
+        setSelectedIndex(-1)
       } catch (error) {
         console.error('Ошибка автодополнения:', error)
       } finally {
@@ -53,16 +52,63 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
     return () => clearTimeout(timer)
   }, [query])
 
+  // Скролл к выбранному элементу
+  useEffect(() => {
+    if (selectedIndex >= 0 && listRef.current) {
+      const items = listRef.current.children
+      if (items[selectedIndex]) {
+        items[selectedIndex].scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [selectedIndex])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setShowSuggestions(false)
+    setSelectedIndex(-1)
     onSearch(query)
   }
 
-  const handleSuggestionClick = (suggestion: Suggestion) => {
+  const handleSuggestionClick = (suggestion: AutocompleteSuggestion) => {
     setQuery(suggestion.text)
     setShowSuggestions(false)
+    setSelectedIndex(-1)
     onSearch(suggestion.text)
+  }
+
+  // Клавиатурная навигация
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        handleSubmit(e as any)
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        )
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex(prev => prev > 0 ? prev - 1 : -1)
+        break
+      case 'Enter':
+        e.preventDefault()
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSuggestionClick(suggestions[selectedIndex])
+        } else {
+          handleSubmit(e as any)
+        }
+        break
+      case 'Escape':
+        setShowSuggestions(false)
+        setSelectedIndex(-1)
+        break
+    }
   }
 
   return (
@@ -72,6 +118,8 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => query.length >= 2 && setShowSuggestions(true)}
           placeholder="Поиск цветов..."
           className="w-full px-4 py-2.5 border border-gray-200 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition text-[#1C1C1C] text-sm"
         />
@@ -84,12 +132,18 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
       </form>
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] z-20 max-h-60 overflow-y-auto">
+        <div 
+          ref={listRef}
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] z-20 max-h-60 overflow-y-auto"
+        >
           {suggestions.map((suggestion, index) => (
             <div
               key={index}
               onClick={() => handleSuggestionClick(suggestion)}
-              className="px-4 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center gap-2 transition"
+              onMouseEnter={() => setSelectedIndex(index)}
+              className={`px-4 py-2.5 cursor-pointer flex items-center gap-2 transition ${
+                index === selectedIndex ? 'bg-[#8A9A86]/10' : 'hover:bg-gray-50'
+              }`}
             >
               <span className="text-gray-400 text-sm">
                 {suggestion.type === 'product' && '🌸'}
