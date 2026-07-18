@@ -41,6 +41,14 @@ export interface OrderDetails {
   statuses: OrderStatus[]
 }
 
+// Интерфейс для ответа с пагинацией
+export interface OrdersResponse {
+  orders: Order[]
+  total: number
+  limit: number
+  offset: number
+}
+
 // Создание заказа
 export const createOrder = async (data: {
   shop_id: string
@@ -55,9 +63,19 @@ export const createOrder = async (data: {
   return response.data
 }
 
-// Получение заказов пользователя
-export const getMyOrders = async (customerId: string): Promise<Order[]> => {
-  const response = await client.get('/orders/customer', { params: { customer_id: customerId } })
+// Получение заказов пользователя (с пагинацией)
+export const getMyOrders = async (
+  customerId: string, 
+  limit?: number, 
+  offset?: number
+): Promise<OrdersResponse> => {
+  const response = await client.get('/orders/customer', { 
+    params: { 
+      customer_id: customerId,
+      limit,
+      offset
+    } 
+  })
   return response.data
 }
 
@@ -84,4 +102,9 @@ export const updateOrderStatus = async (data: {
   comment?: string
 }): Promise<void> => {
   await client.put('/orders/status', data)
+}
+
+// Отмена заказа
+export const cancelOrder = async (orderId: string): Promise<void> => {
+  await client.post('/orders/cancel', null, { params: { id: orderId } })
 }

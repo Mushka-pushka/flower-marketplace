@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { FaStar, FaRegStar, FaUser } from 'react-icons/fa'
-import { getProductReviews, createReview } from '../api/catalog.api'
+import { getProductReviews, createReview, updateReview, deleteReview } from '../api/catalog.api'
 import { canReviewProduct } from '../api/order.api'
 import type { Review } from '../api/catalog.api'
 import { useAuth } from '../context/AuthContext'
+import { toast } from 'react-hot-toast'
 
 interface ReviewsProps {
   productId: string
@@ -17,6 +18,9 @@ const Reviews = ({ productId }: ReviewsProps) => {
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [canReview, setCanReview] = useState(false)
+  const [editingReview, setEditingReview] = useState<string | null>(null)
+  const [editRating, setEditRating] = useState(5)
+  const [editComment, setEditComment] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,12 +44,12 @@ const Reviews = ({ productId }: ReviewsProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
-      alert('Войдите в аккаунт, чтобы оставить отзыв')
+      toast.error('Войдите в аккаунт, чтобы оставить отзыв')
       return
     }
 
     if (!canReview) {
-      alert('Вы можете оставить отзыв только на товары, которые заказывали и получили')
+      toast.error('Вы можете оставить отзыв только на товары, которые заказывали и получили')
       return
     }
 
@@ -60,13 +64,48 @@ const Reviews = ({ productId }: ReviewsProps) => {
       setReviews(data || [])
       setRating(5)
       setComment('')
-      alert('Спасибо за ваш отзыв!')
+      toast.success('Спасибо за ваш отзыв!')
     } catch (error) {
       console.error('Ошибка отправки отзыва:', error)
-      alert('Не удалось отправить отзыв')
+      toast.error('Не удалось отправить отзыв')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm('Удалить отзыв?')) return
+    try {
+      await deleteReview(reviewId)
+      const data = await getProductReviews(productId)
+      setReviews(data || [])
+      toast.success('Отзыв удален')
+    } catch (error) {
+      console.error('Ошибка удаления отзыва:', error)
+      toast.error('Не удалось удалить отзыв')
+    }
+  }
+
+  const handleEditReview = async (reviewId: string) => {
+    try {
+      await updateReview(reviewId, {
+        rating: editRating,
+        comment: editComment,
+      })
+      const data = await getProductReviews(productId)
+      setReviews(data || [])
+      setEditingReview(null)
+      toast.success('Отзыв обновлен')
+    } catch (error) {
+      console.error('Ошибка обновления отзыва:', error)
+      toast.error('Не удалось обновить отзыв')
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingReview(null)
+    setEditRating(5)
+    setEditComment('')
   }
 
   if (loading) {
@@ -149,27 +188,93 @@ const Reviews = ({ productId }: ReviewsProps) => {
         ) : (
           reviews.map((review) => (
             <div key={review.id} className="border-b border-gray-100 pb-2 last:border-0">
-              <div className="flex items-center gap-2">
-                <FaUser className="text-gray-400 text-sm" />
-                <span className="text-sm font-medium text-[#1C1C1C]">
-                  {review.user_name || 'Пользователь'}
-                </span>
-                <div className="flex items-center gap-0.5 ml-auto">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <span key={star} className="text-xs">
-                      {star <= review.rating ? (
-                        <FaStar className="text-[#8A9A86]" />
-                      ) : (
-                        <FaRegStar className="text-gray-300" />
-                      )}
-                    </span>
-                  ))}
+              {editingReview === review.id ? (
+                // Режим редактирования
+                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setEditRating(star)}
+                        className="text-2xl hover:scale-110 transition"
+                      >
+                        {star <= editRating ? (
+                          <FaStar className="text-[#8A9A86]" />
+                        ) : (
+                          <FaRegStar className="text-gray-300" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={editComment}
+                    onChange={(e) => setEditComment(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition text-sm resize-none"
+                    rows={2}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => handleEditReview(review.id)}
+                      className="bg-[#8A9A86] text-white px-4 py-1.5 rounded-xl hover:bg-[#7A8A76] transition text-sm font-medium"
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="bg-gray-200 text-gray-700 px-4 py-1.5 rounded-xl hover:bg-gray-300 transition text-sm font-medium"
+                    >
+                      Отмена
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <p className="text-sm text-gray-600 mt-0.5">{review.comment}</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {new Date(review.created_at).toLocaleDateString('ru-RU')}
-              </p>
+              ) : (
+                // Режим просмотра
+                <>
+                  <div className="flex items-center gap-2">
+                    <FaUser className="text-gray-400 text-sm" />
+                    <span className="text-sm font-medium text-[#1C1C1C]">
+                      {review.user_name || 'Пользователь'}
+                    </span>
+                    <div className="flex items-center gap-0.5 ml-auto">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span key={star} className="text-xs">
+                          {star <= review.rating ? (
+                            <FaStar className="text-[#8A9A86]" />
+                          ) : (
+                            <FaRegStar className="text-gray-300" />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-0.5">{review.comment}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(review.created_at).toLocaleDateString('ru-RU')}
+                  </p>
+                  {/* Кнопки редактирования и удаления */}
+                  {review.user_id === user?.id && (
+                    <div className="flex gap-3 mt-1">
+                      <button
+                        onClick={() => {
+                          setEditingReview(review.id)
+                          setEditRating(review.rating)
+                          setEditComment(review.comment)
+                        }}
+                        className="text-xs text-blue-500 hover:text-blue-700 transition"
+                      >
+                        Редактировать
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReview(review.id)}
+                        className="text-xs text-red-500 hover:text-red-700 transition"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ))
         )}

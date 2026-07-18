@@ -12,6 +12,7 @@ interface FavoriteItem {
 
 interface FavoritesContextType {
   items: FavoriteItem[]
+  loading: boolean
   addFavorite: (product: { id: string; name: string; price: number }) => void
   removeFavorite: (productId: string) => void
   isFavorite: (productId: string) => boolean
@@ -23,23 +24,30 @@ const FavoritesContext = createContext<FavoritesContextType | undefined>(undefin
 export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
   const [items, setItems] = useState<FavoriteItem[]>([])
+  const [loading, setLoading] = useState(true)
 
   const getStorageKey = () => {
     return user ? `flower_favorites_${user.id}` : 'flower_favorites_guest'
   }
 
   useEffect(() => {
-    const key = getStorageKey()
-    const saved = localStorage.getItem(key)
-    if (saved) {
-      try {
-        setItems(JSON.parse(saved))
-      } catch {
+    const loadFavorites = async () => {
+      setLoading(true)
+      const key = getStorageKey()
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        try {
+          setItems(JSON.parse(saved))
+        } catch {
+          setItems([])
+        }
+      } else {
         setItems([])
       }
-    } else {
-      setItems([])
+      setLoading(false)
     }
+
+    loadFavorites()
   }, [user])
 
   useEffect(() => {
@@ -79,7 +87,16 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <FavoritesContext.Provider value={{ items, addFavorite, removeFavorite, isFavorite, toggleFavorite }}>
+    <FavoritesContext.Provider 
+      value={{ 
+        items, 
+        loading, 
+        addFavorite, 
+        removeFavorite, 
+        isFavorite, 
+        toggleFavorite 
+      }}
+    >
       {children}
     </FavoritesContext.Provider>
   )

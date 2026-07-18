@@ -130,3 +130,16 @@ export interface DeliveryAddress {
   updated_at: string
 }
 
+// Обновление отзыва
+export const updateReview = async (reviewId: string, data: {
+  rating: number
+  comment: string
+}): Promise<Review> => {
+  const response = await client.put('/catalog/reviews', data, { params: { id: reviewId } })
+  return response.data
+}
+
+// Удаление отзыва
+export const deleteReview = async (reviewId: string): Promise<void> => {
+  await client.delete('/catalog/reviews', { params: { id: reviewId } })
+}

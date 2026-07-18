@@ -11,6 +11,8 @@ import {
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import ProductModal from '../components/ProductModal'
+import { toast } from 'react-hot-toast'
+
 
 const CartPage = () => {
   const navigate = useNavigate()
@@ -34,6 +36,25 @@ const CartPage = () => {
     } else {
       setSelectedIds(items.map(item => item.product_id))
     }
+  }
+
+  const handleUpdateQuantity = (productId: string, newQuantity: number) => {
+    // Находим товар в корзине
+    const cartItem = items.find(item => item.product_id === productId)
+    
+    // Проверяем наличие stock
+    if (cartItem && cartItem.stock !== undefined && newQuantity > cartItem.stock) {
+      toast.error(`Доступно только ${cartItem.stock} шт.`)
+      return
+    }
+    
+    // Проверяем, что количество не меньше 1
+    if (newQuantity < 1) {
+      toast.error('Количество должно быть не меньше 1')
+      return
+    }
+    
+    updateQuantity(productId, newQuantity)
   }
 
   const selectedItems = items.filter(item => selectedIds.includes(item.product_id))
@@ -128,19 +149,27 @@ const CartPage = () => {
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-[#1C1C1C] truncate text-base">{item.name}</h3>
                 <p className="text-sm text-gray-400">{item.price} BYN</p>
+                {item.stock !== undefined && item.stock < 5 && item.stock > 0 && (
+                  <p className="text-xs text-amber-600">Осталось {item.stock} шт.</p>
+                )}
+                {item.stock === 0 && (
+                  <p className="text-xs text-red-500">Нет в наличии</p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 w-24 justify-center" onClick={(e) => e.stopPropagation()}>
                 <button
-                  onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                  className="w-8 h-8 border border-gray-200 rounded-full hover:border-[#8A9A86] hover:bg-[#8A9A86]/5 transition flex items-center justify-center"
+                  onClick={() => handleUpdateQuantity(item.product_id, item.quantity - 1)}
+                  className="w-8 h-8 border border-gray-200 rounded-full hover:border-[#8A9A86] hover:bg-[#8A9A86]/5 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={item.quantity <= 1}
                 >
                   <FaMinus className="text-xs text-[#1C1C1C]" />
                 </button>
                 <span className="w-8 text-center font-medium text-[#1C1C1C]">{item.quantity}</span>
                 <button
-                  onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                  className="w-8 h-8 border border-gray-200 rounded-full hover:border-[#8A9A86] hover:bg-[#8A9A86]/5 transition flex items-center justify-center"
+                  onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
+                  className="w-8 h-8 border border-gray-200 rounded-full hover:border-[#8A9A86] hover:bg-[#8A9A86]/5 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={item.stock !== undefined && item.quantity >= item.stock}
                 >
                   <FaPlus className="text-xs text-[#1C1C1C]" />
                 </button>

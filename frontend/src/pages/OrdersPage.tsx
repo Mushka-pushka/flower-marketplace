@@ -4,11 +4,14 @@ import {
   FaBox,
   FaTimes,
   FaShoppingBag,
+  FaChevronLeft,
+  FaChevronRight,
 } from 'react-icons/fa'
-import { getMyOrders, getOrderDetails } from '../api/order.api'
+import { getMyOrders, getOrderDetails, cancelOrder } from '../api/order.api'
 import type { Order, OrderDetails } from '../api/order.api'
 import OrderTimeline from '../components/OrderTimeline'
 import { useAuth } from '../context/AuthContext'
+import { toast } from 'react-hot-toast'
 
 const OrdersPage = () => {
   const { user } = useAuth()
@@ -17,29 +20,34 @@ const OrdersPage = () => {
   const [error, setError] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<OrderDetails | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [limit] = useState(10)
+  const [offset, setOffset] = useState(0)
+  const [total, setTotal] = useState(0)
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        const data = await getMyOrders(user.id)
-        setOrders(Array.isArray(data) ? data : [])
-      } catch (err: any) {
-        console.error('Ошибка загрузки заказов:', err)
-        setError(err.response?.data?.error || 'Ошибка загрузки заказов')
-        setOrders([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchOrders = async () => {
+    if (!user) {
+      setLoading(false)
+      return
     }
 
+    try {
+      setLoading(true)
+      const data = await getMyOrders(user.id, limit, offset)
+      setOrders(data.orders || [])
+      setTotal(data.total || 0)
+    } catch (err: any) {
+      console.error('Ошибка загрузки заказов:', err)
+      setError(err.response?.data?.error || 'Ошибка загрузки заказов')
+      setOrders([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchOrders()
-  }, [user])
+  }, [user, limit, offset])
 
   useEffect(() => {
     if (isModalOpen) {
@@ -59,6 +67,22 @@ const OrdersPage = () => {
       setIsModalOpen(true)
     } catch (err) {
       console.error('Ошибка загрузки деталей заказа:', err)
+      toast.error('Не удалось загрузить детали заказа')
+    }
+  }
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm('Вы уверены, что хотите отменить заказ?')) return
+    
+    try {
+      await cancelOrder(orderId)
+      toast.success('Заказ отменен')
+      setIsModalOpen(false)
+      // Обновляем список заказов
+      await fetchOrders()
+    } catch (error) {
+      console.error('Ошибка отмены заказа:', error)
+      toast.error('Не удалось отменить заказ')
     }
   }
 
@@ -86,6 +110,19 @@ const OrdersPage = () => {
       cancelled: 'text-red-600 bg-red-50 border-red-200',
     }
     return map[status] || 'text-gray-600 bg-gray-50 border-gray-200'
+  }
+
+  const totalPages = Math.ceil(total / limit)
+  const currentPage = Math.floor(offset / limit) + 1
+
+  const goToPreviousPage = () => {
+    setOffset(Math.max(0, offset - limit))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goToNextPage = () => {
+    setOffset(offset + limit)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (loading) {
@@ -143,6 +180,31 @@ const OrdersPage = () => {
         ))}
       </div>
 
+      {/* Пагинация */}
+      {total > limit && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <button
+            onClick={goToPreviousPage}
+            disabled={offset === 0}
+            className="px-4 py-2 border border-gray-200 rounded-xl hover:border-[#8A9A86] disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+          >
+            <FaChevronLeft className="text-sm" />
+            Назад
+          </button>
+          <span className="px-4 py-2 text-[#1C1C1C] font-medium">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={goToNextPage}
+            disabled={offset + limit >= total}
+            className="px-4 py-2 border border-gray-200 rounded-xl hover:border-[#8A9A86] disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-1"
+          >
+            Вперед
+            <FaChevronRight className="text-sm" />
+          </button>
+        </div>
+      )}
+
       {isModalOpen &&
         selectedOrder &&
         createPortal(
@@ -185,7 +247,15 @@ const OrdersPage = () => {
 
               <div className="border-t border-gray-100 pt-4">
                 <h3 className="font-semibold text-[#1C1C1C] mb-3">История статусов</h3>
-                <OrderTimeline statuses={selectedOrder.statuses} />
+                <OrderTimeline 
+                  statuses={selectedOrder.statuses}
+                  orderId={selectedOrder.order.id}
+                  currentStatus={selectedOrder.order.current_status}
+                  onStatusUpdate={() => {
+                    // Обновляем список заказов после изменения статуса
+                    fetchOrders()
+                  }}
+                />
               </div>
 
               <div className="border-t border-gray-100 pt-4 mt-4">
@@ -204,6 +274,18 @@ const OrdersPage = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Кнопка отмены заказа */}
+              {selectedOrder.order.current_status === 'pending' && (
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                  <button
+                    onClick={() => handleCancelOrder(selectedOrder.order.id)}
+                    className="w-full px-6 py-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition border border-red-200 text-sm font-medium"
+                  >
+                    Отменить заказ
+                  </button>
+                </div>
+              )}
             </div>
           </div>,
           document.body

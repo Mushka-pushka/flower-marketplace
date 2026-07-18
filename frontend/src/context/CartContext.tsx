@@ -10,6 +10,7 @@ interface CartItem {
   quantity: number
   shop_id: string  
   image?: string
+  stock?: number
 }
 
 interface CartContextType {

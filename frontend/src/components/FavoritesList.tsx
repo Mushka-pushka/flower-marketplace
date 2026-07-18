@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FaHeart, FaTrash, FaLeaf } from 'react-icons/fa'
+import { FaHeart, FaTrash, FaLeaf, FaSpinner } from 'react-icons/fa'
 import { useFavorites } from '../context/FavoritesContext'
 import ProductModal from './ProductModal'
 
 const FavoritesList = () => {
-  const { items, removeFavorite } = useFavorites()
+  const { items, removeFavorite, loading: favoritesLoading } = useFavorites()
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [visibleItems, setVisibleItems] = useState(6)
+  const [isLoading, setIsLoading] = useState(false)
 
   const openModal = (productId: string) => {
     setSelectedProductId(productId)
@@ -16,6 +18,23 @@ const FavoritesList = () => {
   const closeModal = () => {
     setSelectedProductId(null)
     document.body.style.overflow = 'auto'
+  }
+
+  const loadMore = () => {
+    setIsLoading(true)
+    setTimeout(() => {
+      setVisibleItems(prev => Math.min(prev + 6, items.length))
+      setIsLoading(false)
+    }, 500)
+  }
+
+  if (favoritesLoading) {
+    return (
+      <div className="text-center py-12">
+        <FaSpinner className="text-3xl text-[#8A9A86] animate-spin mx-auto" />
+        <p className="text-gray-400 mt-3">Загрузка избранного...</p>
+      </div>
+    )
   }
 
   if (items.length === 0) {
@@ -30,10 +49,12 @@ const FavoritesList = () => {
     )
   }
 
+  const displayedItems = items.slice(0, visibleItems)
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {items.map((item) => (
+        {displayedItems.map((item) => (
           <div
             key={item.id}
             onClick={() => openModal(item.product_id)}
@@ -56,6 +77,25 @@ const FavoritesList = () => {
           </div>
         ))}
       </div>
+
+      {visibleItems < items.length && (
+        <div className="text-center mt-6">
+          <button
+            onClick={loadMore}
+            disabled={isLoading}
+            className="px-6 py-2 border border-[#8A9A86] text-[#8A9A86] rounded-xl hover:bg-[#8A9A86] hover:text-white transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <>
+                <FaSpinner className="inline animate-spin mr-2" />
+                Загрузка...
+              </>
+            ) : (
+              `Показать еще (${items.length - visibleItems} осталось)`
+            )}
+          </button>
+        </div>
+      )}
 
       <ProductModal productId={selectedProductId} onClose={closeModal} />
     </>
