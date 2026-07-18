@@ -76,3 +76,12 @@ export const canReviewProduct = async (productId: string): Promise<boolean> => {
     return false
   }
 }
+
+// Обновление статуса заказа (для продавца)
+export const updateOrderStatus = async (data: {
+  order_id: string
+  status: string
+  comment?: string
+}): Promise<void> => {
+  await client.put('/orders/status', data)
+}

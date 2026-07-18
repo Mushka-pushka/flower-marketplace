@@ -11,6 +11,8 @@ import {
   FaCheckCircle,
   FaExclamationCircle,
   FaTrash,
+  FaMinus,
+  FaPlus,
 } from 'react-icons/fa'
 import { getProductById } from '../api/catalog.api'
 import type { Product } from '../api/catalog.api'
@@ -34,6 +36,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
   const [showNotification, setShowNotification] = useState(false)
   const [authNotification, setAuthNotification] = useState(false)
   const [isInCart, setIsInCart] = useState(false)
+  const [quantity, setQuantity] = useState(1) // Добавлен state для количества
 
   useEffect(() => {
     if (!productId) return
@@ -45,6 +48,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
         setProduct(data)
         // Проверяем, есть ли товар в корзине
         setIsInCart(items.some(item => item.product_id === productId))
+        setQuantity(1) // Сбрасываем количество при загрузке нового товара
       } catch (err) {
         setError('Не удалось загрузить товар')
       } finally {
@@ -98,14 +102,17 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
       return
     }
     if (product) {
-      addToCart({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        shop_id: product.shop_id,
-      })
+      for (let i = 0; i < quantity; i++) {
+        addToCart({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          shop_id: product.shop_id,
+        })
+      }
       setIsInCart(true)
       setShowNotification(true)
+      setQuantity(1) // Сброс после добавления
     }
   }
 
@@ -209,6 +216,29 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
                 )}
 
                 <div className="mt-6 space-y-3">
+                  {/* Блок выбора количества */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <label className="text-sm font-medium text-[#1C1C1C]">Количество:</label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="w-8 h-8 border border-gray-200 rounded-full hover:border-[#8A9A86] transition flex items-center justify-center"
+                      >
+                        <FaMinus className="text-xs" />
+                      </button>
+                      <span className="w-10 text-center font-medium">{quantity}</span>
+                      <button
+                        onClick={() => setQuantity(Math.min(product.stock || 99, quantity + 1))}
+                        className="w-8 h-8 border border-gray-200 rounded-full hover:border-[#8A9A86] transition flex items-center justify-center"
+                      >
+                        <FaPlus className="text-xs" />
+                      </button>
+                    </div>
+                    {product.stock && (
+                      <span className="text-xs text-gray-400">В наличии: {product.stock} шт.</span>
+                    )}
+                  </div>
+
                   {isInCart ? (
                     <button
                       onClick={handleRemoveFromCart}

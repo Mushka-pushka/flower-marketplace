@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { FaUserPlus } from 'react-icons/fa'
+import { FaUserPlus, FaEye, FaEyeSlash } from 'react-icons/fa'
 import { register } from '../../api/auth.api'
 
 const Register = () => {
@@ -8,6 +8,7 @@ const Register = () => {
   const [form, setForm] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     first_name: '',
     last_name: '',
     phone: '',
@@ -15,19 +16,50 @@ const Register = () => {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
+    // Очищаем ошибку пароля при изменении
+    if (e.target.name === 'password' || e.target.name === 'confirmPassword') {
+      setPasswordError('')
+    }
+  }
+
+  const validatePassword = () => {
+    if (form.password.length < 6) {
+      setPasswordError('Пароль должен содержать минимум 6 символов')
+      return false
+    }
+    if (form.password !== form.confirmPassword) {
+      setPasswordError('Пароли не совпадают')
+      return false
+    }
+    return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    if (!validatePassword()) {
+      return
+    }
+
     setLoading(true)
 
     try {
-      await register(form)
-      navigate('/login')
+      await register({
+        email: form.email,
+        password: form.password,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone: form.phone,
+        role: form.role,
+      })
+      navigate('/login', { state: { message: 'Регистрация успешна! Войдите в аккаунт.' } })
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка регистрации')
     } finally {
@@ -41,14 +73,20 @@ const Register = () => {
       <p className="text-center text-gray-400 text-sm mb-6">Создайте новый аккаунт</p>
 
       {error && (
-        <div className="bg-red-50 text-red-500 p-3 rounded-lg mb-4 text-sm">
+        <div className="bg-red-50 text-red-500 p-3 rounded-lg mb-4 text-sm border border-red-100">
           {error}
+        </div>
+      )}
+
+      {passwordError && (
+        <div className="bg-amber-50 text-amber-700 p-3 rounded-lg mb-4 text-sm border border-amber-200">
+          {passwordError}
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Имя</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Имя *</label>
           <input
             type="text"
             name="first_name"
@@ -59,7 +97,7 @@ const Register = () => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Фамилия</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Фамилия *</label>
           <input
             type="text"
             name="last_name"
@@ -70,7 +108,7 @@ const Register = () => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Email</label>
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Email *</label>
           <input
             type="email"
             name="email"
@@ -81,23 +119,56 @@ const Register = () => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Пароль</label>
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
-            required
-          />
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">
+            Пароль * <span className="text-gray-400 text-xs">(минимум 6 символов)</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition pr-12"
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+        </div>
+        <div className="mb-4">
+          <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Подтвердите пароль *</label>
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="confirmPassword"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
         </div>
         <div className="mb-4">
           <label className="block text-[#1C1C1C] text-sm font-medium mb-1">Телефон</label>
           <input
-            type="text"
+            type="tel"
             name="phone"
             value={form.phone}
             onChange={handleChange}
+            placeholder="+375 (29) 123-45-67"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
           />
         </div>
@@ -116,7 +187,7 @@ const Register = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#8A9A86] text-white py-3 rounded-xl hover:bg-[#7A8A76] transition flex items-center justify-center gap-2 text-base font-medium"
+          className="w-full bg-[#8A9A86] text-white py-3 rounded-xl hover:bg-[#7A8A76] transition flex items-center justify-center gap-2 text-base font-medium disabled:opacity-50"
         >
           <FaUserPlus />
           {loading ? 'Регистрация...' : 'Зарегистрироваться'}

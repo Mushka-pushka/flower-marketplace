@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { toast } from 'react-hot-toast'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
 
@@ -20,6 +21,11 @@ const subscribeTokenRefresh = (cb: (token: string) => void) => {
 const onTokenRefreshed = (token: string) => {
   refreshSubscribers.forEach((cb) => cb(token))
   refreshSubscribers = []
+}
+
+// Глобальная обработка ошибок
+const showError = (message: string) => {
+  toast.error(message)
 }
 
 // Интерсептор для добавления JWT-токена
@@ -79,6 +85,7 @@ client.interceptors.response.use(
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
         localStorage.removeItem('user')
+        showError('Сессия истекла. Пожалуйста, войдите заново.')
         window.location.href = '/login'
         return Promise.reject(refreshError)
       } finally {
@@ -86,7 +93,15 @@ client.interceptors.response.use(
       }
     }
 
-    // Для других ошибок
+    // Показываем уведомление для не-401 ошибок
+    if (error.response?.status !== 401) {
+      const message = error.response?.data?.error || 
+                      error.response?.data?.message || 
+                      'Произошла ошибка. Пожалуйста, попробуйте позже.'
+      showError(message)
+    }
+
+    // Для других 401 ошибок (не связанных с refresh)
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
