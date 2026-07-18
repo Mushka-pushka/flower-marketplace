@@ -103,8 +103,7 @@ export const createReview = async (data: {
   return response.data
 }
 
-export const createAddress = async (data: {
-  user_id: string    
+export const createAddress = async (data: {  
   name: string
   address: string
   entrance?: string
@@ -115,5 +114,19 @@ export const createAddress = async (data: {
 }): Promise<any> => {
   const response = await client.post('/catalog/addresses', data)
   return response.data
+}
+
+export interface DeliveryAddress {
+  id: string
+  user_id: string
+  name: string
+  address: string
+  entrance: string
+  floor: string
+  intercom: string
+  comment: string
+  is_default: boolean
+  created_at: string
+  updated_at: string
 }
 

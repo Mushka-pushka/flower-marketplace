@@ -266,3 +266,26 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 		json.NewEncoder(w).Encode(payload)
 	}
 }
+
+// RefreshToken — обновление access токена
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        RefreshToken string `json:"refresh_token"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    accessToken, refreshToken, err := h.authService.RefreshToken(req.RefreshToken)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]string{
+        "access_token":  accessToken,
+        "refresh_token": refreshToken,
+        "token_type":    "Bearer",
+    })
+}

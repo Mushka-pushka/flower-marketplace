@@ -43,7 +43,6 @@ export interface OrderDetails {
 
 // Создание заказа
 export const createOrder = async (data: {
-  customer_id: string
   shop_id: string
   delivery_address_id: string
   payment_type_id: number

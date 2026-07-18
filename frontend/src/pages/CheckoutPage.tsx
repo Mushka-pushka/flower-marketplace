@@ -94,8 +94,6 @@ const CheckoutPage = () => {
     setPaymentStatus('processing')
 
     try {
-      const customerId = user.id
-
       const paymentTypeMap: Record<string, number> = {
         card: 1,
         cash: 2,
@@ -104,7 +102,6 @@ const CheckoutPage = () => {
 
       // 1. Создаём адрес доставки
       const addressData = {
-        user_id: user.id,
         name: 'Доставка',
         address: form.address,
         entrance: form.entrance,
@@ -117,10 +114,9 @@ const CheckoutPage = () => {
       const address = await createAddress(addressData)
       console.log('Адрес создан:', address)
 
-      // 2. Создаём заказ (shopId уже точно string, потому что прошли проверку)
+      // 2. Создаём заказ 
       const orderData = {
-        customer_id: customerId,
-        shop_id: shopId, // <-- ТЕПЕРЬ ТОЧНО string
+        shop_id: shopId, 
         delivery_address_id: address.id,
         payment_type_id: paymentTypeMap[form.paymentMethod] || 1,
         delivery_date: form.deliveryDate,

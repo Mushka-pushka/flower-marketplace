@@ -246,3 +246,32 @@ func (s *AuthService) ValidateTokenAndGetUserID(tokenString string) (uuid.UUID, 
 
 	return userID, nil
 }
+
+// RefreshToken — обновление токенов
+func (s *AuthService) RefreshToken(refreshTokenStr string) (string, string, error) {
+    // Валидируем refresh токен
+    claims, err := s.ValidateToken(refreshTokenStr)
+    if err != nil {
+        return "", "", errors.New("invalid refresh token")
+    }
+
+    userIDStr, ok := claims["sub"].(string)
+    if !ok {
+        return "", "", errors.New("invalid token: missing subject")
+    }
+
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        return "", "", errors.New("invalid user ID")
+    }
+
+    // Получаем пользователя
+    ctx := context.Background()
+    user, err := s.userRepo.GetByID(ctx, userID)
+    if err != nil {
+        return "", "", errors.New("user not found")
+    }
+
+    // Генерируем новые токены
+    return s.generateTokens(user)
+}

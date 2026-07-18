@@ -30,24 +30,35 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 // @Failure      500 {object} ErrorResponse
 // @Router       /orders [post]
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
-	var req models.CreateOrderRequest
+    var req models.CreateOrderRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+    // Берем user_id из контекста (от API Gateway)
+    userIDStr := r.Header.Get("X-User-ID")
+    if userIDStr == "" {
+        respondWithError(w, http.StatusUnauthorized, "missing user id")
+        return
+    }
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "invalid user id")
+        return
+    }
 
-	order, err := h.orderService.CreateOrder(r.Context(), &req)
-	if err != nil {
-		status := http.StatusInternalServerError
-		if err.Error() == "order must have at least one item" {
-			status = http.StatusBadRequest
-		}
-		respondWithError(w, status, err.Error())
-		return
-	}
+    order, err := h.orderService.CreateOrder(r.Context(), userID, &req)
+    if err != nil {
+        status := http.StatusInternalServerError
+        if err.Error() == "order must have at least one item" {
+            status = http.StatusBadRequest
+        }
+        respondWithError(w, status, err.Error())
+        return
+    }
 
-	respondWithJSON(w, http.StatusCreated, order)
+    respondWithJSON(w, http.StatusCreated, order)
 }
 
 // GetOrder godoc

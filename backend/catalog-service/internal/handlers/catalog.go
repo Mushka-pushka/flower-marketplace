@@ -823,9 +823,15 @@ func (h *CatalogHandler) CreateAddress(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    userID := req.UserID
-    if userID == uuid.Nil {
-        respondWithError(w, http.StatusBadRequest, "user_id is required")
+    // Берем user_id из контекста (от API Gateway)
+    userIDStr := r.Header.Get("X-User-ID")
+    if userIDStr == "" {
+        respondWithError(w, http.StatusUnauthorized, "missing user id")
+        return
+    }
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "invalid user id")
         return
     }
 

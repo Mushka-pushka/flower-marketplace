@@ -37,7 +37,7 @@ func NewOrderService(
 // CreateOrder — создание заказа и отправка события в RabbitMQ
 const platformCommissionRate = 0.10
 
-func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderRequest) (*models.Order, error) {
+func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, req *models.CreateOrderRequest) (*models.Order, error) {
 	if len(req.Items) == 0 {
 		return nil, errors.New("order must have at least one item")
 	}
@@ -52,7 +52,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 	now := time.Now()
 	order := &models.Order{
 		ID:                uuid.New(),
-		CustomerID:        req.CustomerID,
+		CustomerID:        customerID,
 		ShopID:            req.ShopID,
 		DeliveryAddressID: req.DeliveryAddressID,
 		PaymentTypeID:     req.PaymentTypeID,
@@ -332,8 +332,6 @@ func (s *OrderService) publishOrderStatusChanged(orderID uuid.UUID, status strin
 	)
 	log.Printf("Event published: order.status_changed for order %s -> %s", orderID, status)
 }
-
-// КУРЬЕРЫ (ВРЕМЕННО ОТКЛЮЧЕНО)
 
 // AssignCourier — назначает курьера на заказ (ВРЕМЕННО ОТКЛЮЧЕНО)
 func (s *OrderService) AssignCourier(ctx context.Context, orderID uuid.UUID) (*models.Courier, error) {
