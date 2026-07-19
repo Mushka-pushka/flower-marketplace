@@ -6,9 +6,8 @@ import (
 	"strings"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
+	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/middleware"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
-
-	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -253,10 +252,9 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // ValidateToken godoc
-// @Summary      Проверка JWT-токена и получение user_id
+// @Summary      Проверка JWT-токена
 // @Description  Проверяет валидность JWT-токена и возвращает user_id
 // @Tags         auth
-// @Accept       json
 // @Produce      json
 // @Security     Bearer
 // @Success      200 {object} map[string]string
@@ -283,13 +281,8 @@ func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (используются из admin.go)
 // ============================================================
-
-type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  int    `json:"code,omitempty"`
-}
 
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
@@ -299,21 +292,4 @@ type RefreshResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	TokenType    string `json:"token_type"`
-}
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{
-		Error: message,
-		Code:  code,
-	})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if payload != nil {
-		json.NewEncoder(w).Encode(payload)
-	}
 }

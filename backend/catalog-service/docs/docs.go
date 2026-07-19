@@ -47,6 +47,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -74,6 +80,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.DeliveryAddress"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
                     "500": {
@@ -123,6 +135,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -177,6 +195,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -212,6 +236,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -259,6 +289,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -341,6 +377,12 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -395,6 +437,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -442,6 +490,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -481,41 +535,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/catalog/categories": {
-            "get": {
-                "description": "Возвращает список всех категорий с возможностью подсчёта товаров",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Получение категорий",
-                "parameters": [
-                    {
-                        "type": "boolean",
-                        "description": "Подсчёт товаров в категориях",
-                        "name": "with_count",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.CategoryWithCount"
-                            }
                         }
                     },
                     "500": {
@@ -545,6 +568,12 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/models.FavoriteWithProduct"
                             }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
                     "500": {
@@ -594,6 +623,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Conflict",
                         "schema": {
@@ -635,6 +670,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -683,226 +724,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/catalog/products": {
-            "get": {
-                "description": "Возвращает товар по его UUID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Получение товара по ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "UUID товара",
-                        "name": "id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Product"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Добавляет новый товар в каталог",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Создание нового товара",
-                "parameters": [
-                    {
-                        "description": "Данные товара",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateProductRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/models.Product"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/catalog/products/slug/{slug}": {
-            "get": {
-                "description": "Возвращает товар по его URL-идентификатору",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Получение товара по slug",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Slug товара",
-                        "name": "slug",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Product"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/catalog/products/{id}": {
-            "put": {
-                "description": "Изменяет данные существующего товара",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Обновление товара",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "UUID товара",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Данные для обновления",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.UpdateProductRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.Product"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "description": "Мягкое удаление товара (установка is_active = false)",
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Удаление товара",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "UUID товара",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
@@ -1002,6 +825,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
@@ -1052,6 +881,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "409": {
                         "description": "Conflict",
                         "schema": {
@@ -1097,6 +932,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/handlers.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ErrorResponse"
+                        }
+                    },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
@@ -1132,82 +973,10 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/catalog/search": {
-            "get": {
-                "description": "Поиск по тексту, тегам, категориям и цене с пагинацией",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "catalog"
-                ],
-                "summary": "Семантический поиск товаров",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Поисковый запрос",
-                        "name": "q",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Slug категории",
-                        "name": "category",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Теги через запятую",
-                        "name": "tags",
-                        "in": "query"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Минимальная цена",
-                        "name": "min_price",
-                        "in": "query"
-                    },
-                    {
-                        "type": "number",
-                        "description": "Максимальная цена",
-                        "name": "max_price",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Сортировка: price_asc, price_desc, rating, relevance, newest",
-                        "name": "sort_by",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 24,
-                        "description": "Количество на страницу",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 0,
-                        "description": "Смещение",
-                        "name": "offset",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.SearchResponse"
                         }
                     },
                     "500": {
@@ -1280,43 +1049,12 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CategoryWithCount": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "parent_id": {
-                    "type": "string"
-                },
-                "product_count": {
-                    "type": "integer"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                }
-            }
-        },
         "models.CreateAddressRequest": {
             "type": "object",
             "required": [
                 "address",
-                "name"
+                "name",
+                "user_id"
             ],
             "properties": {
                 "address": {
@@ -1339,53 +1077,8 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "models.CreateProductRequest": {
-            "type": "object",
-            "required": [
-                "category_id",
-                "name",
-                "price",
-                "shop_id"
-            ],
-            "properties": {
-                "category_id": {
-                    "type": "string"
                 },
-                "description": {
-                    "type": "string"
-                },
-                "is_featured": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "old_price": {
-                    "type": "number"
-                },
-                "packaging": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "shop_id": {
-                    "type": "string"
-                },
-                "stock": {
-                    "type": "integer",
-                    "minimum": 0
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "unit": {
+                "user_id": {
                     "type": "string"
                 }
             }
@@ -1481,70 +1174,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.Product": {
-            "type": "object",
-            "properties": {
-                "category_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "is_featured": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "old_price": {
-                    "type": "number"
-                },
-                "packaging": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "rating": {
-                    "type": "number"
-                },
-                "shop_id": {
-                    "type": "string"
-                },
-                "slug": {
-                    "type": "string"
-                },
-                "stock": {
-                    "type": "integer"
-                },
-                "tags": {
-                    "description": "для семантического поиска!",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "unit": {
-                    "description": "\"шт\", \"букет\"",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "views_count": {
-                    "type": "integer"
-                }
-            }
-        },
         "models.Review": {
             "type": "object",
             "properties": {
@@ -1615,41 +1244,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SearchResponse": {
-            "type": "object",
-            "properties": {
-                "has_more": {
-                    "type": "boolean"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Product"
-                    }
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "query": {
-                    "type": "string"
-                },
-                "sort_by": {
-                    "type": "string"
-                },
-                "tags_used": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
         "models.UpdateAddressRequest": {
             "type": "object",
             "properties": {
@@ -1685,47 +1279,6 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer",
                     "minimum": 1
-                }
-            }
-        },
-        "models.UpdateProductRequest": {
-            "type": "object",
-            "properties": {
-                "category_id": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "is_featured": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "old_price": {
-                    "type": "number"
-                },
-                "packaging": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "stock": {
-                    "type": "integer"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "unit": {
-                    "type": "string"
                 }
             }
         },

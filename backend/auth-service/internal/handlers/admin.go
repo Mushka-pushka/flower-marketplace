@@ -7,7 +7,7 @@ import (
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
-    "github.com/google/uuid"
+	"github.com/google/uuid"
 )
 
 type AdminHandler struct {
@@ -18,7 +18,16 @@ func NewAdminHandler(adminService *service.AdminService) *AdminHandler {
 	return &AdminHandler{adminService: adminService}
 }
 
-// GetSellers — получение списка продавцов
+// GetSellers godoc
+// @Summary      Получение списка продавцов
+// @Description  Возвращает список всех продавцов с фильтром по верификации
+// @Tags         admin
+// @Produce      json
+// @Security     Bearer
+// @Param        verified query bool false "Фильтр по верификации"
+// @Success      200 {array} models.SellerWithUser
+// @Failure      500 {object} ErrorResponse
+// @Router       /admin/sellers [get]
 func (h *AdminHandler) GetSellers(w http.ResponseWriter, r *http.Request) {
 	var verified *bool
 	if v := r.URL.Query().Get("verified"); v != "" {
@@ -35,7 +44,18 @@ func (h *AdminHandler) GetSellers(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, sellers)
 }
 
-// VerifySeller — верификация продавца
+// VerifySeller godoc
+// @Summary      Верификация продавца
+// @Description  Подтверждает или отклоняет продавца
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.VerifySellerRequest true "Данные для верификации"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /admin/sellers/verify [put]
 func (h *AdminHandler) VerifySeller(w http.ResponseWriter, r *http.Request) {
 	var req models.VerifySellerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -56,7 +76,18 @@ func (h *AdminHandler) VerifySeller(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": message})
 }
 
-// UpdateUserStatus — блокировка/разблокировка пользователя
+// UpdateUserStatus godoc
+// @Summary      Блокировка/разблокировка пользователя
+// @Description  Изменяет статус пользователя (активен/заблокирован)
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        request body models.UpdateUserStatusRequest true "Данные для обновления"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /admin/users/status [put]
 func (h *AdminHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request) {
 	var req models.UpdateUserStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -77,7 +108,19 @@ func (h *AdminHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": message})
 }
 
-// GetUsersList — получение списка пользователей
+// GetUsersList godoc
+// @Summary      Получение списка пользователей
+// @Description  Возвращает список пользователей с фильтрацией по роли и статусу
+// @Tags         admin
+// @Produce      json
+// @Security     Bearer
+// @Param        role query string false "Роль пользователя"
+// @Param        is_active query bool false "Статус активности"
+// @Param        limit query int false "Количество записей" default(20)
+// @Param        offset query int false "Смещение" default(0)
+// @Success      200 {array} models.UserResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /admin/users [get]
 func (h *AdminHandler) GetUsersList(w http.ResponseWriter, r *http.Request) {
 	role := r.URL.Query().Get("role")
 	var isActive *bool
@@ -109,7 +152,20 @@ func (h *AdminHandler) GetUsersList(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, users)
 }
 
-// GetUsersListWithFilters — получение списка пользователей с фильтрацией
+// GetUsersListWithFilters godoc
+// @Summary      Получение списка пользователей с расширенной фильтрацией
+// @Description  Возвращает список пользователей с фильтрацией по роли, статусу и поиску
+// @Tags         admin
+// @Produce      json
+// @Security     Bearer
+// @Param        role query string false "Роль пользователя"
+// @Param        is_active query bool false "Статус активности"
+// @Param        search query string false "Поиск по email или имени"
+// @Param        limit query int false "Количество записей" default(20)
+// @Param        offset query int false "Смещение" default(0)
+// @Success      200 {object} models.UsersListResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /admin/users/list [get]
 func (h *AdminHandler) GetUsersListWithFilters(w http.ResponseWriter, r *http.Request) {
 	req := models.UsersListRequest{
 		Role:   r.URL.Query().Get("role"),
@@ -141,7 +197,18 @@ func (h *AdminHandler) GetUsersListWithFilters(w http.ResponseWriter, r *http.Re
 	respondWithJSON(w, http.StatusOK, resp)
 }
 
-// GetUserByIDForAdmin — получение детальной информации о пользователе
+// GetUserByIDForAdmin godoc
+// @Summary      Получение детальной информации о пользователе
+// @Description  Возвращает полную информацию о пользователе по ID
+// @Tags         admin
+// @Produce      json
+// @Security     Bearer
+// @Param        id query string true "ID пользователя"
+// @Success      200 {object} models.UserDetails
+// @Failure      400 {object} ErrorResponse
+// @Failure      404 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /admin/users/details [get]
 func (h *AdminHandler) GetUserByIDForAdmin(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("id")
 	if userIDStr == "" {
@@ -166,4 +233,30 @@ func (h *AdminHandler) GetUserByIDForAdmin(w http.ResponseWriter, r *http.Reques
 	}
 
 	respondWithJSON(w, http.StatusOK, user)
+}
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+	Code  int    `json:"code,omitempty"`
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(ErrorResponse{
+		Error: message,
+		Code:  code,
+	})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if payload != nil {
+		json.NewEncoder(w).Encode(payload)
+	}
 }

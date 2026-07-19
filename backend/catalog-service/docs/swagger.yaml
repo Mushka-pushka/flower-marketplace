@@ -39,27 +39,6 @@ definitions:
         description: '"product", "category", "tag"'
         type: string
     type: object
-  models.CategoryWithCount:
-    properties:
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      image_url:
-        type: string
-      name:
-        type: string
-      parent_id:
-        type: string
-      product_count:
-        type: integer
-      slug:
-        type: string
-      sort_order:
-        type: integer
-    type: object
   models.CreateAddressRequest:
     properties:
       address:
@@ -76,42 +55,12 @@ definitions:
         type: boolean
       name:
         type: string
+      user_id:
+        type: string
     required:
     - address
     - name
-    type: object
-  models.CreateProductRequest:
-    properties:
-      category_id:
-        type: string
-      description:
-        type: string
-      is_featured:
-        type: boolean
-      name:
-        type: string
-      old_price:
-        type: number
-      packaging:
-        type: string
-      price:
-        type: number
-      shop_id:
-        type: string
-      stock:
-        minimum: 0
-        type: integer
-      tags:
-        items:
-          type: string
-        type: array
-      unit:
-        type: string
-    required:
-    - category_id
-    - name
-    - price
-    - shop_id
+    - user_id
     type: object
   models.CreateReviewRequest:
     properties:
@@ -174,49 +123,6 @@ definitions:
       user_id:
         type: string
     type: object
-  models.Product:
-    properties:
-      category_id:
-        type: string
-      created_at:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      is_featured:
-        type: boolean
-      name:
-        type: string
-      old_price:
-        type: number
-      packaging:
-        type: string
-      price:
-        type: number
-      rating:
-        type: number
-      shop_id:
-        type: string
-      slug:
-        type: string
-      stock:
-        type: integer
-      tags:
-        description: для семантического поиска!
-        items:
-          type: string
-        type: array
-      unit:
-        description: '"шт", "букет"'
-        type: string
-      updated_at:
-        type: string
-      views_count:
-        type: integer
-    type: object
   models.Review:
     properties:
       comment:
@@ -263,29 +169,6 @@ definitions:
       user_name:
         type: string
     type: object
-  models.SearchResponse:
-    properties:
-      has_more:
-        type: boolean
-      items:
-        items:
-          $ref: '#/definitions/models.Product'
-        type: array
-      limit:
-        type: integer
-      offset:
-        type: integer
-      query:
-        type: string
-      sort_by:
-        type: string
-      tags_used:
-        items:
-          type: string
-        type: array
-      total:
-        type: integer
-    type: object
   models.UpdateAddressRequest:
     properties:
       address:
@@ -310,33 +193,6 @@ definitions:
         type: integer
     required:
     - quantity
-    type: object
-  models.UpdateProductRequest:
-    properties:
-      category_id:
-        type: string
-      description:
-        type: string
-      is_active:
-        type: boolean
-      is_featured:
-        type: boolean
-      name:
-        type: string
-      old_price:
-        type: number
-      packaging:
-        type: string
-      price:
-        type: number
-      stock:
-        type: integer
-      tags:
-        items:
-          type: string
-        type: array
-      unit:
-        type: string
     type: object
   models.UpdateReviewRequest:
     properties:
@@ -374,6 +230,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -401,6 +261,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -423,6 +287,10 @@ paths:
             items:
               $ref: '#/definitions/models.DeliveryAddress'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -450,6 +318,10 @@ paths:
             $ref: '#/definitions/models.DeliveryAddress'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "500":
@@ -486,6 +358,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -515,6 +391,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "403":
@@ -578,6 +458,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -595,6 +479,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -624,6 +512,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "500":
@@ -662,6 +554,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -669,30 +565,6 @@ paths:
       summary: Обновление количества товара в корзине
       tags:
       - cart
-  /catalog/categories:
-    get:
-      description: Возвращает список всех категорий с возможностью подсчёта товаров
-      parameters:
-      - description: Подсчёт товаров в категориях
-        in: query
-        name: with_count
-        type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.CategoryWithCount'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Получение категорий
-      tags:
-      - catalog
   /catalog/favorites:
     delete:
       description: Удаляет товар из списка избранных
@@ -713,6 +585,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -731,6 +607,10 @@ paths:
             items:
               $ref: '#/definitions/models.FavoriteWithProduct'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -760,6 +640,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "409":
@@ -795,6 +679,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -802,154 +690,6 @@ paths:
       summary: Проверка наличия товара в избранном
       tags:
       - favorites
-  /catalog/products:
-    get:
-      description: Возвращает товар по его UUID
-      parameters:
-      - description: UUID товара
-        in: query
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Product'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Получение товара по ID
-      tags:
-      - catalog
-    post:
-      consumes:
-      - application/json
-      description: Добавляет новый товар в каталог
-      parameters:
-      - description: Данные товара
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.CreateProductRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/models.Product'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Создание нового товара
-      tags:
-      - catalog
-  /catalog/products/{id}:
-    delete:
-      description: Мягкое удаление товара (установка is_active = false)
-      parameters:
-      - description: UUID товара
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Удаление товара
-      tags:
-      - catalog
-    put:
-      consumes:
-      - application/json
-      description: Изменяет данные существующего товара
-      parameters:
-      - description: UUID товара
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Данные для обновления
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.UpdateProductRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Product'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Обновление товара
-      tags:
-      - catalog
-  /catalog/products/slug/{slug}:
-    get:
-      description: Возвращает товар по его URL-идентификатору
-      parameters:
-      - description: Slug товара
-        in: path
-        name: slug
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Product'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Получение товара по slug
-      tags:
-      - catalog
   /catalog/reviews:
     delete:
       description: Удаляет отзыв пользователя
@@ -968,6 +708,10 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
         "403":
@@ -1031,6 +775,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -1069,6 +817,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -1092,6 +844,10 @@ paths:
             items:
               $ref: '#/definitions/models.ReviewWithUser'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -1099,56 +855,4 @@ paths:
       summary: Получение моих отзывов
       tags:
       - reviews
-  /catalog/search:
-    get:
-      description: Поиск по тексту, тегам, категориям и цене с пагинацией
-      parameters:
-      - description: Поисковый запрос
-        in: query
-        name: q
-        type: string
-      - description: Slug категории
-        in: query
-        name: category
-        type: string
-      - description: Теги через запятую
-        in: query
-        name: tags
-        type: string
-      - description: Минимальная цена
-        in: query
-        name: min_price
-        type: number
-      - description: Максимальная цена
-        in: query
-        name: max_price
-        type: number
-      - description: 'Сортировка: price_asc, price_desc, rating, relevance, newest'
-        in: query
-        name: sort_by
-        type: string
-      - default: 24
-        description: Количество на страницу
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Смещение
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.SearchResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handlers.ErrorResponse'
-      summary: Семантический поиск товаров
-      tags:
-      - catalog
 swagger: "2.0"

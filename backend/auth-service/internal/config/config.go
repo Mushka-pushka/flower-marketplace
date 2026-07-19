@@ -24,7 +24,7 @@ func Load() *Config {
 		DBHost:      getEnv("DB_HOST", "127.0.0.1"),
 		DBPort:      getEnv("DB_PORT", "5432"),
 		DBUser:      getEnv("DB_USER", "flower_user"),
-		DBPassword:  "flower_pass",
+		DBPassword:  getEnv("DB_PASSWORD", ""), 
 		DBName:      getEnv("DB_NAME", "flower_marketplace"),
 		JWTSecret:   getEnv("JWT_SECRET", "your_super_secret_key_here"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),

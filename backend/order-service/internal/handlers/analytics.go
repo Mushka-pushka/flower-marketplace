@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -17,7 +18,19 @@ func NewAnalyticsHandler(analyticsService *service.AnalyticsService) *AnalyticsH
 	return &AnalyticsHandler{analyticsService: analyticsService}
 }
 
-// GetSellerAnalytics — получение общей аналитики продавца
+// GetSellerAnalytics godoc
+// @Summary      Получение аналитики продавца
+// @Description  Возвращает общую аналитику по заказам продавца (количество заказов, выручка, средний чек)
+// @Tags         analytics
+// @Produce      json
+// @Security     Bearer
+// @Param        shop_id query string true "ID магазина"
+// @Success      200 {object} models.SellerAnalytics
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /analytics/seller [get]
 func (h *AnalyticsHandler) GetSellerAnalytics(w http.ResponseWriter, r *http.Request) {
 	shopIDStr := r.URL.Query().Get("shop_id")
 	if shopIDStr == "" {
@@ -40,7 +53,20 @@ func (h *AnalyticsHandler) GetSellerAnalytics(w http.ResponseWriter, r *http.Req
 	respondWithJSON(w, http.StatusOK, analytics)
 }
 
-// GetPopularProducts — получение популярных товаров продавца
+// GetPopularProducts godoc
+// @Summary      Получение популярных товаров
+// @Description  Возвращает самые продаваемые товары продавца с количеством продаж и выручкой
+// @Tags         analytics
+// @Produce      json
+// @Security     Bearer
+// @Param        shop_id query string true "ID магазина"
+// @Param        limit query int false "Количество товаров" default(10)
+// @Success      200 {array} models.PopularProduct
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /analytics/popular [get]
 func (h *AnalyticsHandler) GetPopularProducts(w http.ResponseWriter, r *http.Request) {
 	shopIDStr := r.URL.Query().Get("shop_id")
 	if shopIDStr == "" {
@@ -70,7 +96,19 @@ func (h *AnalyticsHandler) GetPopularProducts(w http.ResponseWriter, r *http.Req
 	respondWithJSON(w, http.StatusOK, products)
 }
 
-// GetOrderStatsByStatus — получение статистики по статусам заказов
+// GetOrderStatsByStatus godoc
+// @Summary      Получение статистики по статусам
+// @Description  Возвращает количество заказов по каждому статусу для магазина
+// @Tags         analytics
+// @Produce      json
+// @Security     Bearer
+// @Param        shop_id query string true "ID магазина"
+// @Success      200 {array} models.OrderStatsByStatus
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /analytics/statuses [get]
 func (h *AnalyticsHandler) GetOrderStatsByStatus(w http.ResponseWriter, r *http.Request) {
 	shopIDStr := r.URL.Query().Get("shop_id")
 	if shopIDStr == "" {
@@ -91,4 +129,27 @@ func (h *AnalyticsHandler) GetOrderStatsByStatus(w http.ResponseWriter, r *http.
 	}
 
 	respondWithJSON(w, http.StatusOK, stats)
+}
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+	Code  int    `json:"code,omitempty"`
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message, Code: code})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if payload != nil {
+		json.NewEncoder(w).Encode(payload)
+	}
 }

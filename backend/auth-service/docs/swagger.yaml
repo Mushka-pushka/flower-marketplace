@@ -7,6 +7,20 @@ definitions:
       error:
         type: string
     type: object
+  handlers.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  handlers.RefreshResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
   models.ChangePasswordRequest:
     properties:
       new_password:
@@ -60,6 +74,44 @@ definitions:
     - email
     - password
     type: object
+  models.SellerWithUser:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      is_active:
+        type: boolean
+      is_verified:
+        type: boolean
+      last_name:
+        type: string
+      phone:
+        type: string
+      rating:
+        type: number
+      shop_description:
+        type: string
+      shop_id:
+        type: string
+      shop_name:
+        type: string
+      user_id:
+        type: string
+    type: object
+  models.ShopInfo:
+    properties:
+      id:
+        type: string
+      is_verified:
+        type: boolean
+      name:
+        type: string
+      rating:
+        type: number
+    type: object
   models.UpdateProfileRequest:
     properties:
       first_name:
@@ -67,6 +119,38 @@ definitions:
       last_name:
         type: string
       phone:
+        type: string
+    type: object
+  models.UpdateUserStatusRequest:
+    properties:
+      is_active:
+        type: boolean
+      user_id:
+        type: string
+    required:
+    - user_id
+    type: object
+  models.UserDetails:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      last_name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      shop:
+        $ref: '#/definitions/models.ShopInfo'
+      updated_at:
         type: string
     type: object
   models.UserResponse:
@@ -88,6 +172,31 @@ definitions:
       role:
         type: string
     type: object
+  models.UsersListResponse:
+    properties:
+      has_more:
+        type: boolean
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/models.UserDetails'
+        type: array
+    type: object
+  models.VerifySellerRequest:
+    properties:
+      shop_id:
+        type: string
+      verify:
+        description: true — подтвердить, false — отклонить
+        type: boolean
+    required:
+    - shop_id
+    type: object
 host: localhost:8081
 info:
   contact:
@@ -98,6 +207,216 @@ info:
   title: Flower Marketplace Auth Service API
   version: "1.0"
 paths:
+  /admin/sellers:
+    get:
+      description: Возвращает список всех продавцов с фильтром по верификации
+      parameters:
+      - description: Фильтр по верификации
+        in: query
+        name: verified
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SellerWithUser'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение списка продавцов
+      tags:
+      - admin
+  /admin/sellers/verify:
+    put:
+      consumes:
+      - application/json
+      description: Подтверждает или отклоняет продавца
+      parameters:
+      - description: Данные для верификации
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.VerifySellerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Верификация продавца
+      tags:
+      - admin
+  /admin/users:
+    get:
+      description: Возвращает список пользователей с фильтрацией по роли и статусу
+      parameters:
+      - description: Роль пользователя
+        in: query
+        name: role
+        type: string
+      - description: Статус активности
+        in: query
+        name: is_active
+        type: boolean
+      - default: 20
+        description: Количество записей
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.UserResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение списка пользователей
+      tags:
+      - admin
+  /admin/users/details:
+    get:
+      description: Возвращает полную информацию о пользователе по ID
+      parameters:
+      - description: ID пользователя
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserDetails'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение детальной информации о пользователе
+      tags:
+      - admin
+  /admin/users/list:
+    get:
+      description: Возвращает список пользователей с фильтрацией по роли, статусу
+        и поиску
+      parameters:
+      - description: Роль пользователя
+        in: query
+        name: role
+        type: string
+      - description: Статус активности
+        in: query
+        name: is_active
+        type: boolean
+      - description: Поиск по email или имени
+        in: query
+        name: search
+        type: string
+      - default: 20
+        description: Количество записей
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Смещение
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UsersListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение списка пользователей с расширенной фильтрацией
+      tags:
+      - admin
+  /admin/users/status:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет статус пользователя (активен/заблокирован)
+      parameters:
+      - description: Данные для обновления
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateUserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Блокировка/разблокировка пользователя
+      tags:
+      - admin
   /auth/login:
     post:
       consumes:
@@ -209,6 +528,36 @@ paths:
       summary: Обновление профиля пользователя
       tags:
       - profile
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет access и refresh токены
+      parameters:
+      - description: Refresh токен
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.RefreshResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Обновление JWT-токенов
+      tags:
+      - auth
   /auth/register:
     post:
       consumes:
@@ -233,6 +582,27 @@ paths:
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
       summary: Регистрация нового пользователя
+      tags:
+      - auth
+  /auth/validate:
+    post:
+      description: Проверяет валидность JWT-токена и возвращает user_id
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Проверка JWT-токена
       tags:
       - auth
 securityDefinitions:

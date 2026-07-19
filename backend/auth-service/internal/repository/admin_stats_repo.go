@@ -26,13 +26,15 @@ func NewAdminStatsRepository() *AdminStatsRepository {
 // GetUserStats — статистика по пользователям (локальная БД)
 func (r *AdminStatsRepository) GetUserStats(ctx context.Context) (total int64, byRole map[string]int64, err error) {
     // Этот запрос остается в Auth Service (таблица users)
-    // ... существующий код ...
+    // Временная заглушка - нужно реализовать через БД
+    return 0, make(map[string]int64), nil
 }
 
 // GetShopStats — статистика по магазинам (локальная БД)
 func (r *AdminStatsRepository) GetShopStats(ctx context.Context) (total, verified int64, err error) {
     // Этот запрос остается в Auth Service (таблица shops)
-    // ... существующий код ...
+    // Временная заглушка - нужно реализовать через БД
+    return 0, 0, nil
 }
 
 // GetOrderStats — статистика по заказам (через API Order Service)

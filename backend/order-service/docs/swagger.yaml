@@ -32,6 +32,8 @@ definitions:
     properties:
       comment:
         type: string
+      commission:
+        type: number
       created_at:
         type: string
       current_status:
@@ -94,6 +96,39 @@ definitions:
           $ref: '#/definitions/models.StatusHistory'
         type: array
     type: object
+  models.OrderStatsByStatus:
+    properties:
+      count:
+        type: integer
+      status:
+        type: string
+    type: object
+  models.PopularProduct:
+    properties:
+      orders_count:
+        type: integer
+      product_id:
+        type: string
+      product_name:
+        type: string
+      total_revenue:
+        type: number
+      total_sold:
+        type: integer
+    type: object
+  models.SellerAnalytics:
+    properties:
+      average_order_sum:
+        type: number
+      cancelled_orders:
+        type: integer
+      completed_orders:
+        type: integer
+      total_orders:
+        type: integer
+      total_revenue:
+        type: number
+    type: object
   models.StatusHistory:
     properties:
       changed_by:
@@ -128,6 +163,128 @@ info:
   title: Flower Marketplace Order Service API
   version: "1.0"
 paths:
+  /analytics/popular:
+    get:
+      description: Возвращает самые продаваемые товары продавца с количеством продаж
+        и выручкой
+      parameters:
+      - description: ID магазина
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      - default: 10
+        description: Количество товаров
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.PopularProduct'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение популярных товаров
+      tags:
+      - analytics
+  /analytics/seller:
+    get:
+      description: Возвращает общую аналитику по заказам продавца (количество заказов,
+        выручка, средний чек)
+      parameters:
+      - description: ID магазина
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SellerAnalytics'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение аналитики продавца
+      tags:
+      - analytics
+  /analytics/statuses:
+    get:
+      description: Возвращает количество заказов по каждому статусу для магазина
+      parameters:
+      - description: ID магазина
+        in: query
+        name: shop_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.OrderStatsByStatus'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение статистики по статусам
+      tags:
+      - analytics
   /orders:
     get:
       description: Возвращает заказ с позициями и историей статусов
@@ -177,11 +334,48 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
       summary: Создание нового заказа
+      tags:
+      - orders
+  /orders/can-review:
+    get:
+      description: Проверяет, может ли пользователь оставить отзыв на товар
+      parameters:
+      - description: ID товара
+        in: query
+        name: product_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Проверка возможности оставить отзыв
       tags:
       - orders
   /orders/cancel:
@@ -212,12 +406,15 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
       summary: Отмена заказа
       tags:
       - orders
   /orders/customer:
     get:
-      description: Возвращает все заказы конкретного покупателя
+      description: Возвращает все заказы конкретного покупателя (только свои или для
+        admin)
       parameters:
       - description: ID покупателя
         in: query
@@ -237,10 +434,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
       summary: Получение заказов покупателя
       tags:
       - orders
@@ -270,6 +473,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
       summary: Получение заказов магазина (для продавца)
       tags:
       - orders
@@ -307,6 +512,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
       summary: Обновление статуса заказа продавцом
       tags:
       - orders

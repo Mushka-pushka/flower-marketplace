@@ -1,0 +1,175 @@
+definitions:
+  handlers.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+    type: object
+  models.CreatePaymentRequest:
+    properties:
+      amount:
+        type: number
+      order_id:
+        type: string
+      payment_method:
+        description: card, cash, online
+        type: string
+    required:
+    - amount
+    - order_id
+    - payment_method
+    type: object
+  models.Payment:
+    properties:
+      amount:
+        type: number
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      payment_method:
+        type: string
+      payment_url:
+        type: string
+      status:
+        description: pending, completed, failed, refunded
+        type: string
+      transaction_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /payments:
+    get:
+      description: Возвращает статус платежа по ID
+      parameters:
+      - description: ID платежа
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Payment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение статуса платежа
+      tags:
+      - payments
+    post:
+      consumes:
+      - application/json
+      description: Создаёт новый платеж для заказа
+      parameters:
+      - description: Данные платежа
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreatePaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Payment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Создание платежа
+      tags:
+      - payments
+  /payments/order:
+    get:
+      description: Возвращает платеж по ID заказа
+      parameters:
+      - description: ID заказа
+        in: query
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Payment'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Получение платежа по ID заказа
+      tags:
+      - payments
+swagger: "2.0"

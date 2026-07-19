@@ -24,6 +24,7 @@ func NewPaymentHandler(paymentService *service.PaymentService) *PaymentHandler {
 // @Tags         payments
 // @Accept       json
 // @Produce      json
+// @Security     Bearer
 // @Param        request body models.CreatePaymentRequest true "Данные платежа"
 // @Success      201 {object} models.Payment
 // @Failure      400 {object} ErrorResponse
@@ -79,6 +80,7 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 // @Description  Возвращает статус платежа по ID
 // @Tags         payments
 // @Produce      json
+// @Security     Bearer
 // @Param        id query string true "ID платежа"
 // @Success      200 {object} models.Payment
 // @Failure      400 {object} ErrorResponse
@@ -144,6 +146,7 @@ func (h *PaymentHandler) GetPaymentStatus(w http.ResponseWriter, r *http.Request
 // @Description  Возвращает платеж по ID заказа
 // @Tags         payments
 // @Produce      json
+// @Security     Bearer
 // @Param        order_id query string true "ID заказа"
 // @Success      200 {object} models.Payment
 // @Failure      400 {object} ErrorResponse

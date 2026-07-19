@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"io/ioutil"  
 	"net/http"
 	"os"
 	"os/signal"
@@ -35,13 +34,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/joho/godotenv/autoload"
-)
 
-// @title           Flower Marketplace Auth Service API
-// @version         1.0
-// @description     Сервис аутентификации и управления пользователями
-// @host      localhost:8081
-// @BasePath  /api/v1
+	_ "github.com/Mushka-pushka/flower-marketplace/backend/auth-service/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
+)
 
 func main() {
 	cfg := config.Load()
@@ -73,7 +69,7 @@ func main() {
 	adminRepo := repository.NewAdminRepository(db)
 	adminService := service.NewAdminService(adminRepo, cfg)
 	adminHandler := handlers.NewAdminHandler(adminService)
-	statsRepo := repository.NewAdminStatsRepository(db)
+	statsRepo := repository.NewAdminStatsRepository()
 	statsService := service.NewAdminStatsService(statsRepo, cfg)
 	statsHandler := handlers.NewAdminStatsHandler(statsService)
 
@@ -99,56 +95,8 @@ func main() {
 	http.HandleFunc("GET /api/v1/admin/stats", authMiddleware.JWT(statsHandler.GetAdminStats))
 
 	// ----- SWAGGER -----
-	http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
-		// Если запрос на doc.json
-		if r.URL.Path == "/swagger/doc.json" {
-			data, err := ioutil.ReadFile("./docs/swagger.json")
-			if err != nil {
-				http.Error(w, "Swagger docs not found", http.StatusNotFound)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Write(data)
-			return
-		}
-
-		// Если запрос на index.html или статику
-		if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
-			// Отдаём стандартный HTML-интерфейс Swagger UI
-			html := `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<meta charset="UTF-8">
-				<title>Swagger UI</title>
-				<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
-			</head>
-			<body>
-				<div id="swagger-ui"></div>
-				<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
-				<script>
-					window.onload = function() {
-						SwaggerUIBundle({
-							url: "/swagger/doc.json",
-							dom_id: '#swagger-ui',
-							presets: [
-								SwaggerUIBundle.presets.apis,
-								SwaggerUIBundle.SwaggerUIStandalonePreset
-							],
-							layout: "BaseLayout"
-						});
-					};
-				</script>
-			</body>
-			</html>
-			`
-			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(html))
-			return
-		}
-
-		http.NotFound(w, r)
-	})
+	http.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
+	http.HandleFunc("GET /swagger/*", httpSwagger.WrapHandler)
 
 	// Создаём сервер
 	server := &http.Server{

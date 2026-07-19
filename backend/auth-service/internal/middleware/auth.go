@@ -5,14 +5,18 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
+
 	"github.com/google/uuid"
 )
 
 type contextKey string
 
-const UserKey contextKey = "user"
-const UserIDKey contextKey = "user_id"
+const (
+	UserKey   contextKey = "user"
+	UserIDKey contextKey = "user_id"
+)
 
 type AuthMiddleware struct {
 	authService *service.AuthService
@@ -55,4 +59,10 @@ func (m *AuthMiddleware) JWT(next http.HandlerFunc) http.HandlerFunc {
 func GetUserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 	userID, ok := ctx.Value(UserIDKey).(uuid.UUID)
 	return userID, ok
+}
+
+// GetUserFromContext — извлекает пользователя из контекста
+func GetUserFromContext(ctx context.Context) (*models.User, bool) {
+	user, ok := ctx.Value(UserKey).(*models.User)
+	return user, ok
 }

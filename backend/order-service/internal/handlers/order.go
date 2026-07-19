@@ -24,9 +24,11 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 // @Tags         orders
 // @Accept       json
 // @Produce      json
+// @Security     Bearer
 // @Param        request body models.CreateOrderRequest true "Данные заказа"
 // @Success      201 {object} models.Order
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /orders [post]
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +104,7 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 // @Description  Возвращает все заказы конкретного покупателя (только свои или для admin)
 // @Tags         orders
 // @Produce      json
+// @Security     Bearer
 // @Param        customer_id query string true "ID покупателя"
 // @Success      200 {array} models.Order
 // @Failure      400 {object} ErrorResponse
@@ -155,6 +158,7 @@ func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Reques
 // @Description  Возвращает все заказы конкретного магазина
 // @Tags         orders
 // @Produce      json
+// @Security     Bearer
 // @Param        shop_id query string true "ID магазина"
 // @Success      200 {array} models.Order
 // @Failure      400 {object} ErrorResponse
@@ -186,6 +190,7 @@ func (h *OrderHandler) GetOrdersByShop(w http.ResponseWriter, r *http.Request) {
 // @Summary      Отмена заказа
 // @Description  Покупатель или продавец отменяет заказ (только если он ещё не доставлен)
 // @Tags         orders
+// @Security     Bearer
 // @Param        id query string true "ID заказа"
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} ErrorResponse
@@ -248,6 +253,7 @@ func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 // @Tags         orders
 // @Accept       json
 // @Produce      json
+// @Security     Bearer
 // @Param        request body models.UpdateOrderStatusRequest true "Новый статус"
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} ErrorResponse
@@ -315,6 +321,7 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 // @Description  Проверяет, может ли пользователь оставить отзыв на товар
 // @Tags         orders
 // @Produce      json
+// @Security     Bearer
 // @Param        product_id query string true "ID товара"
 // @Success      200 {object} map[string]bool
 // @Failure      400 {object} ErrorResponse
@@ -353,27 +360,4 @@ func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
-}
-
-// ============================================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-// ============================================================
-
-type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  int    `json:"code,omitempty"`
-}
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message, Code: code})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if payload != nil {
-		json.NewEncoder(w).Encode(payload)
-	}
 }
