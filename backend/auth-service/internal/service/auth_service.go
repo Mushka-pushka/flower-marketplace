@@ -38,6 +38,20 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		return nil, errors.New("email already registered")
 	}
 
+	// Валидация роли - разрешены только customer и seller
+	allowedRoles := map[string]bool{
+		"customer": true,
+		"seller":   true,
+	}
+
+	role := "customer" // по умолчанию
+	if req.Role != "" {
+		if !allowedRoles[req.Role] {
+			return nil, errors.New("invalid role. Allowed: customer, seller")
+		}
+		role = req.Role
+	}
+
 	// Хешируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -53,14 +67,10 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		PasswordHash: string(hashedPassword),
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
-		Role:         "customer",
+		Role:         role,
 		IsActive:     true,
 		CreatedAt:    now,
 		UpdatedAt:    now,
-	}
-
-	if req.Role == "seller" {
-		user.Role = "seller"
 	}
 
 	err = s.userRepo.Create(ctx, user)
@@ -249,29 +259,29 @@ func (s *AuthService) ValidateTokenAndGetUserID(tokenString string) (uuid.UUID, 
 
 // RefreshToken — обновление токенов
 func (s *AuthService) RefreshToken(refreshTokenStr string) (string, string, error) {
-    // Валидируем refresh токен
-    claims, err := s.ValidateToken(refreshTokenStr)
-    if err != nil {
-        return "", "", errors.New("invalid refresh token")
-    }
+	// Валидируем refresh токен
+	claims, err := s.ValidateToken(refreshTokenStr)
+	if err != nil {
+		return "", "", errors.New("invalid refresh token")
+	}
 
-    userIDStr, ok := claims["sub"].(string)
-    if !ok {
-        return "", "", errors.New("invalid token: missing subject")
-    }
+	userIDStr, ok := claims["sub"].(string)
+	if !ok {
+		return "", "", errors.New("invalid token: missing subject")
+	}
 
-    userID, err := uuid.Parse(userIDStr)
-    if err != nil {
-        return "", "", errors.New("invalid user ID")
-    }
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return "", "", errors.New("invalid user ID")
+	}
 
-    // Получаем пользователя
-    ctx := context.Background()
-    user, err := s.userRepo.GetByID(ctx, userID)
-    if err != nil {
-        return "", "", errors.New("user not found")
-    }
+	// Получаем пользователя
+	ctx := context.Background()
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return "", "", errors.New("user not found")
+	}
 
-    // Генерируем новые токены
-    return s.generateTokens(user)
+	// Генерируем новые токены
+	return s.generateTokens(user)
 }

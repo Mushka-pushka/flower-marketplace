@@ -83,7 +83,41 @@ func (s *OrderService) GetProductPrice(ctx context.Context, productID uuid.UUID)
 	return product.Price, nil
 }
 
-// CreateOrder — создание заказа и отправка события в RabbitMQ
+// GetProductStock — получает остаток товара из Catalog Service
+func (s *OrderService) GetProductStock(ctx context.Context, productID uuid.UUID) (int, error) {
+	url := fmt.Sprintf("%s/products/%s", s.catalogURL, productID.String())
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get product stock: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("catalog service returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var product struct {
+		Stock int `json:"stock"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&product); err != nil {
+		return 0, fmt.Errorf("failed to decode product response: %w", err)
+	}
+
+	if product.Stock < 0 {
+		return 0, fmt.Errorf("invalid stock: %d", product.Stock)
+	}
+
+	return product.Stock, nil
+}
+
+// CreateOrder — создание заказа с проверкой наличия товаров на складе
 func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, req *models.CreateOrderRequest) (*models.Order, error) {
 	if len(req.Items) == 0 {
 		return nil, errors.New("order must have at least one item")
@@ -96,8 +130,21 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 		Price     float64
 	}
 
-	// Получаем цены для каждого товара из Catalog Service
+	// Проверяем наличие товаров на складе и получаем цены
 	for _, item := range req.Items {
+		// Получаем остаток товара
+		stock, err := s.GetProductStock(ctx, item.ProductID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check stock for product %s: %w", item.ProductID, err)
+		}
+
+		// Проверяем, что запрашиваемое количество есть в наличии
+		if stock < item.Quantity {
+			return nil, fmt.Errorf("not enough stock for product %s. Available: %d, requested: %d", 
+				item.ProductID, stock, item.Quantity)
+		}
+
+		// Получаем цену товара
 		price, err := s.GetProductPrice(ctx, item.ProductID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get price for product %s: %w", item.ProductID, err)
@@ -116,8 +163,8 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 			Price:     price,
 		})
 		
-		log.Printf("Product %s: price=%.2f, quantity=%d, total=%.2f", 
-			item.ProductID, price, item.Quantity, itemTotal)
+		log.Printf("Product %s: stock=%d, price=%.2f, quantity=%d, total=%.2f", 
+			item.ProductID, stock, price, item.Quantity, itemTotal)
 	}
 
 	commission := totalAmount * platformCommissionRate

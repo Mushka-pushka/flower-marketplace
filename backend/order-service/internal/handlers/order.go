@@ -99,12 +99,13 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 // GetOrdersByCustomer godoc
 // @Summary      Получение заказов покупателя
-// @Description  Возвращает все заказы конкретного покупателя
+// @Description  Возвращает все заказы конкретного покупателя (только свои или для admin)
 // @Tags         orders
 // @Produce      json
 // @Param        customer_id query string true "ID покупателя"
 // @Success      200 {array} models.Order
 // @Failure      400 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /orders/customer [get]
 func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +118,26 @@ func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Reques
 	customerID, err := uuid.Parse(customerIDStr)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "invalid customer_id format")
+		return
+	}
+
+	// Проверяем, что пользователь авторизован
+	userIDStr := r.Header.Get("X-User-ID")
+	if userIDStr == "" {
+		respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
+
+	// Если пользователь не admin и запрашивает не свои заказы - запрещаем
+	role := r.Header.Get("X-User-Role")
+	if role != "admin" && userID != customerID {
+		respondWithError(w, http.StatusForbidden, "you can only view your own orders")
 		return
 	}
 
