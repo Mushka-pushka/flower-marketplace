@@ -35,28 +35,34 @@ func main() {
 
 		// ---- МАРШРУТИЗАЦИЯ ----
 		var targetURL string
+		
+		// ✅ СОХРАНЯЕМ ПОЛНЫЙ URL С ПАРАМЕТРАМИ
+		fullPath := r.URL.RequestURI()
+		
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/api/v1/auth/"):
-			targetURL = authURL + r.URL.Path
+			targetURL = authURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/sellers") ||
 			strings.HasPrefix(r.URL.Path, "/api/v1/admin/users"):
-			targetURL = authURL + r.URL.Path
+			targetURL = authURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/stats"):
-			targetURL = authURL + r.URL.Path
+			targetURL = authURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/categories"):
-			targetURL = catalogURL + r.URL.Path
+			targetURL = catalogURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/catalog/"):
-			targetURL = catalogURL + r.URL.Path
+			targetURL = catalogURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):
-			targetURL = orderURL + r.URL.Path
+			targetURL = orderURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/payments"):
-			targetURL = paymentURL + r.URL.Path
+			targetURL = paymentURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/analytics/"):
-			targetURL = orderURL + r.URL.Path
+			targetURL = orderURL + fullPath
 		default:
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
+
+		log.Printf("🔄 Proxying: %s -> %s", r.URL.String(), targetURL)
 
 		// ---- ДОБАВЛЯЕМ USER_ID В ЗАГОЛОВОК ----
 		proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)

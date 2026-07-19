@@ -361,3 +361,63 @@ func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
 }
+
+// GetOrdersByCustomer — получение заказов покупателя с пагинацией
+func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Request) {
+    customerIDStr := r.URL.Query().Get("customer_id")
+    if customerIDStr == "" {
+        respondWithError(w, http.StatusBadRequest, "customer_id is required")
+        return
+    }
+
+    customerID, err := uuid.Parse(customerIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid customer_id format")
+        return
+    }
+
+    // Читаем пагинацию
+    limit := 20
+    if l := r.URL.Query().Get("limit"); l != "" {
+        if val, err := strconv.Atoi(l); err == nil && val > 0 {
+            limit = val
+        }
+    }
+    offset := 0
+    if o := r.URL.Query().Get("offset"); o != "" {
+        if val, err := strconv.Atoi(o); err == nil && val >= 0 {
+            offset = val
+        }
+    }
+
+    // Проверка прав
+    userIDStr := r.Header.Get("X-User-ID")
+    if userIDStr == "" {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "invalid user id")
+        return
+    }
+
+    role := r.Header.Get("X-User-Role")
+    if role != "admin" && userID != customerID {
+        respondWithError(w, http.StatusForbidden, "you can only view your own orders")
+        return
+    }
+
+    orders, total, err := h.orderService.GetOrdersByCustomer(r.Context(), customerID, limit, offset)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]interface{}{
+        "orders": orders,
+        "total":  total,
+        "limit":  limit,
+        "offset": offset,
+    })
+}

@@ -19,6 +19,13 @@ import CartPage from './pages/CartPage'
 import ProfilePage from './pages/ProfilePage'
 import CheckoutPage from './pages/CheckoutPage'
 import CheckoutSuccess from './pages/CheckoutSuccess'
+
+// Компоненты
+import FavoritesList from './components/FavoritesList'
+
+// Иконки
+import { FaHeart } from 'react-icons/fa'
+
 import './index.css'
 
 function AppContent() {
@@ -65,6 +72,17 @@ function AppContent() {
           <Route path="/checkout/success" element={
             <ProtectedRoute>
               <CheckoutSuccess />
+            </ProtectedRoute>
+          } />
+          <Route path="/favorites" element={
+            <ProtectedRoute>
+              <div className="max-w-4xl mx-auto">
+                <h1 className="text-3xl font-bold text-[#1C1C1C] mb-6 flex items-center gap-2">
+                  <FaHeart className="text-[#8A9A86]" />
+                  Избранное
+                </h1>
+                <FavoritesList />
+              </div>
             </ProtectedRoute>
           } />
         </Routes>

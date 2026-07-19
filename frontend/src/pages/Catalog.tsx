@@ -41,6 +41,7 @@ const Catalog = () => {
         limit,
         offset,
       }
+      console.log('Sending to backend:', params)
       const response = await searchProducts(params)
       setProducts(response?.items || [])
       setTotal(response?.total || 0)
@@ -77,8 +78,9 @@ const Catalog = () => {
   }
 
   const handleSearch = (query: string) => {
-    setOffset(0) // Сбрасываем страницу при поиске
+    console.log('Catalog received search query:', query)
     setFilters((prev) => ({ ...prev, q: query }))
+    setOffset(0) // Сбрасываем страницу при поиске
   }
 
   const handleFilter = (newFilters: {

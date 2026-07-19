@@ -83,6 +83,11 @@ export const searchProducts = async (params: {
   limit?: number
   offset?: number
 }): Promise<SearchResponse> => {
+  const encodedParams = { ...params }
+  if (encodedParams.q) {
+    encodedParams.q = encodeURIComponent(encodedParams.q)
+  }
+  
   const response = await client.get('/catalog/search', { params })
   return response.data
 }

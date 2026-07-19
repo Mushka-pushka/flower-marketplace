@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/models"
@@ -202,6 +203,8 @@ func (r *ProductRepository) IncrementViews(ctx context.Context, id uuid.UUID) er
 
 // SearchProducts — семантический поиск товаров
 func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.SearchRequest) ([]models.Product, int64, error) {
+	log.Printf("SearchProducts called with: Query=%s, Category=%s, Tags=%v, Limit=%d, Offset=%d", 
+        req.Query, req.Category, req.Tags, req.Limit, req.Offset)
 	var conditions []string
 	var args []interface{}
 	argIndex := 1
@@ -572,3 +575,4 @@ func (r *ProductRepository) ExistsShop(ctx context.Context, id uuid.UUID) (bool,
 	err := r.db.QueryRow(ctx, query, id).Scan(&exists)
 	return exists, err
 }
+

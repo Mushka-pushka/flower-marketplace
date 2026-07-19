@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"net/url"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"log"
 	"strconv"
+	"strings"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/middleware"
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/models"
@@ -40,7 +43,24 @@ func NewCatalogHandler(catalogService *service.CatalogService) *CatalogHandler {
 // @Failure      500 {object} ErrorResponse
 // @Router       /catalog/products [post]
 func (h *CatalogHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	var req models.CreateProductRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	product, err := h.catalogService.CreateProduct(r.Context(), &req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "product name is required" || err.Error() == "price must be greater than zero" {
+			status = http.StatusBadRequest
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, product)
 }
 
 // GetProductByID godoc
@@ -54,7 +74,29 @@ func (h *CatalogHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 // @Failure      404 {object} ErrorResponse
 // @Router       /catalog/products [get]
 func (h *CatalogHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	product, err := h.catalogService.GetProductByID(r.Context(), id)
+	if err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, product)
 }
 
 // GetProductBySlug godoc
@@ -67,7 +109,23 @@ func (h *CatalogHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 // @Failure      404 {object} ErrorResponse
 // @Router       /catalog/products/slug/{slug} [get]
 func (h *CatalogHandler) GetProductBySlug(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	slug := r.PathValue("slug")
+	if slug == "" {
+		respondWithError(w, http.StatusBadRequest, "slug is required")
+		return
+	}
+
+	product, err := h.catalogService.GetProductBySlug(r.Context(), slug)
+	if err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, product)
 }
 
 // UpdateProduct godoc
@@ -87,7 +145,35 @@ func (h *CatalogHandler) GetProductBySlug(w http.ResponseWriter, r *http.Request
 // @Failure      500 {object} ErrorResponse
 // @Router       /catalog/products/{id} [put]
 func (h *CatalogHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	var req models.UpdateProductRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	product, err := h.catalogService.UpdateProduct(r.Context(), id, &req)
+	if err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, product)
 }
 
 // DeleteProduct godoc
@@ -103,7 +189,29 @@ func (h *CatalogHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} ErrorResponse
 // @Router       /catalog/products/{id} [delete]
 func (h *CatalogHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	err = h.catalogService.DeleteProduct(r.Context(), id)
+	if err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Товар удалён"})
 }
 
 // ============================================================
@@ -115,18 +223,69 @@ func (h *CatalogHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 // @Description  Выполняет поиск товаров по запросу с пагинацией
 // @Tags         catalog
 // @Produce      json
-// @Param        q query string true "Поисковый запрос"
-// @Param        category query string false "ID категории"
+// @Param        q query string false "Поисковый запрос"
+// @Param        category query string false "Slug категории"
+// @Param        tags query string false "Теги через запятую"
 // @Param        min_price query number false "Минимальная цена"
 // @Param        max_price query number false "Максимальная цена"
-// @Param        limit query int false "Количество записей" default(20)
+// @Param        sort_by query string false "Сортировка: price_asc, price_desc, rating, relevance, newest"
+// @Param        limit query int false "Количество записей" default(24)
 // @Param        offset query int false "Смещение" default(0)
 // @Success      200 {object} models.SearchResponse
-// @Failure      400 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /catalog/search [get]
 func (h *CatalogHandler) SearchProducts(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	log.Println("SearchProducts handler called")
+
+	queryRaw := r.URL.Query().Get("q")
+    queryDecoded, _ := url.QueryUnescape(queryRaw)
+
+	log.Printf("Raw query: '%s'", queryRaw)
+    log.Printf("Decoded query: '%s'", queryDecoded)
+
+	req := models.SearchRequest{
+		Query:    r.URL.Query().Get("q"),
+		Category: r.URL.Query().Get("category"),
+		SortBy:   r.URL.Query().Get("sort_by"),
+	}
+
+	if tagsStr := r.URL.Query().Get("tags"); tagsStr != "" {
+		tags := strings.Split(tagsStr, ",")
+		for i, tag := range tags {
+			tags[i] = strings.TrimSpace(tag)
+		}
+		req.Tags = tags
+	}
+
+	if minPriceStr := r.URL.Query().Get("min_price"); minPriceStr != "" {
+		if val, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
+			req.MinPrice = &val
+		}
+	}
+	if maxPriceStr := r.URL.Query().Get("max_price"); maxPriceStr != "" {
+		if val, err := strconv.ParseFloat(maxPriceStr, 64); err == nil {
+			req.MaxPrice = &val
+		}
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if val, err := strconv.Atoi(limitStr); err == nil && val > 0 {
+			req.Limit = val
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if val, err := strconv.Atoi(offsetStr); err == nil && val >= 0 {
+			req.Offset = val
+		}
+	}
+
+	resp, err := h.catalogService.SearchProducts(r.Context(), &req)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, resp)
 }
 
 // GetCategories godoc
@@ -134,10 +293,20 @@ func (h *CatalogHandler) SearchProducts(w http.ResponseWriter, r *http.Request) 
 // @Description  Возвращает все доступные категории товаров
 // @Tags         catalog
 // @Produce      json
-// @Success      200 {array} models.Category
+// @Param        with_count query bool false "Подсчёт товаров в категориях"
+// @Success      200 {array} models.CategoryWithCount
+// @Failure      500 {object} ErrorResponse
 // @Router       /catalog/categories [get]
 func (h *CatalogHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
-	// ... существующий код ...
+	withProducts := r.URL.Query().Get("with_count") == "true"
+
+	categories, err := h.catalogService.GetCategories(r.Context(), withProducts)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, categories)
 }
 
 // ============================================================

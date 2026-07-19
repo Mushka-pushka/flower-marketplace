@@ -20,6 +20,7 @@ interface FiltersProps {
 
 const Filters = ({ onFilter, initialFilters = {} }: FiltersProps) => {
   const [categories, setCategories] = useState<Category[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '')
   const [minPrice, setMinPrice] = useState(initialFilters.minPrice?.toString() || '')
   const [maxPrice, setMaxPrice] = useState(initialFilters.maxPrice?.toString() || '')
@@ -28,10 +29,14 @@ const Filters = ({ onFilter, initialFilters = {} }: FiltersProps) => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        setLoadingCategories(true)
         const data = await getCategories()
-        setCategories(data)
+        setCategories(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error('Ошибка загрузки категорий:', error)
+        setCategories([])
+      } finally {
+        setLoadingCategories(false)
       }
     }
     fetchCategories()
@@ -73,9 +78,12 @@ const Filters = ({ onFilter, initialFilters = {} }: FiltersProps) => {
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition bg-white text-[#1C1C1C] text-sm"
+            disabled={loadingCategories}
           >
-            <option value="">Все категории</option>
-            {categories.map((cat) => (
+            <option value="">
+              {loadingCategories ? 'Загрузка категорий...' : 'Все категории'}
+            </option>
+            {!loadingCategories && Array.isArray(categories) && categories.map((cat) => (
               <option key={cat.id} value={cat.slug}>
                 {cat.name}
               </option>

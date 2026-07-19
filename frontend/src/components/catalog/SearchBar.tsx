@@ -52,7 +52,6 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
     return () => clearTimeout(timer)
   }, [query])
 
-  // Скролл к выбранному элементу
   useEffect(() => {
     if (selectedIndex >= 0 && listRef.current) {
       const items = listRef.current.children
@@ -66,21 +65,24 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
     e.preventDefault()
     setShowSuggestions(false)
     setSelectedIndex(-1)
-    onSearch(query)
+    if (query.trim()) {
+      console.log('🔍 SearchBar submitting:', query.trim())
+      onSearch(query.trim())
+    }
   }
 
   const handleSuggestionClick = (suggestion: AutocompleteSuggestion) => {
     setQuery(suggestion.text)
     setShowSuggestions(false)
     setSelectedIndex(-1)
+    console.log('🔍 SearchBar suggestion clicked:', suggestion.text)
     onSearch(suggestion.text)
   }
 
-  // Клавиатурная навигация
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!showSuggestions || suggestions.length === 0) {
-      if (e.key === 'Enter') {
-        handleSubmit(e as any)
+      if (e.key === 'Enter' && query.trim()) {
+        handleSubmit(e)
       }
       return
     }
@@ -100,8 +102,8 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
         e.preventDefault()
         if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
           handleSuggestionClick(suggestions[selectedIndex])
-        } else {
-          handleSubmit(e as any)
+        } else if (query.trim()) {
+          handleSubmit(e)
         }
         break
       case 'Escape':
