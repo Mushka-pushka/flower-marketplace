@@ -54,7 +54,7 @@ func main() {
 
 	log.Printf("Connection string: %s", connString)
 
-		db, err := pgxpool.New(context.Background(), connString)
+	db, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -71,80 +71,84 @@ func main() {
 	authHandler := handlers.NewAuthHandler(authService)
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 	adminRepo := repository.NewAdminRepository(db)
-    adminService := service.NewAdminService(adminRepo, cfg)
-    adminHandler := handlers.NewAdminHandler(adminService)
+	adminService := service.NewAdminService(adminRepo, cfg)
+	adminHandler := handlers.NewAdminHandler(adminService)
 	statsRepo := repository.NewAdminStatsRepository(db)
-    statsService := service.NewAdminStatsService(statsRepo, cfg)
-    statsHandler := handlers.NewAdminStatsHandler(statsService)
+	statsService := service.NewAdminStatsService(statsRepo, cfg)
+	statsHandler := handlers.NewAdminStatsHandler(statsService)
 
 	// Настраиваем роутер
+	// ----- ПУБЛИЧНЫЕ ЭНДПОИНТЫ (без авторизации) -----
 	http.HandleFunc("POST /api/v1/auth/register", authHandler.Register)
 	http.HandleFunc("POST /api/v1/auth/login", authHandler.Login)
 	http.HandleFunc("POST /api/v1/auth/refresh", authHandler.RefreshToken)
-	http.HandleFunc("GET /api/v1/auth/me", authMiddleware.JWT(authHandler.Me))
-	http.HandleFunc("PUT /api/v1/auth/profile", authHandler.UpdateProfile)
-    http.HandleFunc("PUT /api/v1/auth/password", authHandler.ChangePassword)
 	http.HandleFunc("POST /api/v1/auth/validate", authHandler.ValidateToken)
-	// ----- АДМИНИСТРИРОВАНИЕ -----
-    http.HandleFunc("GET /api/v1/admin/sellers", adminHandler.GetSellers)
-    http.HandleFunc("PUT /api/v1/admin/sellers/verify", adminHandler.VerifySeller)
-    http.HandleFunc("PUT /api/v1/admin/users/status", adminHandler.UpdateUserStatus)
-    http.HandleFunc("GET /api/v1/admin/users", adminHandler.GetUsersList)
-    http.HandleFunc("GET /api/v1/admin/users/list", adminHandler.GetUsersListWithFilters)
-    http.HandleFunc("GET /api/v1/admin/users/details", adminHandler.GetUserByIDForAdmin)
-	// ----- АДМИН: ОБЩАЯ СТАТИСТИКА -----
-    http.HandleFunc("GET /api/v1/admin/stats", statsHandler.GetAdminStats)
-    // ---- SWAGGER ----
-    http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
-    // Если запрос на doc.json
-    if r.URL.Path == "/swagger/doc.json" {
-        data, err := ioutil.ReadFile("./docs/swagger.json")
-        if err != nil {
-            http.Error(w, "Swagger docs not found", http.StatusNotFound)
-            return
-        }
-        w.Header().Set("Content-Type", "application/json")
-        w.Write(data)
-        return
-    }
 
-    // Если запрос на index.html или статику
-    if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
-        // Отдаём стандартный HTML-интерфейс Swagger UI
-        html := `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Swagger UI</title>
-            <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
-        </head>
-        <body>
-            <div id="swagger-ui"></div>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
-            <script>
-                window.onload = function() {
-                    SwaggerUIBundle({
-                        url: "/swagger/doc.json",
-                        dom_id: '#swagger-ui',
-                        presets: [
-                            SwaggerUIBundle.presets.apis,
-                            SwaggerUIBundle.SwaggerUIStandalonePreset
-                        ],
-                        layout: "BaseLayout"
-                    });
-                };
-            </script>
-        </body>
-        </html>
-        `
-        w.Header().Set("Content-Type", "text/html")
-        w.Write([]byte(html))
-        return
-    }
+	// ----- ЗАЩИЩЕННЫЕ ЭНДПОИНТЫ (требуется JWT) -----
+	http.HandleFunc("GET /api/v1/auth/me", authMiddleware.JWT(authHandler.Me))
+	http.HandleFunc("PUT /api/v1/auth/profile", authMiddleware.JWT(authHandler.UpdateProfile))
+	http.HandleFunc("PUT /api/v1/auth/password", authMiddleware.JWT(authHandler.ChangePassword))
 
-    http.NotFound(w, r)
-})
+	// ----- АДМИНИСТРИРОВАНИЕ (требуется JWT + роль admin) -----
+	http.HandleFunc("GET /api/v1/admin/sellers", authMiddleware.JWT(adminHandler.GetSellers))
+	http.HandleFunc("PUT /api/v1/admin/sellers/verify", authMiddleware.JWT(adminHandler.VerifySeller))
+	http.HandleFunc("PUT /api/v1/admin/users/status", authMiddleware.JWT(adminHandler.UpdateUserStatus))
+	http.HandleFunc("GET /api/v1/admin/users", authMiddleware.JWT(adminHandler.GetUsersList))
+	http.HandleFunc("GET /api/v1/admin/users/list", authMiddleware.JWT(adminHandler.GetUsersListWithFilters))
+	http.HandleFunc("GET /api/v1/admin/users/details", authMiddleware.JWT(adminHandler.GetUserByIDForAdmin))
+	http.HandleFunc("GET /api/v1/admin/stats", authMiddleware.JWT(statsHandler.GetAdminStats))
+
+	// ----- SWAGGER -----
+	http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
+		// Если запрос на doc.json
+		if r.URL.Path == "/swagger/doc.json" {
+			data, err := ioutil.ReadFile("./docs/swagger.json")
+			if err != nil {
+				http.Error(w, "Swagger docs not found", http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(data)
+			return
+		}
+
+		// Если запрос на index.html или статику
+		if r.URL.Path == "/swagger/" || r.URL.Path == "/swagger/index.html" {
+			// Отдаём стандартный HTML-интерфейс Swagger UI
+			html := `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<meta charset="UTF-8">
+				<title>Swagger UI</title>
+				<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
+			</head>
+			<body>
+				<div id="swagger-ui"></div>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.min.js"></script>
+				<script>
+					window.onload = function() {
+						SwaggerUIBundle({
+							url: "/swagger/doc.json",
+							dom_id: '#swagger-ui',
+							presets: [
+								SwaggerUIBundle.presets.apis,
+								SwaggerUIBundle.SwaggerUIStandalonePreset
+							],
+							layout: "BaseLayout"
+						});
+					};
+				</script>
+			</body>
+			</html>
+			`
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(html))
+			return
+		}
+
+		http.NotFound(w, r)
+	})
 
 	// Создаём сервер
 	server := &http.Server{

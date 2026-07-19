@@ -19,6 +19,7 @@ import (
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/config"
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/handlers"
+	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/middleware"
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/repository"
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/service"
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/worker"
@@ -62,19 +63,26 @@ func main() {
 	}
 	defer rabbitCh.Close()
 
-	// Объявляем очередь
-	_, err = rabbitCh.QueueDeclare(
+	// Объявляем очереди
+	queues := []string{
 		"order.created",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare queue: %v", err)
+		"order.cancelled",
+		"order.status_changed",
 	}
-	log.Println("RabbitMQ queue declared")
+	for _, queue := range queues {
+		_, err = rabbitCh.QueueDeclare(
+			queue,
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatalf("Failed to declare queue %s: %v", queue, err)
+		}
+		log.Printf("RabbitMQ queue declared: %s", queue)
+	}
 
 	// ИНИЦИАЛИЗАЦИЯ
 
@@ -90,6 +98,9 @@ func main() {
 	orderHandler := handlers.NewOrderHandler(orderService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 
+	// Middleware
+	authMiddleware := middleware.NewAuthMiddleware(cfg)
+
 	// Воркеры
 	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
 
@@ -100,20 +111,32 @@ func main() {
 		}
 	}()
 
+	// ============================================================
 	// РОУТЫ
+	// ============================================================
 
-	// ----- ЗАКАЗЫ -----
-	http.HandleFunc("POST /api/v1/orders", orderHandler.CreateOrder)
+	// ----- ПУБЛИЧНЫЕ ЭНДПОИНТЫ (без авторизации) -----
+	// GetOrder - публичный, так как может использоваться для отслеживания статуса
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
-	http.HandleFunc("GET /api/v1/orders/customer", orderHandler.GetOrdersByCustomer)
-	http.HandleFunc("POST /api/v1/orders/cancel", orderHandler.CancelOrder)
+	// GetOrdersByShop - публичный, но внутри проверяется принадлежность магазина
 	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)
-	http.HandleFunc("PUT /api/v1/orders/status", orderHandler.UpdateOrderStatusBySeller)
 
-	// ----- АНАЛИТИКА (для продавца) -----
-	http.HandleFunc("GET /api/v1/analytics/seller", analyticsHandler.GetSellerAnalytics)
-	http.HandleFunc("GET /api/v1/analytics/popular", analyticsHandler.GetPopularProducts)
-	http.HandleFunc("GET /api/v1/analytics/statuses", analyticsHandler.GetOrderStatsByStatus)
+	// ----- ЗАЩИЩЕННЫЕ ЭНДПОИНТЫ -----
+	// Создание заказа - только для авторизованных пользователей
+	http.HandleFunc("POST /api/v1/orders", authMiddleware.AuthMiddleware(orderHandler.CreateOrder))
+	// Получение заказов покупателя - только для авторизованных пользователей
+	http.HandleFunc("GET /api/v1/orders/customer", authMiddleware.AuthMiddleware(orderHandler.GetOrdersByCustomer))
+	// Отмена заказа - только для авторизованных пользователей
+	http.HandleFunc("POST /api/v1/orders/cancel", authMiddleware.AuthMiddleware(orderHandler.CancelOrder))
+	// Обновление статуса заказа продавцом - только для авторизованных пользователей с ролью seller
+	http.HandleFunc("PUT /api/v1/orders/status", authMiddleware.AuthMiddleware(orderHandler.UpdateOrderStatusBySeller))
+	// Проверка возможности оставить отзыв - только для авторизованных пользователей
+	http.HandleFunc("GET /api/v1/orders/can-review", authMiddleware.AuthMiddleware(orderHandler.CanReview))
+
+	// ----- АНАЛИТИКА -----
+	http.HandleFunc("GET /api/v1/analytics/seller", authMiddleware.AuthMiddleware(analyticsHandler.GetSellerAnalytics))
+	http.HandleFunc("GET /api/v1/analytics/popular", authMiddleware.AuthMiddleware(analyticsHandler.GetPopularProducts))
+	http.HandleFunc("GET /api/v1/analytics/statuses", authMiddleware.AuthMiddleware(analyticsHandler.GetOrderStatsByStatus))
 
 	// ----- SWAGGER -----
 	http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +187,9 @@ func main() {
 		http.NotFound(w, r)
 	})
 
+	// ============================================================
 	// СЕРВЕР
+	// ============================================================
 	
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,

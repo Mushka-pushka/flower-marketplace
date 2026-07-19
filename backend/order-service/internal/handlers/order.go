@@ -30,35 +30,35 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 // @Failure      500 {object} ErrorResponse
 // @Router       /orders [post]
 func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
-    var req models.CreateOrderRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        respondWithError(w, http.StatusBadRequest, "invalid request body")
-        return
-    }
+	var req models.CreateOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
 
-    // Берем user_id из контекста (от API Gateway)
-    userIDStr := r.Header.Get("X-User-ID")
-    if userIDStr == "" {
-        respondWithError(w, http.StatusUnauthorized, "missing user id")
-        return
-    }
-    userID, err := uuid.Parse(userIDStr)
-    if err != nil {
-        respondWithError(w, http.StatusUnauthorized, "invalid user id")
-        return
-    }
+	// Берем user_id из заголовка (от API Gateway)
+	userIDStr := r.Header.Get("X-User-ID")
+	if userIDStr == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
 
-    order, err := h.orderService.CreateOrder(r.Context(), userID, &req)
-    if err != nil {
-        status := http.StatusInternalServerError
-        if err.Error() == "order must have at least one item" {
-            status = http.StatusBadRequest
-        }
-        respondWithError(w, status, err.Error())
-        return
-    }
+	order, err := h.orderService.CreateOrder(r.Context(), userID, &req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "order must have at least one item" {
+			status = http.StatusBadRequest
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
 
-    respondWithJSON(w, http.StatusCreated, order)
+	respondWithJSON(w, http.StatusCreated, order)
 }
 
 // GetOrder godoc
@@ -129,72 +129,6 @@ func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Reques
 	respondWithJSON(w, http.StatusOK, orders)
 }
 
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-
-type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  int    `json:"code,omitempty"`
-}
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message, Code: code})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if payload != nil {
-		json.NewEncoder(w).Encode(payload)
-	}
-}
-
-// CancelOrder godoc
-// @Summary      Отмена заказа
-// @Description  Покупатель или продавец отменяет заказ (только если он ещё не доставлен)
-// @Tags         orders
-// @Param        id query string true "ID заказа"
-// @Success      200 {object} map[string]string
-// @Failure      400 {object} ErrorResponse
-// @Failure      403 {object} ErrorResponse
-// @Failure      500 {object} ErrorResponse
-// @Router       /orders/cancel [post]
-func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
-	orderIDStr := r.URL.Query().Get("id")
-	if orderIDStr == "" {
-		respondWithError(w, http.StatusBadRequest, "id parameter is required")
-		return
-	}
-
-	orderID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid id format")
-		return
-	}
-
-	// Временно: получаем user_id из запроса (позже будет из JWT)
-	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
-	role := "customer" // временно
-
-	err = h.orderService.CancelOrder(r.Context(), orderID, userID, role)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch err.Error() {
-		case "you can only cancel your own orders":
-			status = http.StatusForbidden
-		case "cannot cancel delivered order":
-			status = http.StatusBadRequest
-		case "order already cancelled":
-			status = http.StatusBadRequest
-		}
-		respondWithError(w, status, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Заказ отменён"})
-}
-
 // GetOrdersByShop godoc
 // @Summary      Получение заказов магазина (для продавца)
 // @Description  Возвращает все заказы конкретного магазина
@@ -227,6 +161,66 @@ func (h *OrderHandler) GetOrdersByShop(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, orders)
 }
 
+// CancelOrder godoc
+// @Summary      Отмена заказа
+// @Description  Покупатель или продавец отменяет заказ (только если он ещё не доставлен)
+// @Tags         orders
+// @Param        id query string true "ID заказа"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders/cancel [post]
+func (h *OrderHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
+	orderIDStr := r.URL.Query().Get("id")
+	if orderIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	// Берем user_id из заголовка (от API Gateway)
+	userIDStr := r.Header.Get("X-User-ID")
+	if userIDStr == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
+
+	// Определяем роль пользователя из заголовка
+	role := r.Header.Get("X-User-Role")
+	if role == "" {
+		role = "customer" // по умолчанию
+	}
+
+	err = h.orderService.CancelOrder(r.Context(), orderID, userID, role)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "you can only cancel your own orders":
+			status = http.StatusForbidden
+		case "cannot cancel delivered order":
+			status = http.StatusBadRequest
+		case "order already cancelled":
+			status = http.StatusBadRequest
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Заказ отменён"})
+}
+
 // UpdateOrderStatusBySeller godoc
 // @Summary      Обновление статуса заказа продавцом
 // @Description  Продавец изменяет статус заказа (confirmed, preparing, packing, delivery, delivered, cancelled)
@@ -246,7 +240,7 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// ---- ЧИТАЕМ USER_ID ИЗ ЗАГОЛОВКА ----
+	// Берем user_id из заголовка (от API Gateway)
 	userIDStr := r.Header.Get("X-User-ID")
 	if userIDStr == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
@@ -259,7 +253,14 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// ---- ПОЛУЧАЕМ shop_id ПО USER_ID ----
+	// Проверяем роль пользователя
+	role := r.Header.Get("X-User-Role")
+	if role != "seller" {
+		respondWithError(w, http.StatusForbidden, "only sellers can update order status")
+		return
+	}
+
+	// Получаем shop_id по user_id
 	shopID, err := h.orderService.GetShopIDBySellerID(r.Context(), userID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "failed to get shop")
@@ -288,28 +289,70 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Статус заказа обновлён"})
 }
 
-// CanReview — проверяет, может ли пользователь оставить отзыв на товар
+// CanReview godoc
+// @Summary      Проверка возможности оставить отзыв
+// @Description  Проверяет, может ли пользователь оставить отзыв на товар
+// @Tags         orders
+// @Produce      json
+// @Param        product_id query string true "ID товара"
+// @Success      200 {object} map[string]bool
+// @Failure      400 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /orders/can-review [get]
 func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
-    productIDStr := r.URL.Query().Get("product_id")
-    if productIDStr == "" {
-        respondWithError(w, http.StatusBadRequest, "product_id is required")
-        return
-    }
+	productIDStr := r.URL.Query().Get("product_id")
+	if productIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "product_id is required")
+		return
+	}
 
-    productID, err := uuid.Parse(productIDStr)
-    if err != nil {
-        respondWithError(w, http.StatusBadRequest, "invalid product_id")
-        return
-    }
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid product_id")
+		return
+	}
 
-    // Получаем user_id из контекста (JWT)
-    userID := r.Context().Value("user_id").(uuid.UUID)
+	// Берем user_id из заголовка (от API Gateway)
+	userIDStr := r.Header.Get("X-User-ID")
+	if userIDStr == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
 
-    canReview, err := h.orderService.CanReview(r.Context(), userID, productID)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, err.Error())
-        return
-    }
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "invalid user id")
+		return
+	}
 
-    respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
+	canReview, err := h.orderService.CanReview(r.Context(), userID, productID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
+}
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+	Code  int    `json:"code,omitempty"`
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message, Code: code})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if payload != nil {
+		json.NewEncoder(w).Encode(payload)
+	}
 }

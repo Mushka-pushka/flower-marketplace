@@ -155,7 +155,12 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+	// Берем user_id из контекста
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
 
 	user, err := h.authService.UpdateProfile(r.Context(), userID, &req)
 	if err != nil {
@@ -194,7 +199,12 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := uuid.MustParse("6b75b13b-2b7b-4df1-b700-b39ac0bc1d45")
+	// Берем user_id из контекста
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
 
 	err := h.authService.ChangePassword(r.Context(), userID, &req)
 	if err != nil {
@@ -209,9 +219,38 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Пароль успешно изменён"})
 }
 
-// ============================================================
-// ВАЛИДАЦИЯ JWT (ДЛЯ API GATEWAY)
-// ============================================================
+// RefreshToken godoc
+// @Summary      Обновление JWT-токенов
+// @Description  Обновляет access и refresh токены
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body RefreshRequest true "Refresh токен"
+// @Success      200 {object} RefreshResponse
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Router       /auth/refresh [post]
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	accessToken, refreshToken, err := h.authService.RefreshToken(req.RefreshToken)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"token_type":    "Bearer",
+	})
+}
 
 // ValidateToken godoc
 // @Summary      Проверка JWT-токена и получение user_id
@@ -243,11 +282,23 @@ func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"user_id": userID.String()})
 }
 
+// ============================================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
 
 type ErrorResponse struct {
 	Error string `json:"error"`
 	Code  int    `json:"code,omitempty"`
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
@@ -265,27 +316,4 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	if payload != nil {
 		json.NewEncoder(w).Encode(payload)
 	}
-}
-
-// RefreshToken — обновление access токена
-func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        RefreshToken string `json:"refresh_token"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        respondWithError(w, http.StatusBadRequest, "invalid request body")
-        return
-    }
-
-    accessToken, refreshToken, err := h.authService.RefreshToken(req.RefreshToken)
-    if err != nil {
-        respondWithError(w, http.StatusUnauthorized, err.Error())
-        return
-    }
-
-    respondWithJSON(w, http.StatusOK, map[string]string{
-        "access_token":  accessToken,
-        "refresh_token": refreshToken,
-        "token_type":    "Bearer",
-    })
 }

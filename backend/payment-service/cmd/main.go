@@ -12,6 +12,7 @@ import (
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/payment-service/internal/config"
 	"github.com/Mushka-pushka/flower-marketplace/backend/payment-service/internal/handlers"
+	"github.com/Mushka-pushka/flower-marketplace/backend/payment-service/internal/middleware"
 	"github.com/Mushka-pushka/flower-marketplace/backend/payment-service/internal/repository"
 	"github.com/Mushka-pushka/flower-marketplace/backend/payment-service/internal/service"
 
@@ -54,31 +55,49 @@ func main() {
 	}
 	defer rabbitCh.Close()
 
-	// Объявляем очередь
-	_, err = rabbitCh.QueueDeclare(
+	// Объявляем очереди
+	queues := []string{
 		"payment.status_changed",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Fatalf("Failed to declare queue: %v", err)
+		"payment.created",
+		"payment.confirmed",
+		"payment.failed",
 	}
-	log.Println("RabbitMQ queue declared")
+	for _, queue := range queues {
+		_, err = rabbitCh.QueueDeclare(
+			queue,
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatalf("Failed to declare queue %s: %v", queue, err)
+		}
+		log.Printf("RabbitMQ queue declared: %s", queue)
+	}
 
 	// Инициализация
 	paymentRepo := repository.NewPaymentRepository(db)
 	paymentService := service.NewPaymentService(paymentRepo, cfg, rabbitCh)
 	paymentHandler := handlers.NewPaymentHandler(paymentService)
 
-	// Роуты
-	http.HandleFunc("POST /api/v1/payments", paymentHandler.CreatePayment)
-	http.HandleFunc("GET /api/v1/payments", paymentHandler.GetPaymentStatus)
-	http.HandleFunc("GET /api/v1/payments/order", paymentHandler.GetPaymentByOrderID)
+	// Middleware
+	authMiddleware := middleware.NewAuthMiddleware(cfg)
 
-	// Swagger
+	// ============================================================
+	// РОУТЫ
+	// ============================================================
+
+	// ----- ЗАЩИЩЕННЫЕ ЭНДПОИНТЫ (требуется JWT) -----
+	// Создание платежа - только для авторизованных пользователей
+	http.HandleFunc("POST /api/v1/payments", authMiddleware.AuthMiddleware(paymentHandler.CreatePayment))
+	// Получение статуса платежа - только для авторизованных пользователей
+	http.HandleFunc("GET /api/v1/payments", authMiddleware.AuthMiddleware(paymentHandler.GetPaymentStatus))
+	// Получение платежа по ID заказа - только для авторизованных пользователей
+	http.HandleFunc("GET /api/v1/payments/order", authMiddleware.AuthMiddleware(paymentHandler.GetPaymentByOrderID))
+
+	// ----- SWAGGER -----
 	http.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/swagger/doc.json" {
 			data, err := os.ReadFile("./docs/swagger.json")
@@ -119,7 +138,10 @@ func main() {
 		w.Write([]byte(html))
 	})
 
-	// Сервер
+	// ============================================================
+	// СЕРВЕР
+	// ============================================================
+	
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      http.DefaultServeMux,

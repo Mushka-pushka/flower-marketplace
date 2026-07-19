@@ -1,11 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/config"
@@ -17,34 +20,104 @@ import (
 )
 
 type OrderService struct {
-	orderRepo *repository.OrderRepository
-	cfg       *config.Config
-	rabbitCh  *amqp.Channel
+	orderRepo   *repository.OrderRepository
+	cfg         *config.Config
+	rabbitCh    *amqp.Channel
+	httpClient  *http.Client
+	catalogURL  string
 }
+
+const platformCommissionRate = 0.10
 
 func NewOrderService(
 	orderRepo *repository.OrderRepository,
 	cfg *config.Config,
 	rabbitCh *amqp.Channel,
 ) *OrderService {
+	// Получаем URL каталога из конфига или используем значение по умолчанию
+	catalogURL := cfg.CatalogServiceURL
+	if catalogURL == "" {
+		catalogURL = "http://localhost:8082/api/v1/catalog"
+	}
+
 	return &OrderService{
-		orderRepo: orderRepo,
-		cfg:       cfg,
-		rabbitCh:  rabbitCh,
+		orderRepo:  orderRepo,
+		cfg:        cfg,
+		rabbitCh:   rabbitCh,
+		httpClient: &http.Client{Timeout: 10 * time.Second},
+		catalogURL: catalogURL,
 	}
 }
 
-// CreateOrder — создание заказа и отправка события в RabbitMQ
-const platformCommissionRate = 0.10
+// GetProductPrice — получает цену товара из Catalog Service
+func (s *OrderService) GetProductPrice(ctx context.Context, productID uuid.UUID) (float64, error) {
+	url := fmt.Sprintf("%s/products/%s", s.catalogURL, productID.String())
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create request: %w", err)
+	}
 
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get product price: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("catalog service returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var product struct {
+		Price float64 `json:"price"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&product); err != nil {
+		return 0, fmt.Errorf("failed to decode product response: %w", err)
+	}
+
+	if product.Price <= 0 {
+		return 0, fmt.Errorf("invalid price: %.2f", product.Price)
+	}
+
+	return product.Price, nil
+}
+
+// CreateOrder — создание заказа и отправка события в RabbitMQ
 func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, req *models.CreateOrderRequest) (*models.Order, error) {
 	if len(req.Items) == 0 {
 		return nil, errors.New("order must have at least one item")
 	}
 
 	var totalAmount float64
+	var orderItems []struct {
+		ProductID uuid.UUID
+		Quantity  int
+		Price     float64
+	}
+
+	// Получаем цены для каждого товара из Catalog Service
 	for _, item := range req.Items {
-		totalAmount += 1000 * float64(item.Quantity)
+		price, err := s.GetProductPrice(ctx, item.ProductID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get price for product %s: %w", item.ProductID, err)
+		}
+		
+		itemTotal := price * float64(item.Quantity)
+		totalAmount += itemTotal
+		
+		orderItems = append(orderItems, struct {
+			ProductID uuid.UUID
+			Quantity  int
+			Price     float64
+		}{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+			Price:     price,
+		})
+		
+		log.Printf("Product %s: price=%.2f, quantity=%d, total=%.2f", 
+			item.ProductID, price, item.Quantity, itemTotal)
 	}
 
 	commission := totalAmount * platformCommissionRate
@@ -76,22 +149,24 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
-	for _, itemReq := range req.Items {
-		item := &models.OrderItem{
+	// Создаем позиции заказа с реальными ценами из Catalog Service
+	for _, item := range orderItems {
+		orderItem := &models.OrderItem{
 			ID:        uuid.New(),
 			OrderID:   order.ID,
-			ProductID: itemReq.ProductID,
-			Quantity:  itemReq.Quantity,
-			Price:     1000,
-			Total:     1000 * float64(itemReq.Quantity),
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+			Price:     item.Price,
+			Total:     item.Price * float64(item.Quantity),
 			CreatedAt: now,
 		}
-		err = s.orderRepo.CreateOrderItem(ctx, item)
+		err = s.orderRepo.CreateOrderItem(ctx, orderItem)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create order item: %w", err)
 		}
 	}
 
+	// Добавляем запись в историю статусов
 	history := &models.StatusHistory{
 		ID:        uuid.New(),
 		OrderID:   order.ID,
@@ -105,9 +180,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 		return nil, fmt.Errorf("failed to add status history: %w", err)
 	}
 
+	// Публикуем событие создания заказа
 	err = s.publishOrderCreated(ctx, order)
 	if err != nil {
-		fmt.Printf("Failed to publish order created event: %v\n", err)
+		// Логируем ошибку, но не прерываем создание заказа
+		log.Printf("Failed to publish order created event: %v", err)
 	}
 
 	return order, nil
@@ -142,7 +219,7 @@ func (s *OrderService) publishOrderCreated(ctx context.Context, order *models.Or
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
-	fmt.Printf("Event published: order.created for order %s\n", order.ID)
+	log.Printf("Event published: order.created for order %s", order.ID)
 	return nil
 }
 
