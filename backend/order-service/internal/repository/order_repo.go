@@ -94,7 +94,7 @@ func (r *OrderRepository) AddStatusHistory(ctx context.Context, history *models.
 func (r *OrderRepository) GetOrderByID(ctx context.Context, id uuid.UUID) (*models.Order, error) {
 	query := `
 		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount,  commission, delivery_date, delivery_time, comment, current_status,
+			total_amount, commission, delivery_date, delivery_time, comment, current_status,
 			created_at, updated_at
 		FROM orders
 		WHERE id = $1
@@ -206,7 +206,7 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID uuid.UU
 func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uuid.UUID) ([]models.Order, error) {
 	query := `
 		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount, delivery_date, delivery_time, comment, current_status,
+			total_amount, commission, delivery_date, delivery_time, comment, current_status,
 			created_at, updated_at
 		FROM orders
 		WHERE customer_id = $1
@@ -229,6 +229,7 @@ func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uu
 			&order.DeliveryAddressID,
 			&order.PaymentTypeID,
 			&order.TotalAmount,
+			&order.Commission,
 			&order.DeliveryDate,
 			&order.DeliveryTime,
 			&order.Comment,
@@ -248,7 +249,7 @@ func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uu
 func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Order, error) {
 	query := `
 		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount, delivery_date, delivery_time, comment, current_status,
+			total_amount, commission, delivery_date, delivery_time, comment, current_status,
 			created_at, updated_at
 		FROM orders
 		WHERE shop_id = $1
@@ -271,6 +272,7 @@ func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUI
 			&order.DeliveryAddressID,
 			&order.PaymentTypeID,
 			&order.TotalAmount,
+			&order.Commission,
 			&order.DeliveryDate,
 			&order.DeliveryTime,
 			&order.Comment,

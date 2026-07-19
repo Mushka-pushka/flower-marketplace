@@ -27,7 +27,8 @@ type OrderService struct {
 	catalogURL  string
 }
 
-const platformCommissionRate = 0.10
+// Удаляем константу, так как теперь используем значение из конфига
+// const platformCommissionRate = 0.10
 
 func NewOrderService(
 	orderRepo *repository.OrderRepository,
@@ -167,7 +168,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 			item.ProductID, stock, price, item.Quantity, itemTotal)
 	}
 
-	commission := totalAmount * platformCommissionRate
+	// Используем настраиваемую комиссию из конфига
+	commission := totalAmount * s.cfg.PlatformCommission
+	log.Printf("Platform commission: %.2f%% (%.2f of %.2f)", 
+		s.cfg.PlatformCommission*100, commission, totalAmount)
 
 	now := time.Now()
 	order := &models.Order{
@@ -243,6 +247,7 @@ func (s *OrderService) publishOrderCreated(ctx context.Context, order *models.Or
 		"order_id":    order.ID.String(),
 		"customer_id": order.CustomerID.String(),
 		"total":       order.TotalAmount,
+		"commission":  order.Commission,
 		"status":      order.CurrentStatus,
 		"timestamp":   time.Now().Unix(),
 	}

@@ -124,44 +124,50 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *models.CreatePa
 	return payment, nil
 }
 
-// processPayment — эмуляция обработки платежа
+// processPayment — эмуляция обработки платежа (исправленная версия)
 func (s *PaymentService) processPayment(paymentID uuid.UUID) {
-	time.Sleep(5 * time.Second) // Имитация задержки
+	// Используем time.After вместо time.Sleep
+	select {
+	case <-time.After(5 * time.Second):
+		// Обработка платежа
+		ctx := context.Background()
+		payment, err := s.paymentRepo.GetPaymentByID(ctx, paymentID)
+		if err != nil {
+			log.Printf("Failed to get payment: %v", err)
+			return
+		}
 
-	ctx := context.Background()
-	payment, err := s.paymentRepo.GetPaymentByID(ctx, paymentID)
-	if err != nil {
-		log.Printf("Failed to get payment: %v", err)
-		return
-	}
+		// Используем настраиваемую вероятность успеха
+		successRate := s.cfg.PaymentSuccessRate
+		if successRate <= 0 {
+			successRate = 0.8 // По умолчанию 80%
+		}
+		
+		success := time.Now().UnixNano()%100 < int64(successRate*100)
 
-	// 80% успешных платежей, 20% ошибок
-	success := time.Now().UnixNano()%10 < 8
+		var status string
+		var completedAt *time.Time
+		if success {
+			status = "completed"
+			now := time.Now()
+			completedAt = &now
+			log.Printf("Payment %s completed successfully", paymentID)
+		} else {
+			status = "failed"
+			log.Printf("Payment %s failed", paymentID)
+		}
 
-	var status string
-	var completedAt *time.Time
-	if success {
-		status = "completed"
-		now := time.Now()
-		completedAt = &now
-		log.Printf("Payment %s completed successfully", paymentID)
-	} else {
-		status = "failed"
-		log.Printf("Payment %s failed", paymentID)
-	}
+		err = s.paymentRepo.UpdatePaymentStatus(ctx, paymentID, status, completedAt)
+		if err != nil {
+			log.Printf("Failed to update payment status: %v", err)
+			return
+		}
 
-	err = s.paymentRepo.UpdatePaymentStatus(ctx, paymentID, status, completedAt)
-	if err != nil {
-		log.Printf("Failed to update payment status: %v", err)
-		return
-	}
+		s.publishPaymentStatusChanged(payment.OrderID, status)
 
-	// Отправляем событие об изменении статуса платежа в RabbitMQ
-	s.publishPaymentStatusChanged(payment.OrderID, status)
-
-	// Если оплата успешна - обновляем статус заказа
-	if status == "completed" {
-		s.updateOrderStatus(payment.OrderID, "paid")
+		if status == "completed" {
+			s.updateOrderStatus(payment.OrderID, "paid")
+		}
 	}
 }
 

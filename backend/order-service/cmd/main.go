@@ -68,6 +68,9 @@ func main() {
 		"order.created",
 		"order.cancelled",
 		"order.status_changed",
+		"order.payment_completed",
+		"notification.order_created",
+		"notification.order_status_changed",
 	}
 	for _, queue := range queues {
 		_, err = rabbitCh.QueueDeclare(
@@ -88,11 +91,12 @@ func main() {
 
 	// Репозитории
 	orderRepo := repository.NewOrderRepository(db)
-	analyticsRepo := repository.NewAnalyticsRepository(db)
+	analyticsRepo := repository.NewAnalyticsRepository(db, cfg)
 
 	// Сервисы
 	analyticsService := service.NewAnalyticsService(analyticsRepo, cfg)
 	orderService := service.NewOrderService(orderRepo, cfg, rabbitCh)
+	notificationService := service.NewNotificationService(cfg, rabbitCh)
 
 	// Хендлеры
 	orderHandler := handlers.NewOrderHandler(orderService)
@@ -103,11 +107,30 @@ func main() {
 
 	// Воркеры
 	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
+	notificationWorker := worker.NewNotificationWorker(notificationService, rabbitCh)
 
-	// Запуск воркера
+	// ============================================================
+	// ЗАПУСК ВОРКЕРОВ
+	// ============================================================
+	
+	// Запускаем несколько воркеров для обработки заказов
+	numWorkers := 5 // Количество воркеров
+	
+	for i := 0; i < numWorkers; i++ {
+		workerID := i
+		go func() {
+			log.Printf("Starting order worker #%d", workerID)
+			if err := orderWorker.Start(context.Background()); err != nil {
+				log.Printf("Order worker #%d error: %v", workerID, err)
+			}
+		}()
+	}
+
+	// Запускаем notification worker
 	go func() {
-		if err := orderWorker.Start(context.Background()); err != nil {
-			log.Printf("Order worker error: %v", err)
+		log.Println("Starting notification worker")
+		if err := notificationWorker.Start(context.Background()); err != nil {
+			log.Printf("Notification worker error: %v", err)
 		}
 	}()
 

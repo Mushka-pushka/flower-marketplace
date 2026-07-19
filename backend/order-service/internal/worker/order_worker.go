@@ -73,9 +73,19 @@ func (w *OrderWorker) Start(ctx context.Context) error {
 	return nil
 }
 
-// processMessage — обработка одного сообщения
+// processMessage — обработка одного сообщения с retry
 func (w *OrderWorker) processMessage(ctx context.Context, msg amqp.Delivery) {
 	log.Printf("Received message: %s", msg.Body)
+
+	// Проверяем количество попыток
+	retryCount := 0
+	if msg.Headers != nil {
+		if retry, ok := msg.Headers["x-retry-count"].(int64); ok {
+			retryCount = int(retry)
+		}
+	}
+
+	maxRetries := 3
 
 	var event map[string]interface{}
 	if err := json.Unmarshal(msg.Body, &event); err != nil {
@@ -91,31 +101,57 @@ func (w *OrderWorker) processMessage(ctx context.Context, msg amqp.Delivery) {
 		return
 	}
 
+	// Обработка с возможностью retry
+	var err error
 	switch eventType {
 	case "order.created":
-		w.handleOrderCreated(ctx, event, msg)
+		err = w.handleOrderCreatedWithRetry(ctx, event, retryCount)
 	case "order.payment_completed":
-		w.handlePaymentCompleted(ctx, event, msg)
+		err = w.handlePaymentCompletedWithRetry(ctx, event, retryCount)
 	default:
 		log.Printf("Unknown event type: %s", eventType)
 		msg.Ack(false)
+		return
 	}
+
+	if err != nil {
+		retryCount++
+		if retryCount < maxRetries {
+			// Retry с задержкой
+			log.Printf("Retrying message (attempt %d/%d): %v", retryCount+1, maxRetries, err)
+
+			// Увеличиваем счетчик retry
+			headers := amqp.Table{}
+			if msg.Headers != nil {
+				for k, v := range msg.Headers {
+					headers[k] = v
+				}
+			}
+			headers["x-retry-count"] = int64(retryCount)
+
+			// Reject и возвращаем в очередь
+			msg.Nack(false, true)
+			return
+		}
+
+		log.Printf("Failed after %d retries: %v", maxRetries, err)
+		msg.Ack(false) // Отбрасываем сообщение
+		return
+	}
+
+	msg.Ack(false)
 }
 
-// handlePaymentCompleted — обработка события order.payment_completed
-func (w *OrderWorker) handlePaymentCompleted(ctx context.Context, event map[string]interface{}, msg amqp.Delivery) {
+// handlePaymentCompletedWithRetry — обработка события order.payment_completed с retry
+func (w *OrderWorker) handlePaymentCompletedWithRetry(ctx context.Context, event map[string]interface{}, retryCount int) error {
 	orderIDStr, ok := event["order_id"].(string)
 	if !ok {
-		log.Println("Missing order_id in payment_completed event")
-		msg.Ack(false)
-		return
+		return fmt.Errorf("missing order_id in payment_completed event")
 	}
 
 	orderID, err := uuid.Parse(orderIDStr)
 	if err != nil {
-		log.Printf("Invalid order_id in payment_completed event: %v", err)
-		msg.Ack(false)
-		return
+		return fmt.Errorf("invalid order_id in payment_completed event: %w", err)
 	}
 
 	status, ok := event["status"].(string)
@@ -123,52 +159,43 @@ func (w *OrderWorker) handlePaymentCompleted(ctx context.Context, event map[stri
 		status = "paid" // статус по умолчанию
 	}
 
-	log.Printf("Payment completed for order %s, updating status to %s", orderID, status)
+	log.Printf("Payment completed for order %s, updating status to %s (retry %d)", orderID, status, retryCount)
 
 	// Обновляем статус заказа на "paid"
 	err = w.orderService.UpdateOrderStatus(ctx, orderID, "paid", "system", "Оплата получена")
 	if err != nil {
-		log.Printf("Failed to update order status to paid: %v", err)
-		msg.Nack(false, true)
-		return
+		return fmt.Errorf("failed to update order status to paid: %w", err)
 	}
 
-	msg.Ack(false)
 	log.Printf("Order %s status updated to: paid", orderID)
+	return nil
 }
 
-// handleOrderCreated — обработка события order.created (исправленная версия с таймерами)
-func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]interface{}, msg amqp.Delivery) {
+// handleOrderCreatedWithRetry — обработка события order.created с retry
+func (w *OrderWorker) handleOrderCreatedWithRetry(ctx context.Context, event map[string]interface{}, retryCount int) error {
 	orderIDStr, ok := event["order_id"].(string)
 	if !ok {
-		log.Println("Missing order_id")
-		msg.Ack(false)
-		return
+		return fmt.Errorf("missing order_id")
 	}
 
 	orderID, err := uuid.Parse(orderIDStr)
 	if err != nil {
-		log.Printf("Invalid order_id: %v", err)
-		msg.Ack(false)
-		return
+		return fmt.Errorf("invalid order_id: %w", err)
 	}
 
-	log.Printf("Processing order %s", orderID)
+	log.Printf("Processing order %s (retry %d)", orderID, retryCount)
 
 	// Проверяем статус заказа
 	order, err := w.orderService.GetOrderByID(ctx, orderID)
 	if err != nil {
-		log.Printf("Failed to get order: %v", err)
-		msg.Nack(false, true)
-		return
+		return fmt.Errorf("failed to get order: %w", err)
 	}
 
 	currentStatus := order.Order.CurrentStatus
 
 	if currentStatus == "cancelled" || currentStatus == "delivered" {
 		log.Printf("Order %s already %s, skipping", orderID, currentStatus)
-		msg.Ack(false)
-		return
+		return nil
 	}
 
 	// ШАГ 1: Ждём оплаты (pending → paid)
@@ -186,9 +213,7 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 			case <-ticker.C:
 				order, err = w.orderService.GetOrderByID(ctx, orderID)
 				if err != nil {
-					log.Printf("Failed to get order: %v", err)
-					msg.Nack(false, true)
-					return
+					return fmt.Errorf("failed to get order: %w", err)
 				}
 
 				if order.Order.CurrentStatus == "paid" {
@@ -199,23 +224,20 @@ func (w *OrderWorker) handleOrderCreated(ctx context.Context, event map[string]i
 
 				if order.Order.CurrentStatus == "cancelled" {
 					log.Printf("Order %s cancelled, stopping worker", orderID)
-					msg.Ack(false)
-					return
+					return nil
 				}
 
 			case <-timeout:
 				log.Printf("Order %s payment timeout, cancelling", orderID)
 				err = w.orderService.UpdateOrderStatus(ctx, orderID, "cancelled", "system", "Превышено время ожидания оплаты")
 				if err != nil {
-					log.Printf("Failed to cancel order: %v", err)
+					return fmt.Errorf("failed to cancel order: %w", err)
 				}
-				msg.Ack(false)
-				return
+				return nil
 
 			case <-ctx.Done():
 				log.Printf("Context cancelled for order %s", orderID)
-				msg.Ack(false)
-				return
+				return ctx.Err()
 			}
 		}
 	}
@@ -235,9 +257,7 @@ waitConfirmation:
 			case <-ticker.C:
 				order, err = w.orderService.GetOrderByID(ctx, orderID)
 				if err != nil {
-					log.Printf("Failed to get order: %v", err)
-					msg.Nack(false, true)
-					return
+					return fmt.Errorf("failed to get order: %w", err)
 				}
 
 				if order.Order.CurrentStatus == "confirmed" {
@@ -248,23 +268,20 @@ waitConfirmation:
 
 				if order.Order.CurrentStatus == "cancelled" || order.Order.CurrentStatus == "delivered" {
 					log.Printf("Order %s %s, stopping worker", orderID, order.Order.CurrentStatus)
-					msg.Ack(false)
-					return
+					return nil
 				}
 
 			case <-timeout:
 				log.Printf("Order %s confirmation timeout, cancelling", orderID)
 				err = w.orderService.UpdateOrderStatus(ctx, orderID, "cancelled", "system", "Превышено время ожидания подтверждения продавцом")
 				if err != nil {
-					log.Printf("Failed to cancel order: %v", err)
+					return fmt.Errorf("failed to cancel order: %w", err)
 				}
-				msg.Ack(false)
-				return
+				return nil
 
 			case <-ctx.Done():
 				log.Printf("Context cancelled for order %s", orderID)
-				msg.Ack(false)
-				return
+				return ctx.Err()
 			}
 		}
 	}
@@ -287,17 +304,14 @@ processFlow:
 		// Проверяем, что заказ всё ещё в нужном статусе
 		order, err = w.orderService.GetOrderByID(ctx, orderID)
 		if err != nil {
-			log.Printf("Failed to get order: %v", err)
-			msg.Nack(false, true)
-			return
+			return fmt.Errorf("failed to get order: %w", err)
 		}
 
 		currentStatus = order.Order.CurrentStatus
 
 		if currentStatus == "cancelled" || currentStatus == "delivered" {
 			log.Printf("Order %s %s, stopping worker", orderID, currentStatus)
-			msg.Ack(false)
-			return
+			return nil
 		}
 
 		if currentStatus != step.from {
@@ -311,9 +325,7 @@ processFlow:
 			// Проверяем статус перед обновлением
 			order, err = w.orderService.GetOrderByID(ctx, orderID)
 			if err != nil {
-				log.Printf("Failed to get order: %v", err)
-				msg.Nack(false, true)
-				return
+				return fmt.Errorf("failed to get order: %w", err)
 			}
 
 			if order.Order.CurrentStatus != step.from {
@@ -323,19 +335,16 @@ processFlow:
 
 			err = w.orderService.UpdateOrderStatus(ctx, orderID, step.to, "system", step.comment)
 			if err != nil {
-				log.Printf("Failed to update status to %s: %v", step.to, err)
-				msg.Nack(false, true)
-				return
+				return fmt.Errorf("failed to update status to %s: %w", step.to, err)
 			}
 			log.Printf("Order %s status updated to: %s", orderID, step.to)
 
 		case <-ctx.Done():
 			log.Printf("Context cancelled for order %s", orderID)
-			msg.Ack(false)
-			return
+			return ctx.Err()
 		}
 	}
 
-	msg.Ack(false)
 	log.Printf("Order %s processed successfully!", orderID)
+	return nil
 }
