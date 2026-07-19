@@ -33,6 +33,7 @@ import (
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 
 	_ "github.com/Mushka-pushka/flower-marketplace/backend/auth-service/docs"
@@ -40,6 +41,9 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load("../../.env"); err != nil{
+		log.Println("No .env file found, using environment variables")
+	}
 	cfg := config.Load()
 
 	log.Printf("Auth Service starting on port %s", cfg.Port)

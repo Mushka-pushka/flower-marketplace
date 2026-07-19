@@ -17,6 +17,7 @@ import (
 	"github.com/Mushka-pushka/flower-marketplace/backend/payment-service/internal/service"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -25,6 +26,10 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load("../../.env"); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+	
 	cfg := config.Load()
 
 	log.Printf("Payment Service starting on port %s", cfg.Port)
