@@ -84,6 +84,7 @@ func main() {
 
 	// ----- ТОВАРЫ (CRUD) - ПУБЛИЧНЫЕ -----
 	http.HandleFunc("GET /api/v1/catalog/products", catalogHandler.GetProductByID)
+	http.HandleFunc("GET /api/v1/catalog/products/{id}", catalogHandler.GetProductByIDPath)
 	http.HandleFunc("GET /api/v1/catalog/products/slug/{slug}", catalogHandler.GetProductBySlug)
 
 	// ----- ТОВАРЫ (CRUD) - ЗАЩИЩЕННЫЕ -----

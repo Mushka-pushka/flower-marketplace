@@ -56,36 +56,45 @@ func NewPaymentService(
 
 // GetOrderByID — получает заказ из Order Service
 func (s *PaymentService) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*Order, error) {
-	url := fmt.Sprintf("%s?id=%s", s.orderURL, orderID.String())
-	
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
+    url := fmt.Sprintf("%s?id=%s", s.orderURL, orderID.String())
 
-	// Добавляем заголовки для аутентификации (если нужны)
-	req.Header.Set("Content-Type", "application/json")
+    req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create request: %w", err)
+    }
 
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get order: %w", err)
-	}
-	defer resp.Body.Close()
+    req.Header.Set("Content-Type", "application/json")
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("order service returned status %d: %s", resp.StatusCode, string(body))
-	}
+    if userID, ok := ctx.Value("user_id").(uuid.UUID); ok {
+        req.Header.Set("X-User-ID", userID.String())
+    }
 
-	var order Order
-	if err := json.NewDecoder(resp.Body).Decode(&order); err != nil {
-		return nil, fmt.Errorf("failed to decode order response: %w", err)
-	}
+    resp, err := s.httpClient.Do(req)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get order: %w", err)
+    }
+    defer resp.Body.Close()
 
-	return &order, nil
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read response body: %w", err)
+    }
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("order service returned status %d: %s", resp.StatusCode, string(body))
+    }
+
+    var orderResponse struct {
+        Order Order `json:"order"`
+    }
+    if err := json.Unmarshal(body, &orderResponse); err != nil {
+        return nil, fmt.Errorf("failed to decode order response: %w", err)
+    }
+
+    return &orderResponse.Order, nil
 }
 
-// CreatePayment — создаёт платёж и эмулирует оплату
+// CreatePayment — создаёт платёж (сразу завершённый)
 func (s *PaymentService) CreatePayment(ctx context.Context, req *models.CreatePaymentRequest) (*models.Payment, error) {
 	// Проверяем, существует ли уже платеж для этого заказа
 	existing, err := s.paymentRepo.GetPaymentByOrderID(ctx, req.OrderID)
@@ -98,14 +107,16 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *models.CreatePa
 	// Генерируем транзакцию
 	transactionID := fmt.Sprintf("TXN-%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
 
+	// Создаём платёж сразу со статусом "completed"
 	payment := &models.Payment{
 		ID:            uuid.New(),
 		OrderID:       req.OrderID,
 		Amount:        req.Amount,
-		Status:        "pending",
+		Status:        "completed", 
 		PaymentMethod: req.PaymentMethod,
 		TransactionID: transactionID,
 		PaymentURL:    fmt.Sprintf("/payment/checkout/%s", uuid.New().String()),
+		CompletedAt:   &now, 
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
@@ -115,60 +126,13 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *models.CreatePa
 		return nil, fmt.Errorf("failed to create payment: %w", err)
 	}
 
-	// Публикуем событие создания платежа
-	go s.publishPaymentCreated(payment)
+	// Сразу отправляем событие об успешной оплате
+	s.publishPaymentStatusChanged(payment.OrderID, "completed")
+	s.updateOrderStatus(payment.OrderID, "paid")
 
-	// Эмулируем оплату в фоне
-	go s.processPayment(payment.ID)
+	log.Printf("Payment %s completed immediately for order %s", payment.ID, payment.OrderID)
 
 	return payment, nil
-}
-
-// processPayment — эмуляция обработки платежа (исправленная версия)
-func (s *PaymentService) processPayment(paymentID uuid.UUID) {
-	// Используем time.After вместо time.Sleep
-	select {
-	case <-time.After(5 * time.Second):
-		// Обработка платежа
-		ctx := context.Background()
-		payment, err := s.paymentRepo.GetPaymentByID(ctx, paymentID)
-		if err != nil {
-			log.Printf("Failed to get payment: %v", err)
-			return
-		}
-
-		// Используем настраиваемую вероятность успеха
-		successRate := s.cfg.PaymentSuccessRate
-		if successRate <= 0 {
-			successRate = 0.8 // По умолчанию 80%
-		}
-		
-		success := time.Now().UnixNano()%100 < int64(successRate*100)
-
-		var status string
-		var completedAt *time.Time
-		if success {
-			status = "completed"
-			now := time.Now()
-			completedAt = &now
-			log.Printf("Payment %s completed successfully", paymentID)
-		} else {
-			status = "failed"
-			log.Printf("Payment %s failed", paymentID)
-		}
-
-		err = s.paymentRepo.UpdatePaymentStatus(ctx, paymentID, status, completedAt)
-		if err != nil {
-			log.Printf("Failed to update payment status: %v", err)
-			return
-		}
-
-		s.publishPaymentStatusChanged(payment.OrderID, status)
-
-		if status == "completed" {
-			s.updateOrderStatus(payment.OrderID, "paid")
-		}
-	}
 }
 
 // updateOrderStatus — обновляет статус заказа через RabbitMQ

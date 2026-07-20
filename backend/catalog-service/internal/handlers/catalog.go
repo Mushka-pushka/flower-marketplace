@@ -99,6 +99,33 @@ func (h *CatalogHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 	respondWithJSON(w, http.StatusOK, product)
 }
 
+// GetProductByIDPath — получение товара по ID из пути
+func (h *CatalogHandler) GetProductByIDPath(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	product, err := h.catalogService.GetProductByID(r.Context(), id)
+	if err != nil {
+		if err.Error() == "product not found" {
+			respondWithError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, product)
+}
+
 // GetProductBySlug godoc
 // @Summary      Получение товара по slug
 // @Description  Возвращает информацию о товаре по его slug

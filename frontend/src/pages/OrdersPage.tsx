@@ -24,26 +24,34 @@ const OrdersPage = () => {
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
 
-  const fetchOrders = async () => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
+const fetchOrders = async () => {
+  if (!user) {
+    setLoading(false)
+    return
+  }
 
-    try {
-      setLoading(true)
-      const data = await getMyOrders(user.id, limit, offset)
-      setOrders(data.orders || [])
-      setTotal(data.total || 0)
-    } catch (err: any) {
-      console.error('Ошибка загрузки заказов:', err)
-      setError(err.response?.data?.error || 'Ошибка загрузки заказов')
+  try {
+    setLoading(true)
+    const data = await getMyOrders(user.id)
+    
+    console.log('📥 Orders data:', data)
+  
+    if (Array.isArray(data)) {
+      setOrders(data)
+      setTotal(data.length)
+    } else {
       setOrders([])
       setTotal(0)
-    } finally {
-      setLoading(false)
     }
+  } catch (err: any) {
+    console.error('Ошибка загрузки заказов:', err)
+    setError(err.response?.data?.error || 'Ошибка загрузки заказов')
+    setOrders([])
+    setTotal(0)
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => {
     fetchOrders()

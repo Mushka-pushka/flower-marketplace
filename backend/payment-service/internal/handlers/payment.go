@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -53,9 +54,10 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := context.WithValue(r.Context(), "user_id", userID)
+
 	// Проверяем, что платеж принадлежит пользователю
-	// (нужно получить заказ и проверить customer_id)
-	order, err := h.paymentService.GetOrderByID(r.Context(), req.OrderID)
+	order, err := h.paymentService.GetOrderByID(ctx, req.OrderID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "order not found")
 		return
@@ -66,7 +68,7 @@ func (h *PaymentHandler) CreatePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payment, err := h.paymentService.CreatePayment(r.Context(), &req)
+	payment, err := h.paymentService.CreatePayment(ctx, &req)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return

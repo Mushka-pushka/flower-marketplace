@@ -94,7 +94,7 @@ export const searchProducts = async (params: {
 
 // Получение товара по ID
 export const getProductById = async (id: string): Promise<Product> => {
-  const response = await client.get('/catalog/products', { params: { id } })
+  const response = await client.get(`/catalog/products/${id}`)
   return response.data
 }
 

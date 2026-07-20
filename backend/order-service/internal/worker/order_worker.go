@@ -27,119 +27,157 @@ func NewOrderWorker(orderService *service.OrderService, rabbitCh *amqp.Channel) 
 
 // Start — запуск воркера
 func (w *OrderWorker) Start(ctx context.Context) error {
-	// Объявляем очереди
-	queues := []string{
-		"order.created",
-		"order.payment_completed",
-		"order.cancelled",
-		"order.status_changed",
-	}
+    // Объявляем очереди
+    queues := []string{
+        "order.created",
+        "order.payment_completed",
+        "order.cancelled",
+        "order.status_changed",
+    }
 
-	for _, queueName := range queues {
-		_, err := w.rabbitCh.QueueDeclare(
-			queueName,
-			true,
-			false,
-			false,
-			false,
-			nil,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to declare queue %s: %w", queueName, err)
-		}
-		log.Printf("Queue declared: %s", queueName)
-	}
+    for _, queueName := range queues {
+        _, err := w.rabbitCh.QueueDeclare(
+            queueName,
+            true,
+            false,
+            false,
+            false,
+            nil,
+        )
+        if err != nil {
+            return fmt.Errorf("failed to declare queue %s: %w", queueName, err)
+        }
+        log.Printf("Queue declared: %s", queueName)
+    }
 
-	// Начинаем слушать очередь order.created
-	msgs, err := w.rabbitCh.Consume(
-		"order.created",
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to register consumer: %w", err)
-	}
+    msgs, err := w.rabbitCh.Consume(
+        "order.created",
+        "",
+        false,
+        false,
+        false,
+        false,
+        nil,
+    )
+    if err != nil {
+        return fmt.Errorf("failed to register consumer: %w", err)
+    }
 
-	log.Println("Order Worker started, waiting for messages...")
+    paymentMsgs, err := w.rabbitCh.Consume(
+        "order.payment_completed",
+        "",
+        false,
+        false,
+        false,
+        false,
+        nil,
+    )
+    if err != nil {
+        return fmt.Errorf("failed to register payment consumer: %w", err)
+    }
 
-	for msg := range msgs {
-		w.processMessage(ctx, msg)
-	}
+    cancelledMsgs, err := w.rabbitCh.Consume(
+        "order.cancelled",
+        "",
+        false,
+        false,
+        false,
+        false,
+        nil,
+    )
+    if err != nil {
+        return fmt.Errorf("failed to register cancelled consumer: %w", err)
+    }
 
-	return nil
+    log.Println("Order Worker started, waiting for messages...")
+
+    for {
+        select {
+        case msg, ok := <-msgs:
+            if !ok {
+                return nil
+            }
+            w.processMessage(ctx, msg)
+        case msg, ok := <-paymentMsgs:
+            if !ok {
+                return nil
+            }
+            w.processMessage(ctx, msg)
+        case msg, ok := <-cancelledMsgs:
+            if !ok {
+                return nil
+            }
+            w.processMessage(ctx, msg)
+        case <-ctx.Done():
+            return nil
+        }
+    }
 }
 
 // processMessage — обработка одного сообщения с retry
 func (w *OrderWorker) processMessage(ctx context.Context, msg amqp.Delivery) {
-	log.Printf("Received message: %s", msg.Body)
+    log.Printf("Received message: %s", msg.Body)
 
-	// Проверяем количество попыток
-	retryCount := 0
-	if msg.Headers != nil {
-		if retry, ok := msg.Headers["x-retry-count"].(int64); ok {
-			retryCount = int(retry)
-		}
-	}
+    go func() {
+        retryCount := 0
+        if msg.Headers != nil {
+            if retry, ok := msg.Headers["x-retry-count"].(int64); ok {
+                retryCount = int(retry)
+            }
+        }
 
-	maxRetries := 3
+        maxRetries := 3
 
-	var event map[string]interface{}
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
-		log.Printf("Failed to parse message: %v", err)
-		msg.Ack(false)
-		return
-	}
+        var event map[string]interface{}
+        if err := json.Unmarshal(msg.Body, &event); err != nil {
+            log.Printf("Failed to parse message: %v", err)
+            msg.Ack(false)
+            return
+        }
 
-	eventType, ok := event["event"].(string)
-	if !ok {
-		log.Println("Missing event field")
-		msg.Ack(false)
-		return
-	}
+        eventType, ok := event["event"].(string)
+        if !ok {
+            log.Println("Missing event field")
+            msg.Ack(false)
+            return
+        }
 
-	// Обработка с возможностью retry
-	var err error
-	switch eventType {
-	case "order.created":
-		err = w.handleOrderCreatedWithRetry(ctx, event, retryCount)
-	case "order.payment_completed":
-		err = w.handlePaymentCompletedWithRetry(ctx, event, retryCount)
-	default:
-		log.Printf("Unknown event type: %s", eventType)
-		msg.Ack(false)
-		return
-	}
+        var err error
+        switch eventType {
+        case "order.created":
+            err = w.handleOrderCreatedWithRetry(ctx, event, retryCount)
+        case "order.payment_completed":
+            err = w.handlePaymentCompletedWithRetry(ctx, event, retryCount)
+        default:
+            log.Printf("Unknown event type: %s", eventType)
+            msg.Ack(false)
+            return
+        }
 
-	if err != nil {
-		retryCount++
-		if retryCount < maxRetries {
-			// Retry с задержкой
-			log.Printf("Retrying message (attempt %d/%d): %v", retryCount+1, maxRetries, err)
+        if err != nil {
+            retryCount++
+            if retryCount < maxRetries {
+                log.Printf("Retrying message (attempt %d/%d): %v", retryCount+1, maxRetries, err)
 
-			// Увеличиваем счетчик retry
-			headers := amqp.Table{}
-			if msg.Headers != nil {
-				for k, v := range msg.Headers {
-					headers[k] = v
-				}
-			}
-			headers["x-retry-count"] = int64(retryCount)
+                headers := amqp.Table{}
+                if msg.Headers != nil {
+                    for k, v := range msg.Headers {
+                        headers[k] = v
+                    }
+                }
+                headers["x-retry-count"] = int64(retryCount)
 
-			// Reject и возвращаем в очередь
-			msg.Nack(false, true)
-			return
-		}
+                msg.Nack(false, true)
+                return
+            }
 
-		log.Printf("Failed after %d retries: %v", maxRetries, err)
-		msg.Ack(false) // Отбрасываем сообщение
-		return
-	}
+            log.Printf("Failed after %d retries: %v", maxRetries, err)
+            msg.Ack(false)
+            return
+        }
 
-	msg.Ack(false)
+        msg.Ack(false)
+    }()
 }
 
 // handlePaymentCompletedWithRetry — обработка события order.payment_completed с retry
@@ -202,11 +240,10 @@ func (w *OrderWorker) handleOrderCreatedWithRetry(ctx context.Context, event map
 	if currentStatus == "pending" {
 		log.Printf("Order %s waiting for payment...", orderID)
 
-		// Используем ticker вместо sleep в цикле
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 
-		timeout := time.After(5 * time.Minute) // Максимальное время ожидания оплаты
+		timeout := time.After(2 * time.Minute)
 
 		for {
 			select {
@@ -217,9 +254,15 @@ func (w *OrderWorker) handleOrderCreatedWithRetry(ctx context.Context, event map
 				}
 
 				if order.Order.CurrentStatus == "paid" {
-					log.Printf("Order %s paid, proceeding...", orderID)
-					currentStatus = "paid"
-					goto waitConfirmation
+					log.Printf("Order %s paid, auto-confirming...", orderID)
+					
+					
+					err = w.orderService.UpdateOrderStatus(ctx, orderID, "confirmed", "system", "Автоматическое подтверждение после оплаты")
+					if err != nil {
+						return fmt.Errorf("failed to confirm order: %w", err)
+					}
+					currentStatus = "confirmed"
+					goto processFlow
 				}
 
 				if order.Order.CurrentStatus == "cancelled" {
@@ -242,52 +285,8 @@ func (w *OrderWorker) handleOrderCreatedWithRetry(ctx context.Context, event map
 		}
 	}
 
-waitConfirmation:
-	// ШАГ 2: Ждём подтверждения продавца (paid → confirmed)
-	if currentStatus == "paid" {
-		log.Printf("Order %s waiting for seller confirmation...", orderID)
-
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-
-		timeout := time.After(10 * time.Minute) // Максимальное время ожидания подтверждения
-
-		for {
-			select {
-			case <-ticker.C:
-				order, err = w.orderService.GetOrderByID(ctx, orderID)
-				if err != nil {
-					return fmt.Errorf("failed to get order: %w", err)
-				}
-
-				if order.Order.CurrentStatus == "confirmed" {
-					log.Printf("Order %s confirmed by seller, proceeding...", orderID)
-					currentStatus = "confirmed"
-					goto processFlow
-				}
-
-				if order.Order.CurrentStatus == "cancelled" || order.Order.CurrentStatus == "delivered" {
-					log.Printf("Order %s %s, stopping worker", orderID, order.Order.CurrentStatus)
-					return nil
-				}
-
-			case <-timeout:
-				log.Printf("Order %s confirmation timeout, cancelling", orderID)
-				err = w.orderService.UpdateOrderStatus(ctx, orderID, "cancelled", "system", "Превышено время ожидания подтверждения продавцом")
-				if err != nil {
-					return fmt.Errorf("failed to cancel order: %w", err)
-				}
-				return nil
-
-			case <-ctx.Done():
-				log.Printf("Context cancelled for order %s", orderID)
-				return ctx.Err()
-			}
-		}
-	}
-
 processFlow:
-	// ШАГ 3: Автоматическое обновление статусов с задержками
+	// ШАГ 2: Автоматическое обновление статусов с задержками
 	statusFlow := []struct {
 		from    string
 		to      string
@@ -301,7 +300,6 @@ processFlow:
 	}
 
 	for _, step := range statusFlow {
-		// Проверяем, что заказ всё ещё в нужном статусе
 		order, err = w.orderService.GetOrderByID(ctx, orderID)
 		if err != nil {
 			return fmt.Errorf("failed to get order: %w", err)
@@ -319,10 +317,8 @@ processFlow:
 			continue
 		}
 
-		// Используем time.After вместо time.Sleep
 		select {
 		case <-time.After(step.delay):
-			// Проверяем статус перед обновлением
 			order, err = w.orderService.GetOrderByID(ctx, orderID)
 			if err != nil {
 				return fmt.Errorf("failed to get order: %w", err)

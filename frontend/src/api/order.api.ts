@@ -64,19 +64,37 @@ export const createOrder = async (data: {
 }
 
 // Получение заказов пользователя (с пагинацией)
-export const getMyOrders = async (
-  customerId: string, 
-  limit?: number, 
-  offset?: number
-): Promise<OrdersResponse> => {
-  const response = await client.get('/orders/customer', { 
-    params: { 
-      customer_id: customerId,
-      limit,
-      offset
-    } 
-  })
-  return response.data
+export const getMyOrders = async (customerId: string): Promise<Order[]> => {
+  try {
+    const response = await client.get('/orders/customer', {
+      params: { customer_id: customerId }
+    })
+    
+    console.log('getMyOrders raw response:', response.data) 
+    
+    if (response.data && Array.isArray(response.data.orders)) {
+      return response.data.orders
+    }
+    
+    if (Array.isArray(response.data)) {
+      return response.data
+    }
+    
+    if (response.data && typeof response.data === 'object') {
+      // Проверяем все возможные поля
+      for (const key of ['orders', 'items', 'data', 'results']) {
+        if (Array.isArray(response.data[key])) {
+          return response.data[key]
+        }
+      }
+    }
+    
+    console.warn('Unexpected orders response format:', response.data)
+    return []
+  } catch (error) {
+    console.error('Error fetching orders:', error)
+    return []
+  }
 }
 
 // Получение деталей заказа

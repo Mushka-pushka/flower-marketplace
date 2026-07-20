@@ -101,13 +101,14 @@ func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 // GetOrdersByCustomer godoc
 // @Summary      Получение заказов покупателя
-// @Description  Возвращает все заказы конкретного покупателя (только свои или для admin)
+// @Description  Возвращает все заказы конкретного покупателя
 // @Tags         orders
 // @Produce      json
 // @Security     Bearer
 // @Param        customer_id query string true "ID покупателя"
 // @Success      200 {array} models.Order
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /orders/customer [get]
@@ -124,20 +125,18 @@ func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Проверяем, что пользователь авторизован
+	// Проверка прав
 	userIDStr := r.Header.Get("X-User-ID")
 	if userIDStr == "" {
 		respondWithError(w, http.StatusUnauthorized, "user not authenticated")
 		return
 	}
-
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "invalid user id")
 		return
 	}
 
-	// Если пользователь не admin и запрашивает не свои заказы - запрещаем
 	role := r.Header.Get("X-User-Role")
 	if role != "admin" && userID != customerID {
 		respondWithError(w, http.StatusForbidden, "you can only view your own orders")
@@ -360,64 +359,4 @@ func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
-}
-
-// GetOrdersByCustomer — получение заказов покупателя с пагинацией
-func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Request) {
-    customerIDStr := r.URL.Query().Get("customer_id")
-    if customerIDStr == "" {
-        respondWithError(w, http.StatusBadRequest, "customer_id is required")
-        return
-    }
-
-    customerID, err := uuid.Parse(customerIDStr)
-    if err != nil {
-        respondWithError(w, http.StatusBadRequest, "invalid customer_id format")
-        return
-    }
-
-    // Читаем пагинацию
-    limit := 20
-    if l := r.URL.Query().Get("limit"); l != "" {
-        if val, err := strconv.Atoi(l); err == nil && val > 0 {
-            limit = val
-        }
-    }
-    offset := 0
-    if o := r.URL.Query().Get("offset"); o != "" {
-        if val, err := strconv.Atoi(o); err == nil && val >= 0 {
-            offset = val
-        }
-    }
-
-    // Проверка прав
-    userIDStr := r.Header.Get("X-User-ID")
-    if userIDStr == "" {
-        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
-        return
-    }
-    userID, err := uuid.Parse(userIDStr)
-    if err != nil {
-        respondWithError(w, http.StatusUnauthorized, "invalid user id")
-        return
-    }
-
-    role := r.Header.Get("X-User-Role")
-    if role != "admin" && userID != customerID {
-        respondWithError(w, http.StatusForbidden, "you can only view your own orders")
-        return
-    }
-
-    orders, total, err := h.orderService.GetOrdersByCustomer(r.Context(), customerID, limit, offset)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, err.Error())
-        return
-    }
-
-    respondWithJSON(w, http.StatusOK, map[string]interface{}{
-        "orders": orders,
-        "total":  total,
-        "limit":  limit,
-        "offset": offset,
-    })
 }
