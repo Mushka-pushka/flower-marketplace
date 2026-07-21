@@ -88,6 +88,7 @@ func main() {
 	http.HandleFunc("GET /api/v1/auth/me", authMiddleware.JWT(authHandler.Me))
 	http.HandleFunc("PUT /api/v1/auth/profile", authMiddleware.JWT(authHandler.UpdateProfile))
 	http.HandleFunc("PUT /api/v1/auth/password", authMiddleware.JWT(authHandler.ChangePassword))
+	http.HandleFunc("POST /api/v1/auth/avatar", authMiddleware.JWT(authHandler.UploadAvatar))
 
 	// ----- АДМИНИСТРИРОВАНИЕ (требуется JWT + роль admin) -----
 	http.HandleFunc("GET /api/v1/admin/sellers", authMiddleware.JWT(adminHandler.GetSellers))
@@ -98,6 +99,9 @@ func main() {
 	http.HandleFunc("GET /api/v1/admin/users/details", authMiddleware.JWT(adminHandler.GetUserByIDForAdmin))
 	http.HandleFunc("GET /api/v1/admin/stats", authMiddleware.JWT(statsHandler.GetAdminStats))
 
+	// ----- СТАТИЧЕСКИЕ ФАЙЛЫ (аватары) -----
+	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	
 	// ----- SWAGGER -----
 	http.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
 	http.HandleFunc("GET /swagger/*", httpSwagger.WrapHandler)

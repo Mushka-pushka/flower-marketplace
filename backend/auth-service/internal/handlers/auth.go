@@ -2,8 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"log" 
+	"fmt" 
+	"io"  
 	"net/http"
+	"os"   
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/middleware"
@@ -50,6 +56,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		LastName:  user.LastName,
 		Role:      user.Role,
 		IsActive:  user.IsActive,
+		AvatarURL: user.AvatarURL,
 		CreatedAt: user.CreatedAt,
 	}
 
@@ -72,15 +79,21 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Login: invalid request body: %v", err)
 		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
 		return
 	}
 
+	log.Printf("Login attempt for email: %s", req.Email)
+
 	user, accessToken, refreshToken, err := h.authService.Login(r.Context(), &req)
 	if err != nil {
+		log.Printf("Login failed for %s: %v", req.Email, err) 
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusUnauthorized)
 		return
 	}
+
+	log.Printf("Login successful for %s", req.Email) 
 
 	response := models.LoginResponse{
 		AccessToken:  accessToken,
@@ -95,6 +108,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			LastName:  user.LastName,
 			Role:      user.Role,
 			IsActive:  user.IsActive,
+			AvatarURL: user.AvatarURL,
 			CreatedAt: user.CreatedAt,
 		},
 	}
@@ -128,6 +142,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		LastName:  user.LastName,
 		Role:      user.Role,
 		IsActive:  user.IsActive,
+		AvatarURL: user.AvatarURL,
 		CreatedAt: user.CreatedAt,
 	}
 
@@ -175,6 +190,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		LastName:  user.LastName,
 		Role:      user.Role,
 		IsActive:  user.IsActive,
+		AvatarURL: user.AvatarURL,
 		CreatedAt: user.CreatedAt,
 	})
 }
@@ -278,6 +294,92 @@ func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"user_id": userID.String()})
+}
+
+// UploadAvatar — загрузка аватара пользователя
+func (h *AuthHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+    // Получаем user_id из контекста
+    userID, ok := middleware.GetUserIDFromContext(r.Context())
+    if !ok {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+
+    // Ограничиваем размер файла (10MB)
+    err := r.ParseMultipartForm(10 << 20) // 10 MB
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "file too large (max 10MB)")
+        return
+    }
+
+    // Получаем файл из запроса
+    file, header, err := r.FormFile("avatar")
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "failed to get avatar file")
+        return
+    }
+    defer file.Close()
+
+    // Проверяем тип файла
+    contentType := header.Header.Get("Content-Type")
+    if !strings.HasPrefix(contentType, "image/") {
+        respondWithError(w, http.StatusBadRequest, "file must be an image")
+        return
+    }
+
+    // Создаём директорию для загрузок
+    uploadDir := "uploads/avatars"
+    if err := os.MkdirAll(uploadDir, 0755); err != nil {
+        respondWithError(w, http.StatusInternalServerError, "failed to create upload directory")
+        return
+    }
+
+    // Генерируем уникальное имя файла
+    ext := filepath.Ext(header.Filename)
+    filename := fmt.Sprintf("%s-%d%s", userID.String(), time.Now().UnixNano(), ext)
+    filePath := filepath.Join(uploadDir, filename)
+
+    // Сохраняем файл
+    dst, err := os.Create(filePath)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "failed to save file")
+        return
+    }
+    defer dst.Close()
+
+    if _, err := io.Copy(dst, file); err != nil {
+        respondWithError(w, http.StatusInternalServerError, "failed to save file")
+        return
+    }
+
+    // Формируем URL аватара
+    avatarURL := "/uploads/avatars/" + filename
+
+    // Обновляем URL аватара в БД
+    err = h.authService.UpdateAvatar(r.Context(), userID, &avatarURL)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    // Возвращаем обновлённого пользователя
+    user, err := h.authService.GetUserByID(r.Context(), userID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, models.UserResponse{
+        ID:        user.ID,
+        Email:     user.Email,
+        Phone:     user.Phone,
+        FirstName: user.FirstName,
+        LastName:  user.LastName,
+        Role:      user.Role,
+        IsActive:  user.IsActive,
+        AvatarURL: user.AvatarURL,
+        CreatedAt: user.CreatedAt,
+    })
 }
 
 // ============================================================

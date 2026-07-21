@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { getProfile } from '../api/auth.api'  
 
 interface User {
   id: string
@@ -8,16 +9,7 @@ interface User {
   first_name: string
   last_name: string
   phone: string
-}
-
-// Добавляем тип для сохранения в localStorage
-interface StoredUser {
-  id: string
-  email: string
-  role: 'customer' | 'seller' | 'admin'
-  first_name: string
-  last_name: string
-  phone: string
+  avatar_url?: string
 }
 
 interface AuthContextType {
@@ -26,6 +18,7 @@ interface AuthContextType {
   login: (user: User, token: string) => void
   logout: () => void
   isLoading: boolean
+  updateUser: (userData: Partial<User>) => void  
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -36,22 +29,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Загружаем данные из localStorage при старте
-    const storedUser = localStorage.getItem('user')
-    const storedToken = localStorage.getItem('access_token')
-    
-    if (storedUser && storedToken) {
-      try {
-        const parsed: StoredUser = JSON.parse(storedUser)
-        setUser(parsed)
-        setToken(storedToken)
-      } catch {
-        localStorage.removeItem('user')
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
+    const loadUser = async () => {
+      const storedToken = localStorage.getItem('access_token')
+      const storedUser = localStorage.getItem('user')
+      
+      if (storedToken && storedUser) {
+        try {
+          // ✅ Загружаем свежие данные с сервера
+          const freshUser = await getProfile()
+          setUser(freshUser)
+          setToken(storedToken)
+          // Обновляем localStorage свежими данными
+          localStorage.setItem('user', JSON.stringify(freshUser))
+        } catch (error) {
+          console.error('Failed to load user profile:', error)
+          // Если ошибка — используем данные из localStorage
+          try {
+            setUser(JSON.parse(storedUser))
+            setToken(storedToken)
+          } catch {
+            localStorage.removeItem('user')
+            localStorage.removeItem('access_token')
+          }
+        }
       }
+      setIsLoading(false)
     }
-    setIsLoading(false)
+
+    loadUser()
   }, [])
 
   const login = (userData: User, tokenData: string) => {
@@ -69,8 +74,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('refresh_token')
   }
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData }
+      setUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

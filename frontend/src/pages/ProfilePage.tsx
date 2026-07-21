@@ -25,6 +25,7 @@ import AdminSellersPage from './AdminSellersPage'
 import AdminUsersPage from './AdminUsersPage'
 import AdminStatsPage from './AdminStatsPage'
 import AdminCategoriesPage from './AdminCategoriesPage'
+import ProfileSettings from './ProfileSettings'
 
 type TabType =
   | 'orders'
@@ -52,7 +53,10 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState<TabType>(getDefaultTab())
 
   useEffect(() => {
-    setActiveTab(getDefaultTab())
+    // ✅ Если активная вкладка — "settings", НЕ сбрасываем её
+    if (activeTab !== 'settings') {
+      setActiveTab(getDefaultTab())
+    }
   }, [user])
 
   const getTabs = () => {
@@ -118,15 +122,7 @@ const ProfilePage = () => {
           </div>
         )
       case 'settings':
-        return (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1C1C1C] mb-4 flex items-center gap-2">
-              <FaCog className="text-[#8A9A86]" />
-              Настройки профиля
-            </h2>
-            <p className="text-gray-400 text-base">Здесь будут настройки пользователя</p>
-          </div>
-        )
+        return <ProfileSettings />
       case 'seller-orders':
         return <SellerOrdersPage />
       case 'seller-products':

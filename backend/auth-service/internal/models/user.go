@@ -15,6 +15,7 @@ type User struct {
 	LastName     string    `json:"last_name,omitempty" db:"last_name"`
 	Role         string    `json:"role" db:"role"`
 	IsActive     bool      `json:"is_active" db:"is_active"`
+	AvatarURL    *string   `json:"avatar_url,omitempty" db:"avatar_url"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -49,6 +50,7 @@ type UserResponse struct {
 	LastName  string    `json:"last_name"`
 	Role      string    `json:"role"`
 	IsActive  bool      `json:"is_active"`
+	AvatarURL *string   `json:"avatar_url,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

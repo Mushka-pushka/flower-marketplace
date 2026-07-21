@@ -285,3 +285,13 @@ func (s *AuthService) RefreshToken(refreshTokenStr string) (string, string, erro
 	// Генерируем новые токены
 	return s.generateTokens(user)
 }
+
+// UpdateAvatar — обновляет аватар пользователя
+func (s *AuthService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL *string) error {
+    return s.userRepo.UpdateAvatar(ctx, userID, avatarURL)
+}
+
+// GetUserByID — получает пользователя по ID
+func (s *AuthService) GetUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
+    return s.userRepo.GetByID(ctx, userID)
+}
