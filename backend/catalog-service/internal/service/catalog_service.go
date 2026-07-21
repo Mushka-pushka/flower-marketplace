@@ -452,6 +452,12 @@ func uniqueStrings(input []string) []string {
 
 // CreateReview — создаёт отзыв
 func (s *CatalogService) CreateReview(ctx context.Context, req *models.CreateReviewRequest, userID uuid.UUID) (*models.Review, error) {
+	// Проверяем, есть ли уже отзыв от этого пользователя на этот товар
+	existingReview, err := s.reviewRepo.GetReviewByUserAndProduct(ctx, userID, req.ProductID)
+	if err == nil && existingReview != nil {
+		return nil, errors.New("you have already reviewed this product")
+	}
+
 	now := time.Now()
 	review := &models.Review{
 		ID:         uuid.New(),
@@ -459,7 +465,7 @@ func (s *CatalogService) CreateReview(ctx context.Context, req *models.CreateRev
 		UserID:     userID,
 		Rating:     req.Rating,
 		Comment:    req.Comment,
-		IsApproved: true, 
+		IsApproved: true,
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
@@ -468,7 +474,7 @@ func (s *CatalogService) CreateReview(ctx context.Context, req *models.CreateRev
 		review.OrderID = &req.OrderID
 	}
 
-	err := s.reviewRepo.CreateReview(ctx, review)
+	err = s.reviewRepo.CreateReview(ctx, review)
 	if err != nil {
 		return nil, err
 	}
@@ -521,20 +527,20 @@ func (s *CatalogService) UpdateReview(ctx context.Context, reviewID uuid.UUID, r
 
 // DeleteReview — удаляет отзыв
 func (s *CatalogService) DeleteReview(ctx context.Context, reviewID uuid.UUID, userID uuid.UUID) error {
-	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
-	if err != nil {
-		return err
-	}
+    review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
+    if err != nil {
+        return err
+    }
 
-	if review.UserID != userID {
-		return errors.New("you can only delete your own reviews")
-	}
+    if review.UserID != userID {
+        return errors.New("you can only delete your own reviews")
+    }
 
-	err = s.reviewRepo.DeleteReview(ctx, reviewID)
-	if err == nil {
-		go s.updateProductRating(ctx, review.ProductID)
-	}
-	return err
+    err = s.reviewRepo.DeleteReview(ctx, reviewID)
+    if err == nil {
+        go s.updateProductRating(ctx, review.ProductID)
+    }
+    return err
 }
 
 // updateProductRating — обновляет рейтинг товара

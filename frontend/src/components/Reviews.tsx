@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FaStar, FaRegStar, FaUser } from 'react-icons/fa'
+import { FaStar, FaRegStar, FaUser, FaEdit, FaTrash } from 'react-icons/fa'
 import { getProductReviews, createReview, updateReview, deleteReview } from '../api/catalog.api'
 import { canReviewProduct } from '../api/order.api'
 import type { Review } from '../api/catalog.api'
@@ -18,9 +18,20 @@ const Reviews = ({ productId }: ReviewsProps) => {
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [canReview, setCanReview] = useState(false)
+  const [hasUserReviewed, setHasUserReviewed] = useState(false)
+
+  // Состояния для редактирования
   const [editingReview, setEditingReview] = useState<string | null>(null)
   const [editRating, setEditRating] = useState(5)
   const [editComment, setEditComment] = useState('')
+
+  // Проверяем, есть ли у пользователя отзыв на этот товар
+  useEffect(() => {
+    if (user && reviews.length > 0) {
+      const userReview = reviews.find(r => r.user_id === user.id)
+      setHasUserReviewed(!!userReview)
+    }
+  }, [reviews, user])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,6 +40,7 @@ const Reviews = ({ productId }: ReviewsProps) => {
           getProductReviews(productId),
           user ? canReviewProduct(productId) : Promise.resolve(false),
         ])
+        console.log('📥 Reviews loaded:', reviewsData)
         setReviews(reviewsData || [])
         setCanReview(canReviewData)
       } catch (error) {
@@ -43,6 +55,13 @@ const Reviews = ({ productId }: ReviewsProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // ✅ Проверяем, не оставлял ли пользователь уже отзыв
+    if (hasUserReviewed) {
+      toast.error('Вы уже оставили отзыв на этот товар')
+      return
+    }
+
     if (!user) {
       toast.error('Войдите в аккаунт, чтобы оставить отзыв')
       return
@@ -60,25 +79,30 @@ const Reviews = ({ productId }: ReviewsProps) => {
         rating,
         comment,
       })
+      toast.success('Спасибо за ваш отзыв!')
+      // Обновляем список отзывов
       const data = await getProductReviews(productId)
       setReviews(data || [])
       setRating(5)
       setComment('')
-      toast.success('Спасибо за ваш отзыв!')
-    } catch (error) {
+      setHasUserReviewed(true)
+    } catch (error: any) {
       console.error('Ошибка отправки отзыва:', error)
-      toast.error('Не удалось отправить отзыв')
+      const errorMsg = error.response?.data?.error || 'Не удалось отправить отзыв'
+      toast.error(errorMsg)
     } finally {
       setSubmitting(false)
     }
   }
 
+  // Удаление отзыва
   const handleDeleteReview = async (reviewId: string) => {
     if (!confirm('Удалить отзыв?')) return
     try {
       await deleteReview(reviewId)
       const data = await getProductReviews(productId)
       setReviews(data || [])
+      setHasUserReviewed(false)
       toast.success('Отзыв удален')
     } catch (error) {
       console.error('Ошибка удаления отзыва:', error)
@@ -86,7 +110,22 @@ const Reviews = ({ productId }: ReviewsProps) => {
     }
   }
 
-  const handleEditReview = async (reviewId: string) => {
+  // Начало редактирования отзыва
+  const handleStartEdit = (review: Review) => {
+    setEditingReview(review.id)
+    setEditRating(review.rating)
+    setEditComment(review.comment)
+  }
+
+  // Отмена редактирования
+  const handleCancelEdit = () => {
+    setEditingReview(null)
+    setEditRating(5)
+    setEditComment('')
+  }
+
+  // Сохранение отредактированного отзыва
+  const handleSaveEdit = async (reviewId: string) => {
     try {
       await updateReview(reviewId, {
         rating: editRating,
@@ -100,12 +139,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
       console.error('Ошибка обновления отзыва:', error)
       toast.error('Не удалось обновить отзыв')
     }
-  }
-
-  const cancelEdit = () => {
-    setEditingReview(null)
-    setEditRating(5)
-    setEditComment('')
   }
 
   if (loading) {
@@ -138,8 +171,8 @@ const Reviews = ({ productId }: ReviewsProps) => {
         </span>
       </div>
 
-      {/* Форма отправки отзыва — только если пользователь может оставить отзыв */}
-      {user && canReview && (
+      {/* Форма отправки отзыва — только если пользователь может оставить отзыв и ещё не оставлял */}
+      {user && canReview && !hasUserReviewed && (
         <form onSubmit={handleSubmit} className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
           <h4 className="font-medium text-[#1C1C1C] mb-2">Оставить отзыв</h4>
           <div className="flex items-center gap-1 mb-2">
@@ -176,9 +209,16 @@ const Reviews = ({ productId }: ReviewsProps) => {
         </form>
       )}
 
+      {/* Сообщение, если пользователь уже оставил отзыв */}
+      {user && hasUserReviewed && (
+        <div className="mb-4 p-3 bg-green-50 rounded-xl border border-green-200 text-sm text-green-700">
+          ✓ Вы уже оставили отзыв на этот товар. Вы можете редактировать или удалить его ниже.
+        </div>
+      )}
+
       {user && !canReview && (
         <p className="text-sm text-gray-400 mb-3">
-          💡 Вы можете оставить отзыв только после получения заказа с этим товаром
+          Вы можете оставить отзыв только после получения заказа с этим товаром
         </p>
       )}
 
@@ -186,97 +226,99 @@ const Reviews = ({ productId }: ReviewsProps) => {
         {reviews.length === 0 ? (
           <p className="text-gray-400 text-sm">Пока нет отзывов</p>
         ) : (
-          reviews.map((review) => (
-            <div key={review.id} className="border-b border-gray-100 pb-2 last:border-0">
-              {editingReview === review.id ? (
-                // Режим редактирования
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1 mb-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setEditRating(star)}
-                        className="text-2xl hover:scale-110 transition"
-                      >
-                        {star <= editRating ? (
-                          <FaStar className="text-[#8A9A86]" />
-                        ) : (
-                          <FaRegStar className="text-gray-300" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    value={editComment}
-                    onChange={(e) => setEditComment(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition text-sm resize-none"
-                    rows={2}
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleEditReview(review.id)}
-                      className="bg-[#8A9A86] text-white px-4 py-1.5 rounded-xl hover:bg-[#7A8A76] transition text-sm font-medium"
-                    >
-                      Сохранить
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="bg-gray-200 text-gray-700 px-4 py-1.5 rounded-xl hover:bg-gray-300 transition text-sm font-medium"
-                    >
-                      Отмена
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                // Режим просмотра
-                <>
-                  <div className="flex items-center gap-2">
-                    <FaUser className="text-gray-400 text-sm" />
-                    <span className="text-sm font-medium text-[#1C1C1C]">
-                      {review.user_name || 'Пользователь'}
-                    </span>
-                    <div className="flex items-center gap-0.5 ml-auto">
+          reviews.map((review) => {
+            const isOwnReview = review.user_id === user?.id
+            const isEditing = editingReview === review.id
+
+            return (
+              <div key={review.id} className="border-b border-gray-100 pb-2 last:border-0">
+                {isEditing ? (
+                  // Режим редактирования
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-1 mb-2">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className="text-xs">
-                          {star <= review.rating ? (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setEditRating(star)}
+                          className="text-xl hover:scale-110 transition"
+                        >
+                          {star <= editRating ? (
                             <FaStar className="text-[#8A9A86]" />
                           ) : (
                             <FaRegStar className="text-gray-300" />
                           )}
-                        </span>
+                        </button>
                       ))}
                     </div>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-0.5">{review.comment}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(review.created_at).toLocaleDateString('ru-RU')}
-                  </p>
-                  {/* Кнопки редактирования и удаления */}
-                  {review.user_id === user?.id && (
-                    <div className="flex gap-3 mt-1">
+                    <textarea
+                      value={editComment}
+                      onChange={(e) => setEditComment(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition text-sm resize-none"
+                      rows={2}
+                    />
+                    <div className="flex gap-2 mt-2">
                       <button
-                        onClick={() => {
-                          setEditingReview(review.id)
-                          setEditRating(review.rating)
-                          setEditComment(review.comment)
-                        }}
-                        className="text-xs text-blue-500 hover:text-blue-700 transition"
+                        onClick={() => handleSaveEdit(review.id)}
+                        className="px-3 py-1 text-sm bg-[#8A9A86] text-white rounded-lg hover:bg-[#7A8A76] transition"
                       >
-                        Редактировать
+                        Сохранить
                       </button>
                       <button
-                        onClick={() => handleDeleteReview(review.id)}
-                        className="text-xs text-red-500 hover:text-red-700 transition"
+                        onClick={handleCancelEdit}
+                        className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
                       >
-                        Удалить
+                        Отмена
                       </button>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))
+                  </div>
+                ) : (
+                  // Обычный просмотр отзыва
+                  <>
+                    <div className="flex items-center gap-2">
+                      <FaUser className="text-gray-400 text-sm" />
+                      <span className="text-sm font-medium text-[#1C1C1C]">
+                        {review.user_name || 'Пользователь'}
+                      </span>
+                      <div className="flex items-center gap-0.5 ml-auto">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span key={star} className="text-xs">
+                            {star <= review.rating ? (
+                              <FaStar className="text-[#8A9A86]" />
+                            ) : (
+                              <FaRegStar className="text-gray-300" />
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-0.5">{review.comment}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(review.created_at).toLocaleDateString('ru-RU')}
+                    </p>
+
+                    {/* Кнопки редактирования/удаления для своих отзывов */}
+                    {isOwnReview && (
+                      <div className="flex gap-3 mt-1">
+                        <button
+                          onClick={() => handleStartEdit(review)}
+                          className="text-xs text-blue-500 hover:text-blue-700 transition flex items-center gap-1"
+                        >
+                          <FaEdit className="text-[10px]" /> Редактировать
+                        </button>
+                        <button
+                          onClick={() => handleDeleteReview(review.id)}
+                          className="text-xs text-red-500 hover:text-red-700 transition flex items-center gap-1"
+                        >
+                          <FaTrash className="text-[10px]" /> Удалить
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })
         )}
       </div>
     </div>

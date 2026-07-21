@@ -209,3 +209,32 @@ func (r *ReviewRepository) GetAverageRating(ctx context.Context, productID uuid.
 	err := r.db.QueryRow(ctx, query, productID).Scan(&avgRating, &count)
 	return avgRating, count, err
 }
+
+// GetReviewByUserAndProduct — получает отзыв пользователя на товар
+func (r *ReviewRepository) GetReviewByUserAndProduct(ctx context.Context, userID, productID uuid.UUID) (*models.Review, error) {
+    query := `
+        SELECT id, product_id, user_id, order_id, rating, comment, is_approved, created_at, updated_at
+        FROM reviews
+        WHERE user_id = $1 AND product_id = $2
+    `
+
+    var review models.Review
+    err := r.db.QueryRow(ctx, query, userID, productID).Scan(
+        &review.ID,
+        &review.ProductID,
+        &review.UserID,
+        &review.OrderID,
+        &review.Rating,
+        &review.Comment,
+        &review.IsApproved,
+        &review.CreatedAt,
+        &review.UpdatedAt,
+    )
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+            return nil, nil // отзыва нет
+        }
+        return nil, err
+    }
+    return &review, nil
+}
