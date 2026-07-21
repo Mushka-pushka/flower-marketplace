@@ -128,7 +128,7 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *models.CreatePa
 
 	// Сразу отправляем событие об успешной оплате
 	s.publishPaymentStatusChanged(payment.OrderID, "completed")
-	s.updateOrderStatus(payment.OrderID, "paid")
+	s.updateOrderStatus(payment.OrderID, "Оплачен")
 
 	log.Printf("Payment %s completed immediately for order %s", payment.ID, payment.OrderID)
 

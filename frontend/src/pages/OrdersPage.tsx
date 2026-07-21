@@ -34,7 +34,7 @@ const OrdersPage = () => {
       setLoading(true)
       const data = await getMyOrderItems()
       
-      console.log('📥 Order items data:', data)
+      console.log('Order items data:', data)
     
       if (Array.isArray(data)) {
         setOrderItems(data)
@@ -98,6 +98,7 @@ const OrdersPage = () => {
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
       pending: 'Ожидает подтверждения',
+      paid: 'Оплачен',
       confirmed: 'Подтверждён',
       preparing: 'Собирается',
       packing: 'Упаковывается',
@@ -111,6 +112,7 @@ const OrdersPage = () => {
   const getStatusColor = (status: string) => {
     const map: Record<string, string> = {
       pending: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+      paid: 'text-blue-600 bg-blue-50 border-blue-200',
       confirmed: 'text-blue-600 bg-blue-50 border-blue-200',
       preparing: 'text-purple-600 bg-purple-50 border-purple-200',
       packing: 'text-indigo-600 bg-indigo-50 border-indigo-200',

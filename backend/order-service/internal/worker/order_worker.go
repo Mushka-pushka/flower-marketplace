@@ -194,15 +194,15 @@ func (w *OrderWorker) handlePaymentCompletedWithRetry(ctx context.Context, event
 
 	status, ok := event["status"].(string)
 	if !ok {
-		status = "paid" // статус по умолчанию
+		status = "Оплачен" // статус по умолчанию
 	}
 
 	log.Printf("Payment completed for order %s, updating status to %s (retry %d)", orderID, status, retryCount)
 
-	// Обновляем статус заказа на "paid"
-	err = w.orderService.UpdateOrderStatus(ctx, orderID, "paid", "system", "Оплата получена")
+	// Обновляем статус заказа на "Оплачен"
+	err = w.orderService.UpdateOrderStatus(ctx, orderID, "Оплачен", "system", "Оплата получена")
 	if err != nil {
-		return fmt.Errorf("failed to update order status to paid: %w", err)
+		return fmt.Errorf("failed to update order status to Оплачен: %w", err)
 	}
 
 	log.Printf("Order %s status updated to: paid", orderID)
@@ -253,7 +253,7 @@ func (w *OrderWorker) handleOrderCreatedWithRetry(ctx context.Context, event map
 					return fmt.Errorf("failed to get order: %w", err)
 				}
 
-				if order.Order.CurrentStatus == "paid" {
+				if order.Order.CurrentStatus == "Оплачен" {
 					log.Printf("Order %s paid, auto-confirming...", orderID)
 					
 					
