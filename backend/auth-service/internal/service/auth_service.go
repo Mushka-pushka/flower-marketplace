@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log" 
 	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/config"
@@ -115,7 +116,7 @@ func (s *AuthService) Login(ctx context.Context, req *models.LoginRequest) (*mod
 // generateTokens — создаёт Access и Refresh токены
 func (s *AuthService) generateTokens(user *models.User) (string, string, error) {
 	// Access Token (живёт 15 минут)
-	accessExp := time.Now().Add(15 * time.Minute)
+	accessExp := time.Now().Add(24 * time.Hour)
 	accessClaims := jwt.MapClaims{
 		"sub":   user.ID.String(),
 		"email": user.Email,
@@ -147,6 +148,8 @@ func (s *AuthService) generateTokens(user *models.User) (string, string, error) 
 
 // ValidateToken — валидация JWT-токена
 func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
+	log.Printf("Validating token: %s", tokenString)
+
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -155,10 +158,12 @@ func (s *AuthService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 	})
 
 	if err != nil {
+		log.Printf("Token validation error: %v", err)
 		return nil, err
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		log.Printf("Token valid for user: %v", claims["sub"])
 		return claims, nil
 	}
 	return nil, errors.New("invalid token")

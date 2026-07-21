@@ -33,25 +33,63 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const storedToken = localStorage.getItem('access_token')
       const storedUser = localStorage.getItem('user')
       
-      if (storedToken && storedUser) {
+      console.log('AuthContext: storedToken', storedToken)
+      console.log('AuthContext: storedUser', storedUser)
+
+      if (storedToken) {
         try {
-          // ✅ Загружаем свежие данные с сервера
-          const freshUser = await getProfile()
-          setUser(freshUser)
-          setToken(storedToken)
-          // Обновляем localStorage свежими данными
-          localStorage.setItem('user', JSON.stringify(freshUser))
-        } catch (error) {
-          console.error('Failed to load user profile:', error)
-          // Если ошибка — используем данные из localStorage
-          try {
-            setUser(JSON.parse(storedUser))
-            setToken(storedToken)
-          } catch {
-            localStorage.removeItem('user')
+          const payload = JSON.parse(atob(storedToken.split('.')[1]))
+          const exp = payload.exp
+          if (exp && Date.now() >= exp * 1000) {
+            console.log('AuthContext: token expired, logging out')
+            // Только если токен истёк
             localStorage.removeItem('access_token')
+            localStorage.removeItem('refresh_token')
+            localStorage.removeItem('user')
+            setUser(null)
+            setToken(null)
+            setIsLoading(false)
+            return
           }
+
+          // Токен валидный — загружаем пользователя
+          try {
+            const freshUser = await getProfile()
+            console.log('AuthContext: freshUser', freshUser)
+            setUser(freshUser)
+            setToken(storedToken)
+            localStorage.setItem('user', JSON.stringify(freshUser))
+            setIsLoading(false)
+            return
+          } catch {
+            console.log('AuthContext: failed to fetch profile, using stored user')
+            // Если не удалось загрузить профиль — используем сохранённого пользователя
+            if (storedUser) {
+              try {
+                setUser(JSON.parse(storedUser))
+                setToken(storedToken)
+                setIsLoading(false)
+                return
+              } catch {}
+            }
+            // Если ничего не получилось — выходим
+            localStorage.removeItem('access_token')
+            localStorage.removeItem('user')
+            setUser(null)
+            setToken(null)
+          }
+        } catch (error) {
+          console.error('AuthContext: error parsing token', error)
+          // Если токен невалидный — выходим
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('user')
+          setUser(null)
+          setToken(null)
         }
+      } else {
+        console.log('🔍 AuthContext: no token found')
+        setUser(null)
+        setToken(null)
       }
       setIsLoading(false)
     }

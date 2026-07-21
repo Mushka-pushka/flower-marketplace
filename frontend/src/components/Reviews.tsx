@@ -56,7 +56,7 @@ const Reviews = ({ productId }: ReviewsProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // ✅ Проверяем, не оставлял ли пользователь уже отзыв
+    //Проверяем, не оставлял ли пользователь уже отзыв
     if (hasUserReviewed) {
       toast.error('Вы уже оставили отзыв на этот товар')
       return
@@ -273,10 +273,23 @@ const Reviews = ({ productId }: ReviewsProps) => {
                     </div>
                   </div>
                 ) : (
-                  // Обычный просмотр отзыва
+                  // Обычный просмотр отзыва с аватаром
                   <>
                     <div className="flex items-center gap-2">
-                      <FaUser className="text-gray-400 text-sm" />
+                      {review.user_avatar ? (
+                        <img 
+                          src={`http://localhost:8081${review.user_avatar}`} 
+                          alt={review.user_name || 'Пользователь'} 
+                          className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                          onError={(e) => {
+                            // Если картинка не загрузилась — показываем иконку
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      ) : null}
+                      {!review.user_avatar && (
+                        <FaUser className="text-gray-400 text-sm" />
+                      )}
                       <span className="text-sm font-medium text-[#1C1C1C]">
                         {review.user_name || 'Пользователь'}
                       </span>

@@ -128,11 +128,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure      401 {object} ErrorResponse
 // @Router       /auth/me [get]
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	user, ok := r.Context().Value("user").(*models.User)
+	log.Println("Me handler called")
+	user, ok := r.Context().Value(middleware.UserKey).(*models.User)
 	if !ok {
+		log.Println("Me: user not found in context")
 		http.Error(w, `{"error": "unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
+
+	log.Printf("Me: user found: %s", user.Email)
 
 	response := models.UserResponse{
 		ID:        user.ID,
@@ -278,6 +282,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 // @Router       /auth/validate [post]
 func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	tokenStr := r.Header.Get("Authorization")
+	log.Printf("ValidateToken called, Authorization header: %s", tokenStr)
 	if tokenStr == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing token")
 		return

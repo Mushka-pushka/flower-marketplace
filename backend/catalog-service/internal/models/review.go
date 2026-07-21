@@ -24,6 +24,7 @@ type ReviewWithUser struct {
 	Review
 	UserName  string `json:"user_name"`
 	UserEmail string `json:"user_email"`
+	UserAvatar *string `json:"user_avatar,omitempty"`
 }
 
 // CreateReviewRequest — запрос на создание отзыва

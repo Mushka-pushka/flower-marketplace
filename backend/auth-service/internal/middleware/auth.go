@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log" 
 	"net/http"
 	"strings"
 
@@ -29,25 +30,33 @@ func NewAuthMiddleware(authService *service.AuthService) *AuthMiddleware {
 // JWT — проверяет JWT-токен и добавляет пользователя в контекст
 func (m *AuthMiddleware) JWT(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("JWT middleware called")
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
+			log.Println("JWT: no Authorization header")
 			http.Error(w, `{"error": "authorization header required"}`, http.StatusUnauthorized)
 			return
 		}
 
+		log.Printf("JWT: Authorization header: %s", authHeader)
+
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			log.Println("JWT: invalid header format")
 			http.Error(w, `{"error": "invalid authorization header format"}`, http.StatusUnauthorized)
 			return
 		}
 
 		tokenString := parts[1]
+		log.Printf("JWT: token: %s", tokenString)
 
 		user, err := m.authService.GetUserFromToken(r.Context(), tokenString)
 		if err != nil {
+			log.Printf("JWT: GetUserFromToken error: %v", err)
 			http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusUnauthorized)
 			return
 		}
+		log.Printf("JWT: user found: %s", user.Email)
 
 		ctx := context.WithValue(r.Context(), UserKey, user)
 		ctx = context.WithValue(ctx, UserIDKey, user.ID)

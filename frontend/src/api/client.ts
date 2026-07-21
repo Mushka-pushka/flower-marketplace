@@ -27,6 +27,14 @@ const showError = (message: string) => {
   toast.error(message)
 }
 
+// Функция logout
+const logout = () => {
+  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
+  localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN)
+  localStorage.removeItem(STORAGE_KEYS.USER)
+  window.location.href = ROUTES.LOGIN
+}
+
 // Интерсептор для добавления JWT-токена
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)
@@ -81,32 +89,19 @@ client.interceptors.response.use(
         return client(originalRequest)
       } catch (refreshError) {
         // Если refresh не удался - logout
-        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
-        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN)
-        localStorage.removeItem(STORAGE_KEYS.USER)
         showError('Сессия истекла. Пожалуйста, войдите заново.')
-        window.location.href = ROUTES.LOGIN
+        logout()
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
       }
     }
 
-    // Показываем уведомление для не-401 ошибок
-    if (error.response?.status !== 401) {
-      const message = error.response?.data?.error || 
-                      error.response?.data?.message || 
-                      'Произошла ошибка. Пожалуйста, попробуйте позже.'
-      showError(message)
-    }
-
-    // Для других 401 ошибок (не связанных с refresh)
-    if (error.response?.status === 401) {
-      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
-      localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN)
-      localStorage.removeItem(STORAGE_KEYS.USER)
-      window.location.href = ROUTES.LOGIN
-    }
+    // Показываем уведомление для других ошибок
+    const message = error.response?.data?.error || 
+                    error.response?.data?.message || 
+                    'Произошла ошибка. Пожалуйста, попробуйте позже.'
+    showError(message)
 
     return Promise.reject(error)
   }

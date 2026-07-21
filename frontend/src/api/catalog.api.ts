@@ -117,6 +117,7 @@ export interface Review {
   comment: string
   is_approved: boolean
   user_name?: string
+  user_avatar?: string
   created_at: string
 }
 

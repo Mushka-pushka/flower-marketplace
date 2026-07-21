@@ -57,61 +57,63 @@ func (r *ReviewRepository) CreateReview(ctx context.Context, review *models.Revi
 	return err
 }
 
-// GetReviewsByProductID — получает все отзывы на товар
 func (r *ReviewRepository) GetReviewsByProductID(ctx context.Context, productID uuid.UUID) ([]models.ReviewWithUser, error) {
-	query := `
-		SELECT 
-			r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved, r.created_at, r.updated_at,
-			u.first_name || ' ' || u.last_name as user_name,
-			u.email as user_email
-		FROM reviews r
-		JOIN users u ON u.id = r.user_id
-		WHERE r.product_id = $1 AND r.is_approved = true
-		ORDER BY r.created_at DESC
-	`
+    query := `
+        SELECT 
+            r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved, r.created_at, r.updated_at,
+            COALESCE(u.first_name || ' ' || u.last_name, u.email) as user_name,
+            u.email as user_email,
+            u.avatar_url as user_avatar
+        FROM reviews r
+        JOIN users u ON u.id = r.user_id
+        WHERE r.product_id = $1 AND r.is_approved = true
+        ORDER BY r.created_at DESC
+    `
 
-	rows, err := r.db.Query(ctx, query, productID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(ctx, query, productID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
-	var reviews []models.ReviewWithUser
-	for rows.Next() {
-		var rev models.ReviewWithUser
-		err := rows.Scan(
-			&rev.ID,
-			&rev.ProductID,
-			&rev.UserID,
-			&rev.OrderID,
-			&rev.Rating,
-			&rev.Comment,
-			&rev.IsApproved,
-			&rev.CreatedAt,
-			&rev.UpdatedAt,
-			&rev.UserName,
-			&rev.UserEmail,
-		)
-		if err != nil {
-			return nil, err
-		}
-		reviews = append(reviews, rev)
-	}
-	return reviews, nil
+    var reviews []models.ReviewWithUser
+    for rows.Next() {
+        var rev models.ReviewWithUser
+        err := rows.Scan(
+            &rev.ID,
+            &rev.ProductID,
+            &rev.UserID,
+            &rev.OrderID,
+            &rev.Rating,
+            &rev.Comment,
+            &rev.IsApproved,
+            &rev.CreatedAt,
+            &rev.UpdatedAt,
+            &rev.UserName,
+            &rev.UserEmail,
+            &rev.UserAvatar, 
+        )
+        if err != nil {
+            return nil, err
+        }
+        reviews = append(reviews, rev)
+    }
+    return reviews, nil
 }
 
 // GetReviewsByUserID — получает все отзывы пользователя
 func (r *ReviewRepository) GetReviewsByUserID(ctx context.Context, userID uuid.UUID) ([]models.ReviewWithUser, error) {
-	query := `
-		SELECT 
-			r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved, r.created_at, r.updated_at,
-			u.first_name || ' ' || u.last_name as user_name,
-			u.email as user_email
-		FROM reviews r
-		JOIN users u ON u.id = r.user_id
-		WHERE r.user_id = $1
-		ORDER BY r.created_at DESC
-	`
+    query := `
+        SELECT 
+            r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved, r.created_at, r.updated_at,
+            COALESCE(u.first_name || ' ' || u.last_name, u.email) as user_name,
+            u.email as user_email,
+            u.avatar_url as user_avatar
+        FROM reviews r
+        JOIN users u ON u.id = r.user_id
+        WHERE r.user_id = $1
+        ORDER BY r.created_at DESC
+    `
 
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
@@ -134,6 +136,7 @@ func (r *ReviewRepository) GetReviewsByUserID(ctx context.Context, userID uuid.U
 			&rev.UpdatedAt,
 			&rev.UserName,
 			&rev.UserEmail,
+			&rev.UserAvatar, 
 		)
 		if err != nil {
 			return nil, err
