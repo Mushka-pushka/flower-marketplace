@@ -201,6 +201,26 @@ func (r *ProductRepository) IncrementViews(ctx context.Context, id uuid.UUID) er
 // СЕМАНТИЧЕСКИЙ ПОИСК
 // ============================================================
 
+// DecreaseStock — уменьшает количество товара на складе
+func (r *ProductRepository) DecreaseStock(ctx context.Context, productID uuid.UUID, quantity int) error {
+    query := `
+        UPDATE products 
+        SET stock = stock - $1, updated_at = NOW() 
+        WHERE id = $2 AND stock >= $1
+    `
+    result, err := r.db.Exec(ctx, query, quantity, productID)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected := result.RowsAffected()
+    if rowsAffected == 0 {
+        return errors.New("not enough stock or product not found")
+    }
+
+    return nil
+}
+
 // SearchProducts — семантический поиск товаров
 func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.SearchRequest) ([]models.Product, int64, error) {
 	log.Printf("SearchProducts called with: Query=%s, Category=%s, Tags=%v, Limit=%d, Offset=%d", 

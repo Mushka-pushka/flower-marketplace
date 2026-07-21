@@ -241,6 +241,30 @@ func (h *CatalogHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Товар удалён"})
 }
 
+// DecreaseStock — уменьшает количество товара на складе (внутренний эндпоинт)
+func (h *CatalogHandler) DecreaseStock(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        ProductID uuid.UUID `json:"product_id"`
+        Quantity  int       `json:"quantity"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    err := h.catalogService.DecreaseStock(r.Context(), req.ProductID, req.Quantity)
+    if err != nil {
+        status := http.StatusInternalServerError
+        if err.Error() == "not enough stock or product not found" {
+            status = http.StatusBadRequest
+        }
+        respondWithError(w, status, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]string{"message": "Stock updated"})
+}
+
 // ============================================================
 // ПОИСК И КАТЕГОРИИ
 // ============================================================

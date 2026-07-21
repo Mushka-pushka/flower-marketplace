@@ -91,6 +91,7 @@ func main() {
 	http.HandleFunc("POST /api/v1/catalog/products", middleware.AuthMiddleware(catalogHandler.CreateProduct))
 	http.HandleFunc("PUT /api/v1/catalog/products/{id}", middleware.AuthMiddleware(catalogHandler.UpdateProduct))
 	http.HandleFunc("DELETE /api/v1/catalog/products/{id}", middleware.AuthMiddleware(catalogHandler.DeleteProduct))
+	http.HandleFunc("POST /api/v1/catalog/products/decrease-stock", catalogHandler.DecreaseStock)
 
 	// ----- ПОИСК И КАТЕГОРИИ (ПУБЛИЧНЫЕ) -----
 	http.HandleFunc("GET /api/v1/catalog/search", catalogHandler.SearchProducts)

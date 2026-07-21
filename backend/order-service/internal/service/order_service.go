@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -117,6 +118,39 @@ func (s *OrderService) GetProductStock(ctx context.Context, productID uuid.UUID)
 	return product.Stock, nil
 }
 
+// decreaseStock — вызывает Catalog Service для уменьшения stock
+func (s *OrderService) decreaseStock(ctx context.Context, productID uuid.UUID, quantity int) error {
+    url := fmt.Sprintf("%s/products/decrease-stock", s.catalogURL)
+    
+    body := map[string]interface{}{
+        "product_id": productID.String(),
+        "quantity":   quantity,
+    }
+    jsonBody, err := json.Marshal(body)
+    if err != nil {
+        return err
+    }
+
+    req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
+    if err != nil {
+        return err
+    }
+    req.Header.Set("Content-Type", "application/json")
+
+    resp, err := s.httpClient.Do(req)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        bodyBytes, _ := io.ReadAll(resp.Body)
+        return fmt.Errorf("catalog service error: %s", string(bodyBytes))
+    }
+
+    return nil
+}
+
 // CreateOrder — создание заказа с проверкой наличия товаров на складе
 func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, req *models.CreateOrderRequest) (*models.Order, error) {
 	if len(req.Items) == 0 {
@@ -140,7 +174,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 
 		// Проверяем, что запрашиваемое количество есть в наличии
 		if stock < item.Quantity {
-			return nil, fmt.Errorf("not enough stock for product %s. Available: %d, requested: %d", 
+			return nil, fmt.Errorf("not enough stock for product %s. Available: %d, requested: %d",
 				item.ProductID, stock, item.Quantity)
 		}
 
@@ -149,10 +183,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 		if err != nil {
 			return nil, fmt.Errorf("failed to get price for product %s: %w", item.ProductID, err)
 		}
-		
+
 		itemTotal := price * float64(item.Quantity)
 		totalAmount += itemTotal
-		
+
 		orderItems = append(orderItems, struct {
 			ProductID uuid.UUID
 			Quantity  int
@@ -162,14 +196,14 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 			Quantity:  item.Quantity,
 			Price:     price,
 		})
-		
-		log.Printf("Product %s: stock=%d, price=%.2f, quantity=%d, total=%.2f", 
+
+		log.Printf("Product %s: stock=%d, price=%.2f, quantity=%d, total=%.2f",
 			item.ProductID, stock, price, item.Quantity, itemTotal)
 	}
 
 	// Используем настраиваемую комиссию из конфига
 	commission := totalAmount * s.cfg.PlatformCommission
-	log.Printf("Platform commission: %.2f%% (%.2f of %.2f)", 
+	log.Printf("Platform commission: %.2f%% (%.2f of %.2f)",
 		s.cfg.PlatformCommission*100, commission, totalAmount)
 
 	now := time.Now()
@@ -213,6 +247,15 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 		err = s.orderRepo.CreateOrderItem(ctx, orderItem)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create order item: %w", err)
+		}
+	}
+
+	// Уменьшаем stock после создания позиций заказа
+	for _, item := range orderItems {
+		err = s.decreaseStock(ctx, item.ProductID, item.Quantity)
+		if err != nil {
+			log.Printf("Failed to decrease stock for product %s: %v", item.ProductID, err)
+			// Не прерываем создание заказа, но логируем ошибку
 		}
 	}
 

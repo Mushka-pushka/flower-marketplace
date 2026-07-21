@@ -298,6 +298,11 @@ func (s *CatalogService) DeleteProduct(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
+// DecreaseStock — уменьшает количество товара на складе
+func (s *CatalogService) DecreaseStock(ctx context.Context, productID uuid.UUID, quantity int) error {
+    return s.productRepo.DecreaseStock(ctx, productID, quantity)
+}
+
 // КОРЗИНА (CART)
 
 // AddToCart — добавляет товар в корзину
