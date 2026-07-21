@@ -20,6 +20,7 @@ export interface OrderItem {
   order_id: string
   product_id: string
   quantity: number
+  product_name?: string
   price: number
   total: number
   packaging: string
@@ -47,6 +48,24 @@ export interface OrdersResponse {
   total: number
   limit: number
   offset: number
+}
+
+// позиция заказа с данными о товаре и статусе
+export interface OrderItemWithStatus {
+  id: string
+  order_id: string
+  product_id: string
+  product_name: string
+  product_price: number
+  quantity: number
+  total: number
+  order_status: string
+  shop_id: string
+  delivery_date: string
+  delivery_time: string
+  comment: string
+  created_at: string
+  updated_at: string
 }
 
 // Создание заказа
@@ -95,6 +114,12 @@ export const getMyOrders = async (customerId: string): Promise<Order[]> => {
     console.error('Error fetching orders:', error)
     return []
   }
+}
+
+// получение всех товаров пользователя (как отдельные позиции)
+export const getMyOrderItems = async (): Promise<OrderItemWithStatus[]> => {
+  const response = await client.get('/orders/items')
+  return response.data
 }
 
 // Получение деталей заказа

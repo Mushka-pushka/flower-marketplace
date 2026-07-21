@@ -454,7 +454,7 @@ func (s *CatalogService) CreateReview(ctx context.Context, req *models.CreateRev
 		UserID:     userID,
 		Rating:     req.Rating,
 		Comment:    req.Comment,
-		IsApproved: false, // отзывы требуют модерации
+		IsApproved: true, 
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}

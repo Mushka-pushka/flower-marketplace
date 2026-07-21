@@ -2,6 +2,13 @@ import { Link } from 'react-router-dom'
 import { FaLeaf, FaTruck, FaShieldAlt, FaSmile, FaArrowRight } from 'react-icons/fa'
 
 const Home = () => {
+  const categories = [
+    { name: 'Розы', slug: 'roses' },
+    { name: 'Тюльпаны', slug: 'tulips' },
+    { name: 'Пионы', slug: 'peonies' },
+    { name: 'Хризантемы', slug: 'chrysanthemums' },
+  ]
+
   return (
     <div className="animate-fade-in-up">
       {/* Hero секция */}
@@ -40,19 +47,19 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Популярные категории (заглушка для будущего контента) */}
+      {/* Популярные категории */}
       <div className="py-12 border-t border-gray-100">
         <h2 className="text-2xl font-bold text-[#1C1C1C] text-center mb-6">
           Популярные категории
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {['Розы', 'Тюльпаны', 'Пионы', 'Хризантемы'].map((category) => (
+          {categories.map((category) => (
             <Link
-              key={category}
-              to={`/catalog?category=${category.toLowerCase()}`}
+              key={category.slug}
+              to={`/catalog?category=${category.slug}`}
               className="bg-gray-50 hover:bg-[#8A9A86]/10 rounded-xl p-6 text-center transition border border-gray-100"
             >
-              <span className="text-[#1C1C1C] font-medium">{category}</span>
+              <span className="text-[#1C1C1C] font-medium">{category.name}</span>
             </Link>
           ))}
         </div>

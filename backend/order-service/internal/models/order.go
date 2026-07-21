@@ -63,9 +63,9 @@ type OrderStatusUpdate struct {
 
 // OrderResponse — ответ с заказом
 type OrderResponse struct {
-	Order     Order        `json:"order"`
-	Items     []OrderItem  `json:"items"`
-	Statuses  []StatusHistory `json:"statuses,omitempty"`
+	Order    Order                `json:"order"`
+	Items    []OrderItemWithName  `json:"items"`   
+	Statuses []StatusHistory      `json:"statuses,omitempty"`
 }
 
 // StatusHistory — история статусов
@@ -102,4 +102,35 @@ type DeliveryAssignment struct {
     AssignedAt  time.Time  `json:"assigned_at" db:"assigned_at"`
     CompletedAt *time.Time `json:"completed_at,omitempty" db:"completed_at"`
     Status      string     `json:"status" db:"status"` // assigned, completed, failed
+}
+
+// OrderItemWithStatus — позиция заказа с данными о товаре и статусе
+type OrderItemWithStatus struct {
+	ID           uuid.UUID  `json:"id" db:"id"`
+	OrderID      uuid.UUID  `json:"order_id" db:"order_id"`
+	ProductID    uuid.UUID  `json:"product_id" db:"product_id"`
+	ProductName  string     `json:"product_name" db:"product_name"`
+	ProductPrice float64    `json:"product_price" db:"product_price"`
+	Quantity     int        `json:"quantity" db:"quantity"`
+	Total        float64    `json:"total" db:"total"`
+	OrderStatus  string     `json:"order_status" db:"order_status"`
+	ShopID       uuid.UUID  `json:"shop_id" db:"shop_id"`
+	DeliveryDate *time.Time `json:"delivery_date" db:"delivery_date"`
+	DeliveryTime string     `json:"delivery_time" db:"delivery_time"`
+	Comment      string     `json:"comment" db:"comment"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// OrderItemWithName — позиция заказа с названием товара
+type OrderItemWithName struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	OrderID     uuid.UUID `json:"order_id" db:"order_id"`
+	ProductID   uuid.UUID `json:"product_id" db:"product_id"`
+	ProductName string    `json:"product_name" db:"product_name"`
+	Quantity    int       `json:"quantity" db:"quantity"`
+	Price       float64   `json:"price" db:"price"`
+	Total       float64   `json:"total" db:"total"`
+	Packaging   string    `json:"packaging" db:"packaging"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }

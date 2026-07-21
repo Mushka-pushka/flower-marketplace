@@ -126,12 +126,16 @@ func (r *OrderRepository) GetOrderByID(ctx context.Context, id uuid.UUID) (*mode
 	return &order, nil
 }
 
-// GetOrderItems — получение позиций заказа
-func (r *OrderRepository) GetOrderItems(ctx context.Context, orderID uuid.UUID) ([]models.OrderItem, error) {
+// GetOrderItemsWithNames — получение позиций заказа с названиями товаров
+func (r *OrderRepository) GetOrderItemsWithNames(ctx context.Context, orderID uuid.UUID) ([]models.OrderItemWithName, error) {
 	query := `
-		SELECT id, order_id, product_id, quantity, price, total, packaging, created_at
-		FROM order_items
-		WHERE order_id = $1
+		SELECT 
+			oi.id, oi.order_id, oi.product_id, 
+			COALESCE(p.name, 'Товар') as product_name,
+			oi.quantity, oi.price, oi.total, oi.packaging, oi.created_at
+		FROM order_items oi
+		LEFT JOIN products p ON p.id = oi.product_id
+		WHERE oi.order_id = $1
 	`
 
 	rows, err := r.db.Query(ctx, query, orderID)
@@ -140,13 +144,14 @@ func (r *OrderRepository) GetOrderItems(ctx context.Context, orderID uuid.UUID) 
 	}
 	defer rows.Close()
 
-	var items []models.OrderItem
+	var items []models.OrderItemWithName
 	for rows.Next() {
-		var item models.OrderItem
+		var item models.OrderItemWithName
 		err := rows.Scan(
 			&item.ID,
 			&item.OrderID,
 			&item.ProductID,
+			&item.ProductName,
 			&item.Quantity,
 			&item.Price,
 			&item.Total,
@@ -316,4 +321,62 @@ func (r *OrderRepository) CanReview(ctx context.Context, userID, productID uuid.
 	var exists bool
 	err := r.db.QueryRow(ctx, query, userID, productID).Scan(&exists)
 	return exists, err
+}
+
+// GetOrderItemsByCustomer — получает все позиции заказов пользователя
+func (r *OrderRepository) GetOrderItemsByCustomer(ctx context.Context, customerID uuid.UUID) ([]models.OrderItemWithStatus, error) {
+	query := `
+		SELECT 
+			oi.id,
+			oi.order_id,
+			oi.product_id,
+			p.name as product_name,
+			p.price as product_price,
+			oi.quantity,
+			oi.total,
+			o.current_status as order_status,
+			o.created_at,
+			o.updated_at,
+			o.shop_id,
+			o.delivery_date,
+			o.delivery_time,
+			o.comment
+		FROM order_items oi
+		JOIN orders o ON o.id = oi.order_id
+		JOIN products p ON p.id = oi.product_id
+		WHERE o.customer_id = $1
+		ORDER BY o.created_at DESC, oi.id
+	`
+
+	rows, err := r.db.Query(ctx, query, customerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []models.OrderItemWithStatus
+	for rows.Next() {
+		var item models.OrderItemWithStatus
+		err := rows.Scan(
+			&item.ID,
+			&item.OrderID,
+			&item.ProductID,
+			&item.ProductName,
+			&item.ProductPrice,
+			&item.Quantity,
+			&item.Total,
+			&item.OrderStatus,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+			&item.ShopID,
+			&item.DeliveryDate,
+			&item.DeliveryTime,
+			&item.Comment,
+		)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }

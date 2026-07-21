@@ -280,7 +280,7 @@ func (s *OrderService) GetOrderByID(ctx context.Context, id uuid.UUID) (*models.
 		return nil, err
 	}
 
-	items, err := s.orderRepo.GetOrderItems(ctx, id)
+	items, err := s.orderRepo.GetOrderItemsWithNames(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -490,4 +490,9 @@ func (s *OrderService) CanReview(ctx context.Context, userID, productID uuid.UUI
 // GetShopIDBySellerID — возвращает shop_id продавца по его user_id
 func (s *OrderService) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
 	return s.orderRepo.GetShopIDBySellerID(ctx, sellerID)
+}
+
+// GetOrderItemsByCustomer — получает все позиции заказов пользователя
+func (s *OrderService) GetOrderItemsByCustomer(ctx context.Context, customerID uuid.UUID) ([]models.OrderItemWithStatus, error) {
+	return s.orderRepo.GetOrderItemsByCustomer(ctx, customerID)
 }

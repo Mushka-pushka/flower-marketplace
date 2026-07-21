@@ -7,15 +7,15 @@ import {
   FaChevronLeft,
   FaChevronRight,
 } from 'react-icons/fa'
-import { getMyOrders, getOrderDetails, cancelOrder } from '../api/order.api'
-import type { Order, OrderDetails } from '../api/order.api'
+import { getMyOrderItems, getOrderDetails, cancelOrder } from '../api/order.api'
+import type { OrderItemWithStatus, OrderDetails } from '../api/order.api'
 import OrderTimeline from '../components/OrderTimeline'
 import { useAuth } from '../context/AuthContext'
 import { toast } from 'react-hot-toast'
 
 const OrdersPage = () => {
   const { user } = useAuth()
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orderItems, setOrderItems] = useState<OrderItemWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<OrderDetails | null>(null)
@@ -24,37 +24,37 @@ const OrdersPage = () => {
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
 
-const fetchOrders = async () => {
-  if (!user) {
-    setLoading(false)
-    return
-  }
-
-  try {
-    setLoading(true)
-    const data = await getMyOrders(user.id)
-    
-    console.log('📥 Orders data:', data)
-  
-    if (Array.isArray(data)) {
-      setOrders(data)
-      setTotal(data.length)
-    } else {
-      setOrders([])
-      setTotal(0)
+  const fetchOrderItems = async () => {
+    if (!user) {
+      setLoading(false)
+      return
     }
-  } catch (err: any) {
-    console.error('Ошибка загрузки заказов:', err)
-    setError(err.response?.data?.error || 'Ошибка загрузки заказов')
-    setOrders([])
-    setTotal(0)
-  } finally {
-    setLoading(false)
+
+    try {
+      setLoading(true)
+      const data = await getMyOrderItems()
+      
+      console.log('📥 Order items data:', data)
+    
+      if (Array.isArray(data)) {
+        setOrderItems(data)
+        setTotal(data.length)
+      } else {
+        setOrderItems([])
+        setTotal(0)
+      }
+    } catch (err: any) {
+      console.error('Ошибка загрузки заказов:', err)
+      setError(err.response?.data?.error || 'Ошибка загрузки заказов')
+      setOrderItems([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   useEffect(() => {
-    fetchOrders()
+    fetchOrderItems()
   }, [user, limit, offset])
 
   useEffect(() => {
@@ -71,6 +71,8 @@ const fetchOrders = async () => {
   const handleOrderClick = async (orderId: string) => {
     try {
       const details = await getOrderDetails(orderId)
+      console.log('Order details:', details) 
+      console.log('Items:', details.items)
       setSelectedOrder(details)
       setIsModalOpen(true)
     } catch (err) {
@@ -86,8 +88,7 @@ const fetchOrders = async () => {
       await cancelOrder(orderId)
       toast.success('Заказ отменен')
       setIsModalOpen(false)
-      // Обновляем список заказов
-      await fetchOrders()
+      await fetchOrderItems()
     } catch (error) {
       console.error('Ошибка отмены заказа:', error)
       toast.error('Не удалось отменить заказ')
@@ -141,7 +142,7 @@ const fetchOrders = async () => {
     return <div className="text-center py-8 text-red-500">{error}</div>
   }
 
-  if (!orders || orders.length === 0) {
+  if (!orderItems || orderItems.length === 0) {
     return (
       <div>
         <h2 className="text-2xl font-bold text-[#1C1C1C] mb-4 flex items-center gap-2">
@@ -160,35 +161,37 @@ const fetchOrders = async () => {
         Мои заказы
       </h2>
       <div className="space-y-3">
-        {orders.map((order) => (
+        {orderItems.map((item) => (
           <div
-            key={order.id}
-            onClick={() => handleOrderClick(order.id)}
+            key={item.id}
+            onClick={() => handleOrderClick(item.order_id)}
             className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 p-4 cursor-pointer border border-gray-100"
           >
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-gray-400">Заказ #{order.id.slice(0, 8)}</p>
+                <p className="text-sm font-medium text-[#1C1C1C]">{item.product_name}</p>
                 <p className="text-sm text-gray-400">
-                  {new Date(order.created_at).toLocaleDateString('ru-RU', {
+                  {new Date(item.created_at).toLocaleDateString('ru-RU', {
                     day: '2-digit',
                     month: '2-digit',
                     year: 'numeric',
                   })}
                 </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Количество: {item.quantity} шт.
+                </p>
               </div>
               <div className="text-right">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.current_status)}`}>
-                  {getStatusLabel(order.current_status)}
+                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(item.order_status)}`}>
+                  {getStatusLabel(item.order_status)}
                 </span>
-                <p className="text-lg font-bold text-[#8A9A86] mt-1">{order.total_amount} BYN</p>
+                <p className="text-lg font-bold text-[#8A9A86] mt-1">{item.total} BYN</p>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Пагинация */}
       {total > limit && (
         <div className="flex justify-center items-center gap-2 mt-6">
           <button
@@ -227,7 +230,10 @@ const fetchOrders = async () => {
               <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-[#1C1C1C] flex items-center gap-2">
                   <FaShoppingBag className="text-[#8A9A86]" />
-                  Заказ #{selectedOrder.order.id.slice(0, 8)}
+                  {/* ПОКАЗЫВАЕМ НАЗВАНИЯ ТОВАРОВ ВМЕСТО ID ЗАКАЗА */}
+                  {selectedOrder.items.length > 0 
+                    ? selectedOrder.items.map(item => item.product_name || 'Товар').join(', ')
+                    : `Заказ #${selectedOrder.order.id.slice(0, 8)}`}
                 </h2>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -260,8 +266,7 @@ const fetchOrders = async () => {
                   orderId={selectedOrder.order.id}
                   currentStatus={selectedOrder.order.current_status}
                   onStatusUpdate={() => {
-                    // Обновляем список заказов после изменения статуса
-                    fetchOrders()
+                    fetchOrderItems()
                   }}
                 />
               </div>
@@ -283,7 +288,6 @@ const fetchOrders = async () => {
                 </div>
               </div>
 
-              {/* Кнопка отмены заказа */}
               {selectedOrder.order.current_status === 'pending' && (
                 <div className="border-t border-gray-100 pt-4 mt-4">
                   <button

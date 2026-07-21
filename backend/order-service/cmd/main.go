@@ -109,6 +109,7 @@ func main() {
 	// Хендлеры
 	orderHandler := handlers.NewOrderHandler(orderService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
+	http.HandleFunc("GET /api/v1/orders/items", orderHandler.GetOrderItemsByCustomer)
 
 	// Middleware
 	authMiddleware := middleware.NewAuthMiddleware(cfg)

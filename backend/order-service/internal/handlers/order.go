@@ -360,3 +360,54 @@ func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]bool{"can_review": canReview})
 }
+
+// GetOrderItemsByCustomer — получение всех товаров пользователя (как отдельные позиции)
+func (h *OrderHandler) GetOrderItemsByCustomer(w http.ResponseWriter, r *http.Request) {
+    // Берем user_id из заголовка
+    userIDStr := r.Header.Get("X-User-ID")
+    if userIDStr == "" {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "invalid user id")
+        return
+    }
+
+    // Проверяем, что пользователь запрашивает свои данные
+    // (админ может смотреть всех)
+    role := r.Header.Get("X-User-Role")
+    if role != "admin" {
+        // Только свои товары
+        items, err := h.orderService.GetOrderItemsByCustomer(r.Context(), userID)
+        if err != nil {
+            respondWithError(w, http.StatusInternalServerError, err.Error())
+            return
+        }
+        respondWithJSON(w, http.StatusOK, items)
+        return
+    }
+
+    // Админ может указать customer_id
+    customerIDStr := r.URL.Query().Get("customer_id")
+    if customerIDStr == "" {
+        respondWithError(w, http.StatusBadRequest, "customer_id is required for admin")
+        return
+    }
+
+    customerID, err := uuid.Parse(customerIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid customer_id format")
+        return
+    }
+
+    items, err := h.orderService.GetOrderItemsByCustomer(r.Context(), customerID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, items)
+}
