@@ -6,12 +6,17 @@ import {
   FaShoppingBag,
   FaChevronLeft,
   FaChevronRight,
+  FaStar,
+  FaRegStar,
 } from 'react-icons/fa'
 import { getMyOrderItems, getOrderDetails, cancelOrder } from '../api/order.api'
 import type { OrderItemWithStatus, OrderDetails } from '../api/order.api'
 import OrderTimeline from '../components/OrderTimeline'
 import { useAuth } from '../context/AuthContext'
 import { toast } from 'react-hot-toast'
+import { createReview } from '../api/catalog.api'
+import client from '../api/client'
+import ProductModal from '../components/ProductModal'
 
 const OrdersPage = () => {
   const { user } = useAuth()
@@ -24,6 +29,19 @@ const OrdersPage = () => {
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
 
+  // Состояния для модалки отзыва
+  const [reviewModal, setReviewModal] = useState<{
+    productId: string
+    productName: string
+  } | null>(null)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [hasReviewed, setHasReviewed] = useState<Record<string, boolean>>({})
+
+  // Состояние для модалки товара из каталога
+  const [productModalId, setProductModalId] = useState<string | null>(null)
+
   const fetchOrderItems = async () => {
     if (!user) {
       setLoading(false)
@@ -33,9 +51,7 @@ const OrdersPage = () => {
     try {
       setLoading(true)
       const data = await getMyOrderItems()
-      
       console.log('Order items data:', data)
-    
       if (Array.isArray(data)) {
         setOrderItems(data)
         setTotal(data.length)
@@ -53,6 +69,20 @@ const OrdersPage = () => {
     }
   }
 
+  // Загружаем список отзывов пользователя
+  const fetchUserReviews = async () => {
+    try {
+      const response = await client.get('/catalog/reviews/me')
+      const reviewMap: Record<string, boolean> = {}
+      response.data.forEach((review: any) => {
+        reviewMap[review.product_id] = true
+      })
+      setHasReviewed(reviewMap)
+    } catch (error) {
+      console.error('Ошибка загрузки отзывов пользователя:', error)
+    }
+  }
+
   useEffect(() => {
     fetchOrderItems()
   }, [user, limit, offset])
@@ -60,18 +90,34 @@ const OrdersPage = () => {
   useEffect(() => {
     if (isModalOpen) {
       document.body.style.overflow = 'hidden'
+      // Загружаем отзывы пользователя при открытии модалки
+      if (user) {
+        fetchUserReviews()
+      }
     } else {
       document.body.style.overflow = 'auto'
     }
     return () => {
       document.body.style.overflow = 'auto'
     }
-  }, [isModalOpen])
+  }, [isModalOpen, user])
+
+  // Блокировка скролла при открытии модалки товара
+  useEffect(() => {
+    if (productModalId) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [productModalId])
 
   const handleOrderClick = async (orderId: string) => {
     try {
       const details = await getOrderDetails(orderId)
-      console.log('Order details:', details) 
+      console.log('Order details:', details)
       console.log('Items:', details.items)
       setSelectedOrder(details)
       setIsModalOpen(true)
@@ -83,7 +129,6 @@ const OrdersPage = () => {
 
   const handleCancelOrder = async (orderId: string) => {
     if (!confirm('Вы уверены, что хотите отменить заказ?')) return
-    
     try {
       await cancelOrder(orderId)
       toast.success('Заказ отменен')
@@ -93,6 +138,48 @@ const OrdersPage = () => {
       console.error('Ошибка отмены заказа:', error)
       toast.error('Не удалось отменить заказ')
     }
+  }
+
+  // Обработчики для отзыва из заказа
+  const handleOpenReviewModal = (productId: string, productName: string) => {
+    setReviewModal({ productId, productName })
+    setReviewRating(5)
+    setReviewComment('')
+  }
+
+  const handleSubmitReview = async () => {
+    if (!reviewModal) return
+    if (!reviewComment.trim()) {
+      toast.error('Пожалуйста, напишите комментарий')
+      return
+    }
+    setSubmittingReview(true)
+    try {
+      await createReview({
+        product_id: reviewModal.productId,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      })
+      toast.success('Спасибо за ваш отзыв!')
+      setReviewModal(null)
+      // Обновляем список отзывов
+      await fetchUserReviews()
+      await fetchOrderItems()
+    } catch (error) {
+      console.error('Ошибка отправки отзыва:', error)
+      toast.error('Не удалось отправить отзыв')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  // Обработчики для модалки товара
+  const handleViewProduct = (productId: string) => {
+    setProductModalId(productId)
+  }
+
+  const closeProductModal = () => {
+    setProductModalId(null)
   }
 
   const getStatusLabel = (status: string) => {
@@ -232,9 +319,8 @@ const OrdersPage = () => {
               <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-[#1C1C1C] flex items-center gap-2">
                   <FaShoppingBag className="text-[#8A9A86]" />
-                  {/* ПОКАЗЫВАЕМ НАЗВАНИЯ ТОВАРОВ ВМЕСТО ID ЗАКАЗА */}
-                  {selectedOrder.items.length > 0 
-                    ? selectedOrder.items.map(item => item.product_name || 'Товар').join(', ')
+                  {selectedOrder.items.length > 0
+                    ? selectedOrder.items.map((item) => item.product_name || 'Товар').join(', ')
                     : `Заказ #${selectedOrder.order.id.slice(0, 8)}`}
                 </h2>
                 <button
@@ -263,7 +349,7 @@ const OrdersPage = () => {
 
               <div className="border-t border-gray-100 pt-4">
                 <h3 className="font-semibold text-[#1C1C1C] mb-3">История статусов</h3>
-                <OrderTimeline 
+                <OrderTimeline
                   statuses={selectedOrder.statuses}
                   orderId={selectedOrder.order.id}
                   currentStatus={selectedOrder.order.current_status}
@@ -276,17 +362,65 @@ const OrdersPage = () => {
               <div className="border-t border-gray-100 pt-4 mt-4">
                 <h3 className="font-semibold text-[#1C1C1C] mb-2">Товары</h3>
                 <div className="space-y-2">
-                  {selectedOrder.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex justify-between text-sm border-b border-gray-100 pb-2 last:border-0"
-                    >
-                      <span className="text-gray-400">
-                        {item.quantity} × {item.price} BYN
-                      </span>
-                      <span className="text-[#1C1C1C] font-medium">{item.total} BYN</span>
-                    </div>
-                  ))}
+                  {selectedOrder.items.map((item) => {
+                    const isDelivered = selectedOrder.order.current_status === 'delivered'
+                    const alreadyReviewed = hasReviewed[item.product_id]
+                    const canReview = isDelivered && !alreadyReviewed
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex justify-between items-center text-sm border-b border-gray-100 pb-2 last:border-0"
+                      >
+                        <div className="flex-1">
+                          <span className="text-gray-400">
+                            {item.quantity} × {item.price} BYN
+                          </span>
+                          <span className="text-[#1C1C1C] font-medium ml-2">
+                            {item.total} BYN
+                          </span>
+                          {item.product_name && (
+                            <span className="text-[#1C1C1C] ml-2 font-medium">
+                              — {item.product_name}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 ml-4">
+                          {canReview && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenReviewModal(item.product_id, item.product_name || 'Товар')
+                              }}
+                              className="px-3 py-1 text-xs bg-[#8A9A86] text-white rounded-lg hover:bg-[#7A8A76] transition whitespace-nowrap"
+                            >
+                              Оставить отзыв
+                            </button>
+                          )}
+                          
+                          {/* Кнопка "Посмотреть товар" */}
+                          {isDelivered && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleViewProduct(item.product_id)
+                              }}
+                              className="px-3 py-1 text-xs bg-gray-100 text-[#1C1C1C] rounded-lg hover:bg-gray-200 transition whitespace-nowrap"
+                            >
+                              Посмотреть товар
+                            </button>
+                          )}
+                          
+                          {isDelivered && alreadyReviewed && (
+                            <span className="text-xs text-green-600 whitespace-nowrap">
+                              ✓ Отзыв оставлен
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -304,6 +438,75 @@ const OrdersPage = () => {
           </div>,
           document.body
         )}
+
+      {/* Модалка для оставления отзыва из заказа */}
+      {reviewModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setReviewModal(null)}
+          >
+            <div
+              className="bg-white rounded-2xl w-full max-w-md p-6 shadow-lg border border-gray-100 animate-fade-in-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-[#1C1C1C] mb-2">
+                Оставить отзыв
+              </h3>
+              <p className="text-sm text-gray-400 mb-4">
+                на товар «{reviewModal.productName}»
+              </p>
+
+              <div className="flex items-center gap-1 mb-3">
+                <span className="text-sm text-gray-400 mr-2">Оценка:</span>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className="text-2xl hover:scale-110 transition focus:outline-none"
+                  >
+                    {star <= reviewRating ? (
+                      <FaStar className="text-[#8A9A86]" />
+                    ) : (
+                      <FaRegStar className="text-gray-300" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Поделитесь впечатлениями о товаре..."
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition resize-none text-sm"
+                rows={4}
+              />
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setReviewModal(null)}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition text-sm font-medium"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={submittingReview || !reviewComment.trim()}
+                  className="flex-1 bg-[#8A9A86] text-white px-4 py-2.5 rounded-xl hover:bg-[#7A8A76] transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingReview ? 'Отправка...' : 'Отправить отзыв'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Модалка товара из каталога */}
+      {productModalId && (
+        <ProductModal productId={productModalId} onClose={closeProductModal} />
+      )}
     </div>
   )
 }
