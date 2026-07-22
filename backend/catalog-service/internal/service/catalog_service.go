@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -107,6 +111,150 @@ func (s *CatalogService) CreateProduct(ctx context.Context, req *models.CreatePr
 	go s.clearSearchCache()
 
 	return product, nil
+}
+
+// CreateProductWithImages — создание товара с фото
+func (s *CatalogService) CreateProductWithImages(ctx context.Context, req *models.CreateProductRequest, files []*multipart.FileHeader) (*models.Product, error) {
+    if req.Name == "" {
+        return nil, errors.New("product name is required")
+    }
+    if req.Price <= 0 {
+        return nil, errors.New("price must be greater than zero")
+    }
+    if req.Stock < 0 {
+        return nil, errors.New("stock cannot be negative")
+    }
+    if req.ShopID == uuid.Nil {
+        return nil, errors.New("shop_id is required")
+    }
+    if req.CategoryID == uuid.Nil {
+        return nil, errors.New("category_id is required")
+    }
+
+    slug := generateSlug(req.Name)
+
+    now := time.Now()
+    product := &models.Product{
+        ID:          uuid.New(),
+        ShopID:      req.ShopID,
+        CategoryID:  req.CategoryID,
+        Name:        req.Name,
+        Slug:        slug,
+        Description: req.Description,
+        Price:       req.Price,
+        OldPrice:    req.OldPrice,
+        Stock:       req.Stock,
+        Unit:        req.Unit,
+        Packaging:   req.Packaging,
+        Tags:        normalizeTags(req.Tags),
+        IsActive:    true,
+        IsFeatured:  req.IsFeatured,
+        Rating:      0,
+        ViewsCount:  0,
+        CreatedAt:   now,
+        UpdatedAt:   now,
+    }
+
+    err := s.productRepo.CreateProduct(ctx, product)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create product: %w", err)
+    }
+
+    // Сохраняем фото
+    if len(files) > 0 {
+        uploadDir := "uploads/products"
+        if err := os.MkdirAll(uploadDir, 0755); err != nil {
+            return nil, fmt.Errorf("failed to create upload directory: %w", err)
+        }
+
+        for i, fileHeader := range files {
+            file, err := fileHeader.Open()
+            if err != nil {
+                return nil, fmt.Errorf("failed to open file: %w", err)
+            }
+            defer file.Close()
+
+            ext := filepath.Ext(fileHeader.Filename)
+            filename := fmt.Sprintf("%s-%d%s", product.ID.String(), time.Now().UnixNano()+int64(i), ext)
+            filePath := filepath.Join(uploadDir, filename)
+
+            dst, err := os.Create(filePath)
+            if err != nil {
+                return nil, fmt.Errorf("failed to create file: %w", err)
+            }
+            defer dst.Close()
+
+            if _, err := io.Copy(dst, file); err != nil {
+                return nil, fmt.Errorf("failed to save file: %w", err)
+            }
+
+            image := &models.ProductImage{
+                ID:        uuid.New(),
+                ProductID: product.ID,
+                ImageURL:  "/uploads/products/" + filename,
+                IsMain:    i == 0,
+                SortOrder: i,
+                CreatedAt: now,
+            }
+            err = s.productRepo.CreateProductImage(ctx, image)
+            if err != nil {
+                return nil, fmt.Errorf("failed to save image record: %w", err)
+            }
+        }
+    }
+
+    go s.clearSearchCache()
+
+    return product, nil
+}
+
+// DeleteProductImages — удаляет все фото товара
+func (s *CatalogService) DeleteProductImages(ctx context.Context, productID uuid.UUID) error {
+    return s.productRepo.DeleteProductImages(ctx, productID)
+}
+
+// SaveProductImages — сохраняет фото товара
+func (s *CatalogService) SaveProductImages(ctx context.Context, productID uuid.UUID, fileHeaders []*multipart.FileHeader) error {
+    uploadDir := "uploads/products"
+    if err := os.MkdirAll(uploadDir, 0755); err != nil {
+        return err
+    }
+
+    for i, fileHeader := range fileHeaders {
+        file, err := fileHeader.Open()
+        if err != nil {
+            return err
+        }
+        defer file.Close()
+
+        ext := filepath.Ext(fileHeader.Filename)
+        filename := fmt.Sprintf("%s-%d%s", productID.String(), time.Now().UnixNano()+int64(i), ext)
+        filePath := filepath.Join(uploadDir, filename)
+
+        dst, err := os.Create(filePath)
+        if err != nil {
+            return err
+        }
+        defer dst.Close()
+
+        if _, err := io.Copy(dst, file); err != nil {
+            return err
+        }
+
+        image := &models.ProductImage{
+            ID:        uuid.New(),
+            ProductID: productID,
+            ImageURL:  "/uploads/products/" + filename,
+            IsMain:    i == 0,
+            SortOrder: i,
+            CreatedAt: time.Now(),
+        }
+        err = s.productRepo.CreateProductImage(ctx, image)
+        if err != nil {
+            return err
+        }
+    }
+    return nil
 }
 
 // GetProductByID — получение товара по ID
@@ -303,6 +451,16 @@ func (s *CatalogService) DecreaseStock(ctx context.Context, productID uuid.UUID,
     return s.productRepo.DecreaseStock(ctx, productID, quantity)
 }
 
+// GetProductsByShopID — получает товары магазина
+func (s *CatalogService) GetProductsByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Product, error) {
+    return s.productRepo.GetProductsByShopID(ctx, shopID)
+}
+
+// GetShopIDBySellerID — возвращает shop_id продавца
+func (s *CatalogService) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+    return s.productRepo.GetShopIDBySellerID(ctx, sellerID)
+}
+
 // КОРЗИНА (CART)
 
 // AddToCart — добавляет товар в корзину
@@ -362,6 +520,11 @@ func generateSlug(name string) string {
 		slug = slug[:100]
 	}
 	return slug
+}
+
+// GenerateSlug — генерирует slug (экспортируемая) 
+func GenerateSlug(name string) string {
+    return generateSlug(name)
 }
 
 func transliterate(text string) string {
@@ -434,6 +597,11 @@ func normalizeTags(tags []string) []string {
 		}
 	}
 	return uniqueStrings(normalized)
+}
+
+// NormalizeTags — нормализует теги (экспортируемая)  
+func NormalizeTags(tags []string) []string {
+    return normalizeTags(tags)
 }
 
 func uniqueStrings(input []string) []string {
@@ -543,15 +711,19 @@ func (s *CatalogService) DeleteReview(ctx context.Context, reviewID uuid.UUID, u
     return err
 }
 
-// updateProductRating — обновляет рейтинг товара
+// updateProductRating — обновляет рейтинг товара в БД
 func (s *CatalogService) updateProductRating(ctx context.Context, productID uuid.UUID) {
 	avgRating, count, err := s.reviewRepo.GetAverageRating(ctx, productID)
 	if err != nil {
 		return
 	}
 
-	// Обновляем рейтинг в товаре
-	// Здесь можно добавить метод в productRepo для обновления рейтинга
+	err = s.productRepo.UpdateProductRating(ctx, productID, avgRating)
+	if err != nil {
+		log.Printf("Failed to update rating for product %s: %v", productID, err)
+		return
+	}
+
 	log.Printf("Product %s: avg rating %.2f, %d reviews", productID, avgRating, count)
 }
 

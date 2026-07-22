@@ -55,6 +55,7 @@ type CreateProductRequest struct {
 	Packaging   string    `json:"packaging"`
 	Tags        []string  `json:"tags"`
 	IsFeatured  bool      `json:"is_featured"`
+	// Фото будем обрабатывать отдельно через FormData
 }
 
 // UpdateProductRequest — запрос на обновление товара

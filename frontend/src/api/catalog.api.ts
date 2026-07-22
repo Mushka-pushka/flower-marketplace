@@ -164,3 +164,35 @@ export const updateReview = async (reviewId: string, data: {
 export const deleteReview = async (reviewId: string): Promise<void> => {
   await client.delete('/catalog/reviews', { params: { id: reviewId } })
 }
+
+// ДЛЯ ПРОДАВЦА
+// Получение товаров продавца
+export const getSellerProducts = async (): Promise<Product[]> => {
+  const response = await client.get('/catalog/seller/products')
+  return response.data
+}
+
+// Создание товара (для продавца)
+export const createSellerProduct = async (data: FormData): Promise<Product> => {
+  const response = await client.post('/catalog/seller/products', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+// Обновление товара (для продавца)
+export const updateSellerProduct = async (id: string, data: FormData): Promise<Product> => {
+  const response = await client.put(`/catalog/seller/products/${id}`, data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+// Удаление товара (мягкое)
+export const deleteSellerProduct = async (id: string): Promise<void> => {
+  await client.delete(`/catalog/seller/products/${id}`)
+}

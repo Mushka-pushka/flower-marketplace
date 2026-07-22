@@ -8,6 +8,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"           
+    "mime/multipart"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/middleware"
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/models"
@@ -263,6 +265,236 @@ func (h *CatalogHandler) DecreaseStock(w http.ResponseWriter, r *http.Request) {
     }
 
     respondWithJSON(w, http.StatusOK, map[string]string{"message": "Stock updated"})
+}
+
+// GetSellerProducts — получение товаров продавца
+func (h *CatalogHandler) GetSellerProducts(w http.ResponseWriter, r *http.Request) {
+    // Получаем user_id из контекста
+    userID, err := getUserIDFromContext(r)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+
+    // Получаем shop_id продавца
+    shopID, err := h.catalogService.GetShopIDBySellerID(r.Context(), userID)
+    if err != nil || shopID == uuid.Nil {
+        respondWithError(w, http.StatusForbidden, "seller has no shop")
+        return
+    }
+
+    products, err := h.catalogService.GetProductsByShopID(r.Context(), shopID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, products)
+}
+
+// CreateSellerProduct — создание товара продавцом с фото
+func (h *CatalogHandler) CreateSellerProduct(w http.ResponseWriter, r *http.Request) {
+    // Получаем user_id из контекста
+    userID, err := getUserIDFromContext(r)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+
+    // Получаем shop_id продавца
+    shopID, err := h.catalogService.GetShopIDBySellerID(r.Context(), userID)
+    if err != nil || shopID == uuid.Nil {
+        respondWithError(w, http.StatusForbidden, "seller has no shop")
+        return
+    }
+
+    // Парсим multipart form (макс 10MB)
+    err = r.ParseMultipartForm(10 << 20)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "failed to parse form")
+        return
+    }
+
+    // Получаем данные из формы
+    var req models.CreateProductRequest
+    req.ShopID = shopID
+    req.Name = r.FormValue("name")
+    req.Description = r.FormValue("description")
+    req.Unit = r.FormValue("unit")
+    req.Packaging = r.FormValue("packaging")
+    req.IsFeatured = r.FormValue("is_featured") == "true"
+
+    if price := r.FormValue("price"); price != "" {
+        if val, err := strconv.ParseFloat(price, 64); err == nil {
+            req.Price = val
+        }
+    }
+    if oldPrice := r.FormValue("old_price"); oldPrice != "" {
+        if val, err := strconv.ParseFloat(oldPrice, 64); err == nil {
+            req.OldPrice = &val
+        }
+    }
+    if stock := r.FormValue("stock"); stock != "" {
+        if val, err := strconv.Atoi(stock); err == nil {
+            req.Stock = val
+        }
+    }
+    if categoryID := r.FormValue("category_id"); categoryID != "" {
+        if id, err := uuid.Parse(categoryID); err == nil {
+            req.CategoryID = id
+        }
+    }
+    if tags := r.FormValue("tags"); tags != "" {
+        req.Tags = strings.Split(tags, ",")
+    }
+
+    // Получаем файлы
+    files := r.MultipartForm.File["images"]
+    var fileHeaders []*multipart.FileHeader
+    for _, f := range files {
+        fileHeaders = append(fileHeaders, f)
+    }
+
+    product, err := h.catalogService.CreateProductWithImages(r.Context(), &req, fileHeaders)
+    if err != nil {
+        status := http.StatusInternalServerError
+        if strings.Contains(err.Error(), "required") {
+            status = http.StatusBadRequest
+        }
+        respondWithError(w, status, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusCreated, product)
+}
+
+// UpdateSellerProduct — обновление товара продавцом
+func (h *CatalogHandler) UpdateSellerProduct(w http.ResponseWriter, r *http.Request) {
+    idStr := r.PathValue("id")
+    if idStr == "" {
+        respondWithError(w, http.StatusBadRequest, "id is required")
+        return
+    }
+
+    id, err := uuid.Parse(idStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid id format")
+        return
+    }
+
+    // Проверяем, что товар принадлежит продавцу
+    product, err := h.catalogService.GetProductByID(r.Context(), id)
+    if err != nil {
+        respondWithError(w, http.StatusNotFound, "product not found")
+        return
+    }
+
+    userID, err := getUserIDFromContext(r)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+
+    shopID, err := h.catalogService.GetShopIDBySellerID(r.Context(), userID)
+    if err != nil || shopID == uuid.Nil || product.ShopID != shopID {
+        respondWithError(w, http.StatusForbidden, "you can only update your own products")
+        return
+    }
+
+    // Парсим multipart form
+    err = r.ParseMultipartForm(10 << 20)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "failed to parse form")
+        return
+    }
+
+    // Обновляем поля
+    if name := r.FormValue("name"); name != "" {
+        product.Name = name
+        product.Slug = service.GenerateSlug(name)
+    }
+    if description := r.FormValue("description"); description != "" {
+        product.Description = description
+    }
+    if price := r.FormValue("price"); price != "" {
+        if val, err := strconv.ParseFloat(price, 64); err == nil {
+            product.Price = val
+        }
+    }
+    if oldPrice := r.FormValue("old_price"); oldPrice != "" {
+        if val, err := strconv.ParseFloat(oldPrice, 64); err == nil {
+            product.OldPrice = &val
+        }
+    }
+    if stock := r.FormValue("stock"); stock != "" {
+        if val, err := strconv.Atoi(stock); err == nil {
+            product.Stock = val
+        }
+    }
+    if categoryID := r.FormValue("category_id"); categoryID != "" {
+        if id, err := uuid.Parse(categoryID); err == nil {
+            product.CategoryID = id
+        }
+    }
+    if unit := r.FormValue("unit"); unit != "" {
+        product.Unit = unit
+    }
+    if packaging := r.FormValue("packaging"); packaging != "" {
+        product.Packaging = packaging
+    }
+    if tags := r.FormValue("tags"); tags != "" {
+        product.Tags = service.NormalizeTags(strings.Split(tags, ","))
+    }
+    product.IsFeatured = r.FormValue("is_featured") == "true"
+    product.IsActive = r.FormValue("is_active") != "false"
+    product.UpdatedAt = time.Now()
+
+    updateReq := &models.UpdateProductRequest{
+        Name:        &product.Name,
+        Description: &product.Description,
+        Price:       &product.Price,
+        OldPrice:    product.OldPrice,
+        Stock:       &product.Stock,
+        Unit:        &product.Unit,
+        Packaging:   &product.Packaging,
+        Tags:        product.Tags,
+        IsActive:    &product.IsActive,
+        IsFeatured:  &product.IsFeatured,
+        CategoryID:  &product.CategoryID,
+    }
+
+    _, err = h.catalogService.UpdateProduct(r.Context(), id, updateReq)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    // Обновляем фото (удаляем старые и сохраняем новые)
+    files := r.MultipartForm.File["images"]
+    if len(files) > 0 {
+        // Удаляем старые фото
+        err = h.catalogService.DeleteProductImages(r.Context(), product.ID)
+        if err != nil {
+            respondWithError(w, http.StatusInternalServerError, err.Error())
+            return
+        }
+
+        // Сохраняем новые
+        var fileHeaders []*multipart.FileHeader
+        for _, f := range files {
+            fileHeaders = append(fileHeaders, f)
+        }
+        err = h.catalogService.SaveProductImages(r.Context(), product.ID, fileHeaders)
+        if err != nil {
+            respondWithError(w, http.StatusInternalServerError, err.Error())
+            return
+        }
+    }
+
+    // УБИРАЕМ clearSearchCache (он вызывается внутри UpdateProduct)
+    // go h.catalogService.clearSearchCache()
+
+    respondWithJSON(w, http.StatusOK, product)
 }
 
 // ============================================================

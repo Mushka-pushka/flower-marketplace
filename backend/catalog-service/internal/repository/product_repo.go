@@ -197,6 +197,37 @@ func (r *ProductRepository) IncrementViews(ctx context.Context, id uuid.UUID) er
 	return err
 }
 
+// CreateProductImage — создаёт запись о фото товара
+func (r *ProductRepository) CreateProductImage(ctx context.Context, image *models.ProductImage) error {
+    query := `
+        INSERT INTO product_images (id, product_id, image_url, is_main, sort_order, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+    `
+    _, err := r.db.Exec(ctx, query,
+        image.ID,
+        image.ProductID,
+        image.ImageURL,
+        image.IsMain,
+        image.SortOrder,
+        image.CreatedAt,
+    )
+    return err
+}
+
+// DeleteProductImages — удаляет все фото товара
+func (r *ProductRepository) DeleteProductImages(ctx context.Context, productID uuid.UUID) error {
+    query := `DELETE FROM product_images WHERE product_id = $1`
+    _, err := r.db.Exec(ctx, query, productID)
+    return err
+}
+
+// UpdateProductRating — обновляет рейтинг товара
+func (r *ProductRepository) UpdateProductRating(ctx context.Context, productID uuid.UUID, rating float64) error {
+	query := `UPDATE products SET rating = $1 WHERE id = $2`
+	_, err := r.db.Exec(ctx, query, rating, productID)
+	return err
+}
+
 // ============================================================
 // СЕМАНТИЧЕСКИЙ ПОИСК
 // ============================================================
@@ -594,5 +625,68 @@ func (r *ProductRepository) ExistsShop(ctx context.Context, id uuid.UUID) (bool,
 	var exists bool
 	err := r.db.QueryRow(ctx, query, id).Scan(&exists)
 	return exists, err
+}
+
+// ============================================================
+// МЕТОДЫ ДЛЯ РАБОТЫ С МАГАЗИНАМИ И ТОВАРАМИ
+// ============================================================
+
+// GetProductsByShopID — получает товары магазина          <--- ДОБАВИТЬ СЮДА
+func (r *ProductRepository) GetProductsByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Product, error) {
+    query := `
+        SELECT id, shop_id, category_id, name, slug, description, price, old_price,
+            stock, unit, packaging, tags, is_active, is_featured, rating, views_count,
+            created_at, updated_at
+        FROM products
+        WHERE shop_id = $1
+        ORDER BY created_at DESC
+    `
+
+    rows, err := r.db.Query(ctx, query, shopID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var products []models.Product
+    for rows.Next() {
+        var product models.Product
+        err := rows.Scan(
+            &product.ID,
+            &product.ShopID,
+            &product.CategoryID,
+            &product.Name,
+            &product.Slug,
+            &product.Description,
+            &product.Price,
+            &product.OldPrice,
+            &product.Stock,
+            &product.Unit,
+            &product.Packaging,
+            &product.Tags,
+            &product.IsActive,
+            &product.IsFeatured,
+            &product.Rating,
+            &product.ViewsCount,
+            &product.CreatedAt,
+            &product.UpdatedAt,
+        )
+        if err != nil {
+            return nil, err
+        }
+        products = append(products, product)
+    }
+    return products, nil
+}
+
+// GetShopIDBySellerID — возвращает shop_id продавца по user_id
+func (r *ProductRepository) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+    query := `SELECT id FROM shops WHERE seller_id = $1`
+    var shopID uuid.UUID
+    err := r.db.QueryRow(ctx, query, sellerID).Scan(&shopID)
+    if err != nil {
+        return uuid.Nil, err
+    }
+    return shopID, nil
 }
 
