@@ -57,6 +57,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Role:      user.Role,
 		IsActive:  user.IsActive,
 		AvatarURL: user.AvatarURL,
+		ShopID:    user.ShopID,
 		CreatedAt: user.CreatedAt,
 	}
 
@@ -109,6 +110,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			Role:      user.Role,
 			IsActive:  user.IsActive,
 			AvatarURL: user.AvatarURL,
+			ShopID:    user.ShopID,
 			CreatedAt: user.CreatedAt,
 		},
 	}
@@ -147,6 +149,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		Role:      user.Role,
 		IsActive:  user.IsActive,
 		AvatarURL: user.AvatarURL,
+		ShopID:    user.ShopID,
 		CreatedAt: user.CreatedAt,
 	}
 
@@ -195,6 +198,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Role:      user.Role,
 		IsActive:  user.IsActive,
 		AvatarURL: user.AvatarURL,
+		ShopID:    user.ShopID,
 		CreatedAt: user.CreatedAt,
 	})
 }
@@ -383,6 +387,7 @@ func (h *AuthHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
         Role:      user.Role,
         IsActive:  user.IsActive,
         AvatarURL: user.AvatarURL,
+		ShopID:    user.ShopID,
         CreatedAt: user.CreatedAt,
     })
 }

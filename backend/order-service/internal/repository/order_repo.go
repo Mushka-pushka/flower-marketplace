@@ -250,47 +250,63 @@ func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uu
 	return orders, nil
 }
 
-// GetOrdersByShopID — получает заказы магазина
-func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Order, error) {
-	query := `
-		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount, commission, delivery_date, delivery_time, comment, current_status,
-			created_at, updated_at
-		FROM orders
-		WHERE shop_id = $1
-		ORDER BY created_at DESC
-	`
+// GetOrdersByShopID — получает заказы магазина с данными покупателя и названиями товаров
+func (r *OrderRepository) GetOrdersByShopID(ctx context.Context, shopID uuid.UUID) ([]models.OrderWithCustomer, error) {
+    query := `
+        SELECT 
+            o.id, o.customer_id, o.shop_id, o.delivery_address_id, o.payment_type_id,
+            o.total_amount, o.commission, o.delivery_date, o.delivery_time, o.comment, o.current_status,
+            o.created_at, o.updated_at,
+            u.first_name as customer_first_name,
+            u.last_name as customer_last_name,
+            u.email as customer_email,
+            COALESCE(
+                (SELECT string_agg(p.name, ', ') 
+                 FROM order_items oi 
+                 JOIN products p ON p.id = oi.product_id 
+                 WHERE oi.order_id = o.id),
+                ''
+            ) as product_names
+        FROM orders o
+        JOIN users u ON u.id = o.customer_id
+        WHERE o.shop_id = $1
+        ORDER BY o.created_at DESC
+    `
 
-	rows, err := r.db.Query(ctx, query, shopID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(ctx, query, shopID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
-	var orders []models.Order
-	for rows.Next() {
-		var order models.Order
-		err := rows.Scan(
-			&order.ID,
-			&order.CustomerID,
-			&order.ShopID,
-			&order.DeliveryAddressID,
-			&order.PaymentTypeID,
-			&order.TotalAmount,
-			&order.Commission,
-			&order.DeliveryDate,
-			&order.DeliveryTime,
-			&order.Comment,
-			&order.CurrentStatus,
-			&order.CreatedAt,
-			&order.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		orders = append(orders, order)
-	}
-	return orders, nil
+    var orders []models.OrderWithCustomer
+    for rows.Next() {
+        var order models.OrderWithCustomer
+        err := rows.Scan(
+            &order.ID,
+            &order.CustomerID,
+            &order.ShopID,
+            &order.DeliveryAddressID,
+            &order.PaymentTypeID,
+            &order.TotalAmount,
+            &order.Commission,
+            &order.DeliveryDate,
+            &order.DeliveryTime,
+            &order.Comment,
+            &order.CurrentStatus,
+            &order.CreatedAt,
+            &order.UpdatedAt,
+            &order.CustomerFirstName,
+            &order.CustomerLastName,
+            &order.CustomerEmail,
+            &order.ProductNames, 
+        )
+        if err != nil {
+            return nil, err
+        }
+        orders = append(orders, order)
+    }
+    return orders, nil
 }
 
 // GetShopIDBySellerID — возвращает shop_id продавца по его user_id
@@ -379,4 +395,11 @@ func (r *OrderRepository) GetOrderItemsByCustomer(ctx context.Context, customerI
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+// GetCustomerByID — получает данные покупателя по ID
+func (r *OrderRepository) GetCustomerByID(ctx context.Context, customerID uuid.UUID) (firstName, lastName, email string, err error) {
+    query := `SELECT first_name, last_name, email FROM users WHERE id = $1`
+    err = r.db.QueryRow(ctx, query, customerID).Scan(&firstName, &lastName, &email)
+    return
 }

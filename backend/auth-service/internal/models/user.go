@@ -16,6 +16,7 @@ type User struct {
 	Role         string    `json:"role" db:"role"`
 	IsActive     bool      `json:"is_active" db:"is_active"`
 	AvatarURL    *string   `json:"avatar_url,omitempty" db:"avatar_url"`
+	ShopID       *uuid.UUID `json:"shop_id,omitempty" db:"shop_id"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -51,6 +52,7 @@ type UserResponse struct {
 	Role      string    `json:"role"`
 	IsActive  bool      `json:"is_active"`
 	AvatarURL *string   `json:"avatar_url,omitempty"`
+	ShopID    *uuid.UUID `json:"shop_id,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

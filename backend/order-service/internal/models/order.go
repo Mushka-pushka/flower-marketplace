@@ -63,9 +63,12 @@ type OrderStatusUpdate struct {
 
 // OrderResponse — ответ с заказом
 type OrderResponse struct {
-	Order    Order                `json:"order"`
-	Items    []OrderItemWithName  `json:"items"`   
-	Statuses []StatusHistory      `json:"statuses,omitempty"`
+    Order              Order                `json:"order"`
+    Items              []OrderItemWithName  `json:"items"`
+    Statuses           []StatusHistory      `json:"statuses,omitempty"`
+    CustomerFirstName  string               `json:"customer_first_name,omitempty"`
+    CustomerLastName   string               `json:"customer_last_name,omitempty"`
+    CustomerEmail      string               `json:"customer_email,omitempty"`
 }
 
 // StatusHistory — история статусов
@@ -133,4 +136,13 @@ type OrderItemWithName struct {
 	Total       float64   `json:"total" db:"total"`
 	Packaging   string    `json:"packaging" db:"packaging"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+// OrderWithCustomer — заказ с данными покупателя
+type OrderWithCustomer struct {
+    Order
+    CustomerFirstName string `json:"customer_first_name"`
+    CustomerLastName  string `json:"customer_last_name"`
+    CustomerEmail     string `json:"customer_email"`
+	ProductNames      string `json:"product_names"`
 }

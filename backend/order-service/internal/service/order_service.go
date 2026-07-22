@@ -318,26 +318,39 @@ func (s *OrderService) publishOrderCreated(ctx context.Context, order *models.Or
 }
 
 func (s *OrderService) GetOrderByID(ctx context.Context, id uuid.UUID) (*models.OrderResponse, error) {
-	order, err := s.orderRepo.GetOrderByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+    // Получаем заказ
+    order, err := s.orderRepo.GetOrderByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
 
-	items, err := s.orderRepo.GetOrderItemsWithNames(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+    // Получаем данные покупателя через метод репозитория
+    customerFirstName, customerLastName, customerEmail, err := s.orderRepo.GetCustomerByID(ctx, order.CustomerID)
+    if err != nil {
+        // Если не удалось получить данные покупателя, продолжаем с пустыми значениями
+        customerFirstName = ""
+        customerLastName = ""
+        customerEmail = ""
+    }
 
-	statuses, err := s.orderRepo.GetStatusHistory(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+    items, err := s.orderRepo.GetOrderItemsWithNames(ctx, id)
+    if err != nil {
+        return nil, err
+    }
 
-	return &models.OrderResponse{
-		Order:    *order,
-		Items:    items,
-		Statuses: statuses,
-	}, nil
+    statuses, err := s.orderRepo.GetStatusHistory(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+
+    return &models.OrderResponse{
+        Order:              *order,
+        Items:              items,
+        Statuses:           statuses,
+        CustomerFirstName:  customerFirstName,
+        CustomerLastName:   customerLastName,
+        CustomerEmail:      customerEmail,
+    }, nil
 }
 
 func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status, changedBy, comment string) error {
@@ -429,8 +442,9 @@ func (s *OrderService) publishOrderCancelled(orderID uuid.UUID) {
 	log.Printf("Event published: order.cancelled for order %s", orderID)
 }
 
-func (s *OrderService) GetOrdersByShop(ctx context.Context, shopID uuid.UUID) ([]models.Order, error) {
-	return s.orderRepo.GetOrdersByShopID(ctx, shopID)
+// GetOrdersByShop — получает заказы магазина с данными покупателя
+func (s *OrderService) GetOrdersByShop(ctx context.Context, shopID uuid.UUID) ([]models.OrderWithCustomer, error) {
+    return s.orderRepo.GetOrdersByShopID(ctx, shopID)
 }
 
 func (s *OrderService) UpdateOrderStatusBySeller(ctx context.Context, orderID, shopID uuid.UUID, status, comment string) error {

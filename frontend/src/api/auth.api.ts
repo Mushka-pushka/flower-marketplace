@@ -10,6 +10,7 @@ export interface User {
   role: 'customer' | 'seller' | 'admin'
   is_active: boolean
   avatar_url?: string
+  shop_id?: string
   created_at: string
 }
 

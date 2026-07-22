@@ -10,6 +10,7 @@ interface User {
   last_name: string
   phone: string
   avatar_url?: string
+  shop_id?: string 
 }
 
 interface AuthContextType {

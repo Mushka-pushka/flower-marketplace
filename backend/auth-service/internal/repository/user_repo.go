@@ -27,10 +27,10 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 
 // Create — создание нового пользователя
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
-	query := `
-		INSERT INTO users (id, email, phone, password_hash, first_name, last_name, role, is_active, avatar_url, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`
+    query := `
+        INSERT INTO users (id, email, phone, password_hash, first_name, last_name, role, is_active, avatar_url, shop_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `
 
 	_, err := r.db.Exec(ctx, query,
 		user.ID,
@@ -42,6 +42,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		user.Role,
 		user.IsActive,
 		user.AvatarURL,
+		user.ShopID,
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
@@ -52,10 +53,10 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 // GetByEmail — получение пользователя по email
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
     query := `
-        SELECT id, email, phone, password_hash, first_name, last_name, role, is_active, avatar_url, created_at, updated_at
+        SELECT id, email, phone, password_hash, first_name, last_name, role, is_active, avatar_url, shop_id, created_at, updated_at
         FROM users
         WHERE email = $1
-	`
+    `
 
 	var user models.User
 	err := r.db.QueryRow(ctx, query, email).Scan(
@@ -68,6 +69,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&user.Role,
 		&user.IsActive,
 		&user.AvatarURL,
+		&user.ShopID, 
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -83,11 +85,11 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 
 // GetByID — получение пользователя по ID
 func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
-	query := `
-		SELECT id, email, phone, password_hash, first_name, last_name, role, is_active, avatar_url, created_at, updated_at
-		FROM users
-		WHERE id = $1
-	`
+    query := `
+        SELECT id, email, phone, password_hash, first_name, last_name, role, is_active, avatar_url, shop_id, created_at, updated_at
+        FROM users
+        WHERE id = $1
+    `
 
 	var user models.User
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -100,6 +102,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 		&user.Role,
 		&user.IsActive,
 		&user.AvatarURL,
+		&user.ShopID, 
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)

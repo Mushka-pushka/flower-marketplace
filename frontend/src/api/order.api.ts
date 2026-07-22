@@ -13,6 +13,10 @@ export interface Order {
   current_status: string
   created_at: string
   updated_at: string
+  customer_first_name?: string 
+  customer_last_name?: string   
+  customer_email?: string 
+  product_names?: string
 }
 
 export interface OrderItem {
@@ -40,6 +44,9 @@ export interface OrderDetails {
   order: Order
   items: OrderItem[]
   statuses: OrderStatus[]
+  customer_first_name?: string
+  customer_last_name?: string
+  customer_email?: string
 }
 
 // Интерфейс для ответа с пагинацией
@@ -138,7 +145,15 @@ export const canReviewProduct = async (productId: string): Promise<boolean> => {
   }
 }
 
-// Обновление статуса заказа (для продавца)
+// Получение заказов магазина (для продавца)
+export const getShopOrders = async (shopId: string): Promise<Order[]> => {
+  const response = await client.get('/orders/shop', { 
+    params: { shop_id: shopId } 
+  })
+  return response.data
+}
+
+// Обновление статуса заказа (для продавца) - обновлённая версия
 export const updateOrderStatus = async (data: {
   order_id: string
   status: string

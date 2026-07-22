@@ -164,25 +164,25 @@ func (h *OrderHandler) GetOrdersByCustomer(w http.ResponseWriter, r *http.Reques
 // @Failure      500 {object} ErrorResponse
 // @Router       /orders/shop [get]
 func (h *OrderHandler) GetOrdersByShop(w http.ResponseWriter, r *http.Request) {
-	shopIDStr := r.URL.Query().Get("shop_id")
-	if shopIDStr == "" {
-		respondWithError(w, http.StatusBadRequest, "shop_id parameter is required")
-		return
-	}
+    shopIDStr := r.URL.Query().Get("shop_id")
+    if shopIDStr == "" {
+        respondWithError(w, http.StatusBadRequest, "shop_id parameter is required")
+        return
+    }
 
-	shopID, err := uuid.Parse(shopIDStr)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "invalid shop_id format")
-		return
-	}
+    shopID, err := uuid.Parse(shopIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid shop_id format")
+        return
+    }
 
-	orders, err := h.orderService.GetOrdersByShop(r.Context(), shopID)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    orders, err := h.orderService.GetOrdersByShop(r.Context(), shopID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
 
-	respondWithJSON(w, http.StatusOK, orders)
+    respondWithJSON(w, http.StatusOK, orders)
 }
 
 // CancelOrder godoc
