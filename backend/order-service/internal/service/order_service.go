@@ -553,3 +553,8 @@ func (s *OrderService) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UU
 func (s *OrderService) GetOrderItemsByCustomer(ctx context.Context, customerID uuid.UUID) ([]models.OrderItemWithStatus, error) {
 	return s.orderRepo.GetOrderItemsByCustomer(ctx, customerID)
 }
+
+// GetOrderByIDSimple — получает заказ по ID без дополнительных данных
+func (s *OrderService) GetOrderByIDSimple(ctx context.Context, id uuid.UUID) (*models.Order, error) {
+    return s.orderRepo.GetOrderByID(ctx, id)
+}

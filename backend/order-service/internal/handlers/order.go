@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/order-service/internal/models"
@@ -266,8 +267,12 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Берем user_id из заголовка (от API Gateway)
 	userIDStr := r.Header.Get("X-User-ID")
+	log.Printf("UpdateOrderStatusBySeller: X-User-ID: %s", userIDStr)
+	
+	role := r.Header.Get("X-User-Role")
+	log.Printf("UpdateOrderStatusBySeller: X-User-Role: %s", role)
+
 	if userIDStr == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
@@ -280,20 +285,33 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 	}
 
 	// Проверяем роль пользователя
-	role := r.Header.Get("X-User-Role")
 	if role != "seller" {
+		log.Printf("User is not a seller: role=%s", role)
 		respondWithError(w, http.StatusForbidden, "only sellers can update order status")
 		return
 	}
 
 	// Получаем shop_id по user_id
 	shopID, err := h.orderService.GetShopIDBySellerID(r.Context(), userID)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to get shop")
+	if err != nil || shopID == uuid.Nil {
+		log.Printf("Seller has no shop: userID=%s, err=%v", userID, err)
+		respondWithError(w, http.StatusForbidden, "seller has no shop")
 		return
 	}
-	if shopID == uuid.Nil {
-		respondWithError(w, http.StatusForbidden, "seller has no shop")
+	log.Printf("UpdateOrderStatusBySeller: seller shop_id: %s", shopID)
+
+	// Проверяем, что заказ принадлежит магазину продавца
+	order, err := h.orderService.GetOrderByIDSimple(r.Context(), req.OrderID)
+	if err != nil {
+		log.Printf("Order not found: orderID=%s, err=%v", req.OrderID, err)
+		respondWithError(w, http.StatusNotFound, "order not found")
+		return
+	}
+	log.Printf("UpdateOrderStatusBySeller: order shop_id: %s", order.ShopID)
+
+	if order.ShopID != shopID {
+		log.Printf("Shop mismatch: order.shop_id=%s, seller.shop_id=%s", order.ShopID, shopID)
+		respondWithError(w, http.StatusForbidden, "you can only update orders from your shop")
 		return
 	}
 
@@ -308,10 +326,12 @@ func (h *OrderHandler) UpdateOrderStatusBySeller(w http.ResponseWriter, r *http.
 		case "cannot change status of delivered or cancelled order":
 			status = http.StatusBadRequest
 		}
+		log.Printf("Failed to update order status: %v", err)
 		respondWithError(w, status, err.Error())
 		return
 	}
 
+	log.Printf("Order status updated: orderID=%s, newStatus=%s", req.OrderID, req.Status)
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Статус заказа обновлён"})
 }
 

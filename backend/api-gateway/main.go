@@ -25,18 +25,19 @@ func main() {
 			return
 		}
 
-		// ---- ПОЛУЧАЕМ USER_ID ЧЕРЕЗ AUTH SERVICE ----
+		// ---- ПОЛУЧАЕМ USER_ID И ROLE ЧЕРЕЗ AUTH SERVICE ----
 		var userID string
+		var role string
 		tokenStr := r.Header.Get("Authorization")
 		if tokenStr != "" && strings.HasPrefix(tokenStr, "Bearer ") {
 			tokenStr = strings.TrimPrefix(tokenStr, "Bearer ")
-			userID = getUserIDFromAuthService(tokenStr)
+			userID, role = getUserInfoFromAuthService(tokenStr)
 		}
 
 		// ---- МАРШРУТИЗАЦИЯ ----
 		var targetURL string
 		
-		// ✅ СОХРАНЯЕМ ПОЛНЫЙ URL С ПАРАМЕТРАМИ
+		// СОХРАНЯЕМ ПОЛНЫЙ URL С ПАРАМЕТРАМИ
 		fullPath := r.URL.RequestURI()
 		
 		switch {
@@ -62,9 +63,9 @@ func main() {
 			return
 		}
 
-		log.Printf("🔄 Proxying: %s -> %s", r.URL.String(), targetURL)
+		log.Printf("Proxying: %s -> %s", r.URL.String(), targetURL)
 
-		// ---- ДОБАВЛЯЕМ USER_ID В ЗАГОЛОВОК ----
+		// ---- ДОБАВЛЯЕМ USER_ID И ROLE В ЗАГОЛОВОК ----
 		proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -74,6 +75,9 @@ func main() {
 		proxyReq.Header = r.Header.Clone()
 		if userID != "" {
 			proxyReq.Header.Set("X-User-ID", userID)
+		}
+		if role != "" {
+			proxyReq.Header.Set("X-User-Role", role)
 		}
 		proxyReq.Header.Set("X-Forwarded-For", r.RemoteAddr)
 
@@ -102,12 +106,12 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// getUserIDFromAuthService — проверяет токен через Auth Service и возвращает user_id
-func getUserIDFromAuthService(token string) string {
+// getUserInfoFromAuthService — проверяет токен через Auth Service и возвращает user_id и role
+func getUserInfoFromAuthService(token string) (string, string) {
 	req, err := http.NewRequest("POST", "http://localhost:8081/api/v1/auth/validate", nil)
 	if err != nil {
 		log.Println("Failed to create validation request:", err)
-		return ""
+		return "", ""
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -115,21 +119,27 @@ func getUserIDFromAuthService(token string) string {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Failed to validate token:", err)
-		return ""
+		return "", ""
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("Token validation failed with status:", resp.StatusCode)
-		return ""
+		return "", ""
 	}
 
 	var result map[string]string
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		log.Println("Failed to decode validation response:", err)
-		return ""
+		return "", ""
 	}
 
-	log.Println("Token validated, user_id:", result["user_id"])
-	return result["user_id"]
+	userID := result["user_id"]
+	role := result["role"]
+	if role == "" {
+		role = "customer" // по умолчанию
+	}
+
+	log.Printf("Token validated: user_id=%s, role=%s", userID, role)
+	return userID, role
 }

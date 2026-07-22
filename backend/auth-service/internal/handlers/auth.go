@@ -277,7 +277,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 // ValidateToken godoc
 // @Summary      Проверка JWT-токена
-// @Description  Проверяет валидность JWT-токена и возвращает user_id
+// @Description  Проверяет валидность JWT-токена и возвращает user_id и роль
 // @Tags         auth
 // @Produce      json
 // @Security     Bearer
@@ -302,7 +302,16 @@ func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"user_id": userID.String()})
+	user, err := h.authService.GetUserByID(r.Context(), userID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{
+		"user_id": userID.String(),
+		"role":    user.Role, 
+	})
 }
 
 // UploadAvatar — загрузка аватара пользователя
