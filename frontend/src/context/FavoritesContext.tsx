@@ -34,30 +34,19 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     const loadFavorites = async () => {
       setLoading(true)
       const key = getStorageKey()
-      const oldKey = 'flower_favorites' // старый ключ без ID
-      
-      let saved = localStorage.getItem(key)
-      
-      if (!saved) {
-        const oldData = localStorage.getItem(oldKey)
-        if (oldData) {
-          // Переносим данные из старого ключа в новый
-          localStorage.setItem(key, oldData)
-          saved = oldData
-          // Удаляем старый ключ (опционально)
-          // localStorage.removeItem(oldKey)
-        }
-      }
+      const saved = localStorage.getItem(key)
       
       if (saved) {
         try {
-          setItems(JSON.parse(saved))
-        } catch {
-          setItems([])
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setItems(parsed)
+          }
+        } catch (error) {
+          console.warn('Failed to parse favorites data:', error)
         }
-      } else {
-        setItems([])
       }
+      // НЕ ОЧИЩАЕМ items, если данных нет
       setLoading(false)
     }
 

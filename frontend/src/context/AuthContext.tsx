@@ -102,6 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const logout = () => {
+    console.log('logout called!')
     setUser(null)
     setToken(null)
     localStorage.removeItem('user')

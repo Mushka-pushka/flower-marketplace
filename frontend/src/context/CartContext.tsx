@@ -35,35 +35,25 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const key = getStorageKey()
-    const oldKey = 'flower_cart' // старый ключ без ID
-    
-    let saved = localStorage.getItem(key)
-    
-    // Если в новом ключе пусто, пробуем забрать из старого
-    if (!saved) {
-      const oldData = localStorage.getItem(oldKey)
-      if (oldData) {
-        // Переносим данные из старого ключа в новый
-        localStorage.setItem(key, oldData)
-        saved = oldData
-        // Удаляем старый ключ (опционально)
-        // localStorage.removeItem(oldKey)
-      }
-    }
-    
+    const saved = localStorage.getItem(key)
     if (saved) {
       try {
-        setItems(JSON.parse(saved))
-      } catch {
-        setItems([])
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed)
+        }
+        // Если parsed пустой — НЕ ОЧИЩАЕМ items
+      } catch (error) {
+        console.warn('Failed to parse cart data:', error)
+        // НЕ ОЧИЩАЕМ items при ошибке
       }
-    } else {
-      setItems([])
     }
+    // НЕ ОЧИЩАЕМ items, если данных нет
   }, [user])
 
   useEffect(() => {
     const key = getStorageKey()
+    console.log('Saving cart to:', key, items)
     localStorage.setItem(key, JSON.stringify(items))
   }, [items, user])
 
@@ -108,7 +98,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     )
   }
 
-  const clearCart = () => setItems([])
+  const clearCart = () => {
+    console.trace('clearCart called! Stack trace:')
+    setItems([])
+  }
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)

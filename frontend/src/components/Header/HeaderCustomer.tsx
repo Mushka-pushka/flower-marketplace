@@ -21,8 +21,8 @@ const HeaderCustomer = () => {
         {/* Логотип */}
         <Link to="/" className="text-2xl md:text-3xl font-bold text-[#1C1C1C] flex items-center gap-2">
           <FaLeaf className="text-[#8A9A86] text-2xl" />
-          <span className="hidden sm:inline">Цветочный маркетплейс</span>
-          <span className="sm:hidden">Цветы</span>
+          <span className="hidden sm:inline">FlowMarket</span>
+          <span className="sm:hidden">FlowMarket</span>
         </Link>
 
         {/* Десктопное меню */}
