@@ -228,6 +228,33 @@ func (r *ProductRepository) UpdateProductRating(ctx context.Context, productID u
 	return err
 }
 
+// GetProductImages — получает все фото товара
+func (r *ProductRepository) GetProductImages(ctx context.Context, productID uuid.UUID) ([]string, error) {
+    query := `
+        SELECT image_url 
+        FROM product_images 
+        WHERE product_id = $1 
+        ORDER BY sort_order ASC
+    `
+
+    rows, err := r.db.Query(ctx, query, productID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var images []string
+    for rows.Next() {
+        var imageURL string
+        err := rows.Scan(&imageURL)
+        if err != nil {
+            return nil, err
+        }
+        images = append(images, imageURL)
+    }
+    return images, nil
+}
+
 // ============================================================
 // СЕМАНТИЧЕСКИЙ ПОИСК
 // ============================================================

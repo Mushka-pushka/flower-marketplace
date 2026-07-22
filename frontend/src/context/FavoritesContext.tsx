@@ -13,10 +13,10 @@ interface FavoriteItem {
 interface FavoritesContextType {
   items: FavoriteItem[]
   loading: boolean
-  addFavorite: (product: { id: string; name: string; price: number }) => void
+  addFavorite: (product: { id: string; name: string; price: number; image?: string }) => void 
   removeFavorite: (productId: string) => void
   isFavorite: (productId: string) => boolean
-  toggleFavorite: (product: { id: string; name: string; price: number }) => void
+  toggleFavorite: (product: { id: string; name: string; price: number; image?: string }) => void  
 }
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined)
@@ -34,7 +34,21 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     const loadFavorites = async () => {
       setLoading(true)
       const key = getStorageKey()
-      const saved = localStorage.getItem(key)
+      const oldKey = 'flower_favorites' // старый ключ без ID
+      
+      let saved = localStorage.getItem(key)
+      
+      if (!saved) {
+        const oldData = localStorage.getItem(oldKey)
+        if (oldData) {
+          // Переносим данные из старого ключа в новый
+          localStorage.setItem(key, oldData)
+          saved = oldData
+          // Удаляем старый ключ (опционально)
+          // localStorage.removeItem(oldKey)
+        }
+      }
+      
       if (saved) {
         try {
           setItems(JSON.parse(saved))
@@ -55,7 +69,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(key, JSON.stringify(items))
   }, [items, user])
 
-  const addFavorite = (product: { id: string; name: string; price: number }) => {
+  const addFavorite = (product: { id: string; name: string; price: number; image?: string }) => {
     setItems((prev) => {
       if (prev.some((item) => item.product_id === product.id)) return prev
       return [
@@ -65,6 +79,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
           product_id: product.id,
           name: product.name,
           price: product.price,
+          image: product.image || '',
         },
       ]
     })
@@ -78,7 +93,7 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
     return items.some((item) => item.product_id === productId)
   }
 
-  const toggleFavorite = (product: { id: string; name: string; price: number }) => {
+  const toggleFavorite = (product: { id: string; name: string; price: number; image?: string }) => {
     if (isFavorite(product.id)) {
       removeFavorite(product.id)
     } else {

@@ -36,7 +36,8 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
   const [showNotification, setShowNotification] = useState(false)
   const [authNotification, setAuthNotification] = useState(false)
   const [isInCart, setIsInCart] = useState(false)
-  const [quantity, setQuantity] = useState(1) // Добавлен state для количества
+  const [quantity, setQuantity] = useState(1)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0) // <--- ДОБАВЛЕНО
 
   useEffect(() => {
     if (!productId) return
@@ -49,6 +50,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
         // Проверяем, есть ли товар в корзине
         setIsInCart(items.some(item => item.product_id === productId))
         setQuantity(1) // Сбрасываем количество при загрузке нового товара
+        setCurrentImageIndex(0) // Сбрасываем индекс фото при загрузке нового товара
       } catch (err) {
         setError('Не удалось загрузить товар')
       } finally {
@@ -186,8 +188,50 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
 
           {product && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="aspect-square bg-gray-50 rounded-xl flex items-center justify-center text-7xl overflow-hidden">
-                <FaLeaf className="text-gray-300 text-6xl" />
+              <div className="aspect-square bg-gray-50 rounded-xl flex items-center justify-center overflow-hidden relative">
+                {product.images && product.images.length > 0 ? (
+                  <>
+                    <img 
+                      src={`http://localhost:8082${product.images[currentImageIndex]}`} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover"
+                    />
+                    {product.images.length > 1 && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : product.images!.length - 1))
+                          }}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-[#1C1C1C] rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setCurrentImageIndex((prev) => (prev < product.images!.length - 1 ? prev + 1 : 0))
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-[#1C1C1C] rounded-full w-8 h-8 flex items-center justify-center shadow-lg transition"
+                        >
+                          ›
+                        </button>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                          {product.images.map((_, index) => (
+                            <span
+                              key={index}
+                              className={`w-2 h-2 rounded-full transition ${
+                                index === currentImageIndex ? 'bg-[#8A9A86]' : 'bg-white/60'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <FaLeaf className="text-gray-300 text-6xl" />
+                )}
               </div>
 
               <div>

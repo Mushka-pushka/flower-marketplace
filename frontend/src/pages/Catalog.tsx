@@ -43,6 +43,10 @@ const Catalog = () => {
       }
       console.log('Sending to backend:', params)
       const response = await searchProducts(params)
+      console.log('Product images check:', response?.items?.map((p: any) => ({
+        name: p.name,
+        images: p.images
+      })))
       setProducts(response?.items || [])
       setTotal(response?.total || 0)
       
@@ -146,8 +150,17 @@ const Catalog = () => {
                 onClick={() => openModal(product.id)}
                 className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 p-5 cursor-pointer h-full flex flex-col border border-gray-100"
               >
-                <div className="aspect-square bg-gray-50 rounded-xl mb-3 flex items-center justify-center text-4xl overflow-hidden">
-                  <FaLeaf className="text-gray-300 text-5xl" />
+                <div className="aspect-square bg-gray-50 rounded-xl mb-3 flex items-center justify-center overflow-hidden">
+                  {product.images && product.images.length > 0 ? (
+                    <img 
+                      src={`http://localhost:8082${product.images[0]}`} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <FaLeaf className="text-gray-300 text-5xl" />
+                  )}
                 </div>
                 <h3 className="font-semibold text-[#1C1C1C] truncate text-base">{product.name}</h3>
                 <div className="flex items-baseline gap-0.5 mt-1">

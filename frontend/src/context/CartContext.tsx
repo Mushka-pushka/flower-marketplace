@@ -15,7 +15,7 @@ interface CartItem {
 
 interface CartContextType {
   items: CartItem[]
-  addToCart: (product: { id: string; name: string; price: number; shop_id: string }) => void
+  addToCart: (product: { id: string; name: string; price: number; shop_id: string; image?: string }) => void
   removeFromCart: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -35,7 +35,22 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const key = getStorageKey()
-    const saved = localStorage.getItem(key)
+    const oldKey = 'flower_cart' // старый ключ без ID
+    
+    let saved = localStorage.getItem(key)
+    
+    // Если в новом ключе пусто, пробуем забрать из старого
+    if (!saved) {
+      const oldData = localStorage.getItem(oldKey)
+      if (oldData) {
+        // Переносим данные из старого ключа в новый
+        localStorage.setItem(key, oldData)
+        saved = oldData
+        // Удаляем старый ключ (опционально)
+        // localStorage.removeItem(oldKey)
+      }
+    }
+    
     if (saved) {
       try {
         setItems(JSON.parse(saved))
@@ -52,7 +67,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(key, JSON.stringify(items))
   }, [items, user])
 
-  const addToCart = (product: { id: string; name: string; price: number; shop_id: string }) => {
+  const addToCart = (product: { id: string; name: string; price: number; shop_id: string; image?: string }) => {
     setItems((prev) => {
       const existing = prev.find((item) => item.product_id === product.id)
       if (existing) {
@@ -69,7 +84,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           product_id: product.id,
           name: product.name,
           price: product.price,
-          shop_id: product.shop_id, 
+          shop_id: product.shop_id,
+          image: product.image, 
           quantity: 1,
         },
       ]

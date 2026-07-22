@@ -28,6 +28,7 @@ export interface Product {
   is_featured: boolean
   rating: number
   views_count: number
+  images?: string[]
   created_at: string
   updated_at: string
 }
@@ -89,6 +90,13 @@ export const searchProducts = async (params: {
   }
   
   const response = await client.get('/catalog/search', { params })
+  
+  console.log('Full response:', response.data)
+  console.log('Items with images:', response.data.items?.map((item: any) => ({
+    name: item.name,
+    images: item.images
+  })))
+  
   return response.data
 }
 

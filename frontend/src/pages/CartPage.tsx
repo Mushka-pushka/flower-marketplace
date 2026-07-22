@@ -142,8 +142,16 @@ const CartPage = () => {
                 />
               </div>
 
-              <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">
-                <FaLeaf className="text-gray-300 text-2xl" />
+              <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+                {item.image ? (
+                  <img 
+                    src={`http://localhost:8082${item.image}`} 
+                    alt={item.name} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <FaLeaf className="text-gray-300 text-2xl" />
+                )}
               </div>
 
               <div className="flex-1 min-w-0">

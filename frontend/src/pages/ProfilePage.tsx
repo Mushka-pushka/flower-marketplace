@@ -50,12 +50,27 @@ const ProfilePage = () => {
     return 'orders'
   }
 
-  const [activeTab, setActiveTab] = useState<TabType>(getDefaultTab())
+  // Загружаем сохранённую вкладку из localStorage
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem('profileTab') as TabType
+    if (saved) return saved
+    return getDefaultTab()
+  })
 
+  // Сохраняем вкладку в localStorage при изменении
   useEffect(() => {
-    // ✅ Если активная вкладка — "settings", НЕ сбрасываем её
-    if (activeTab !== 'settings') {
-      setActiveTab(getDefaultTab())
+    localStorage.setItem('profileTab', activeTab)
+  }, [activeTab])
+
+  // Сбрасываем только если активная вкладка недоступна для текущей роли
+  useEffect(() => {
+    const defaultTab = getDefaultTab()
+    // Проверяем, доступна ли текущая вкладка
+    const tabs = getTabs()
+    const isTabAvailable = tabs.some(tab => tab.id === activeTab)
+    if (!isTabAvailable) {
+      setActiveTab(defaultTab)
+      localStorage.setItem('profileTab', defaultTab)
     }
   }, [user])
 

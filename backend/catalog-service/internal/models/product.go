@@ -26,6 +26,7 @@ type Product struct {
 	IsFeatured  bool        `json:"is_featured" db:"is_featured"`
 	Rating      float64     `json:"rating" db:"rating"`
 	ViewsCount  int         `json:"views_count" db:"views_count"`
+	Images      []string    `json:"images,omitempty" db:"-"` 
 	CreatedAt   time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at" db:"updated_at"`
 }

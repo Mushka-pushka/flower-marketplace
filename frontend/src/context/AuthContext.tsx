@@ -43,7 +43,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const exp = payload.exp
           if (exp && Date.now() >= exp * 1000) {
             console.log('AuthContext: token expired, logging out')
-            // Только если токен истёк
             localStorage.removeItem('access_token')
             localStorage.removeItem('refresh_token')
             localStorage.removeItem('user')
@@ -62,9 +61,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem('user', JSON.stringify(freshUser))
             setIsLoading(false)
             return
-          } catch {
+          } catch (error) {
             console.log('AuthContext: failed to fetch profile, using stored user')
-            // Если не удалось загрузить профиль — используем сохранённого пользователя
             if (storedUser) {
               try {
                 setUser(JSON.parse(storedUser))
@@ -73,7 +71,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 return
               } catch {}
             }
-            // Если ничего не получилось — выходим
             localStorage.removeItem('access_token')
             localStorage.removeItem('user')
             setUser(null)
@@ -81,14 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (error) {
           console.error('AuthContext: error parsing token', error)
-          // Если токен невалидный — выходим
           localStorage.removeItem('access_token')
           localStorage.removeItem('user')
           setUser(null)
           setToken(null)
         }
       } else {
-        console.log('🔍 AuthContext: no token found')
+        console.log('AuthContext: no token found')
         setUser(null)
         setToken(null)
       }

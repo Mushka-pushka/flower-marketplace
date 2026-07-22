@@ -7,6 +7,7 @@ import {
   FaLeaf,
   FaTimes,
   FaSave,
+  FaImage,
 } from 'react-icons/fa'
 import { getSellerProducts, createSellerProduct, updateSellerProduct, deleteSellerProduct } from '../api/catalog.api'
 import { getCategories } from '../api/catalog.api'
@@ -22,6 +23,7 @@ const SellerProductsPage = () => {
   const [submitting, setSubmitting] = useState(false)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [existingImagesToDelete, setExistingImagesToDelete] = useState<string[]>([])
 
   // Форма
   const [form, setForm] = useState({
@@ -75,6 +77,7 @@ const SellerProductsPage = () => {
     })
     setSelectedImages([])
     setImagePreviews([])
+    setExistingImagesToDelete([])
     setEditingProduct(null)
   }
 
@@ -85,6 +88,7 @@ const SellerProductsPage = () => {
 
   const handleOpenEdit = (product: Product) => {
     setEditingProduct(product)
+    setExistingImagesToDelete([])
     setForm({
       name: product.name || '',
       description: product.description || '',
@@ -105,7 +109,8 @@ const SellerProductsPage = () => {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    if (files.length + selectedImages.length > 5) {
+    const currentCount = selectedImages.length + (editingProduct?.images?.length || 0)
+    if (files.length + currentCount > 5) {
       toast.error('Можно загрузить не более 5 фото')
       return
     }
@@ -117,6 +122,15 @@ const SellerProductsPage = () => {
   const removeImage = (index: number) => {
     setSelectedImages(selectedImages.filter((_, i) => i !== index))
     setImagePreviews(imagePreviews.filter((_, i) => i !== index))
+  }
+
+  const removeExistingImage = (index: number) => {
+    if (!editingProduct?.images) return
+    const imageToRemove = editingProduct.images[index]
+    setExistingImagesToDelete([...existingImagesToDelete, imageToRemove])
+    // Удаляем из списка отображаемых
+    const updatedImages = editingProduct.images.filter((_, i) => i !== index)
+    setEditingProduct({ ...editingProduct, images: updatedImages })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,6 +154,10 @@ const SellerProductsPage = () => {
       selectedImages.forEach((file) => {
         formData.append('images', file)
       })
+
+      if (existingImagesToDelete.length > 0) {
+        formData.append('delete_images', JSON.stringify(existingImagesToDelete))
+      }
 
       if (editingProduct) {
         await updateSellerProduct(editingProduct.id, formData)
@@ -217,7 +235,15 @@ const SellerProductsPage = () => {
                 <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition">
                   <td className="p-3">
                     <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
-                      <FaLeaf className="text-gray-300 text-2xl" />
+                      {product.images && product.images.length > 0 ? (
+                        <img 
+                          src={`http://localhost:8082${product.images[0]}`} 
+                          alt={product.name} 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <FaLeaf className="text-gray-300 text-2xl" />
+                      )}
                     </div>
                   </td>
                   <td className="p-3">
@@ -390,29 +416,79 @@ const SellerProductsPage = () => {
                   />
                 </div>
 
+                {/* Фото товара */}
                 <div>
-                  <label className="block text-sm font-medium text-[#1C1C1C] mb-1">Фото (до 5 шт.)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageChange}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition"
-                  />
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
-                        <img src={preview} alt={`Preview ${index}`} className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                        >
-                          ×
-                        </button>
+                  <label className="block text-sm font-medium text-[#1C1C1C] mb-1">
+                    Фото товара (до 5 шт.)
+                  </label>
+                  
+                  {/* Кнопка для загрузки */}
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      disabled={selectedImages.length + (editingProduct?.images?.length || 0) >= 5}
+                    />
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-[#8A9A86] transition bg-gray-50/50">
+                      <div className="flex flex-col items-center gap-2">
+                        <FaImage className="text-3xl text-gray-400" />
+                        <span className="text-sm text-gray-500">
+                          {selectedImages.length + (editingProduct?.images?.length || 0) >= 5 
+                            ? 'Максимум 5 фото загружено' 
+                            : 'Нажмите или перетащите фото для загрузки'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {selectedImages.length + (editingProduct?.images?.length || 0)} / 5 фото
+                        </span>
                       </div>
-                    ))}
+                    </div>
                   </div>
+
+                  {/* Предпросмотр фото */}
+                  {((editingProduct?.images && editingProduct.images.length > 0) || selectedImages.length > 0) && (
+                    <div className="flex flex-wrap gap-3 mt-3">
+                      {/* Существующие фото (при редактировании) */}
+                      {editingProduct?.images?.map((image, index) => (
+                        <div key={`existing-${index}`} className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 group">
+                          <img 
+                            src={`http://localhost:8082${image}`} 
+                            alt={`Фото ${index + 1}`} 
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeExistingImage(index)}
+                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition"
+                          >
+                            ×
+                          </button>
+                          <span className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs text-center py-0.5">
+                            {index + 1}
+                          </span>
+                        </div>
+                      ))}
+
+                      {/* Новые загруженные фото */}
+                      {imagePreviews.map((preview, index) => (
+                        <div key={`new-${index}`} className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-[#8A9A86] group">
+                          <img src={preview} alt={`Новое фото ${index + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition"
+                          >
+                            ×
+                          </button>
+                          <span className="absolute bottom-0 left-0 right-0 bg-[#8A9A86]/80 text-white text-xs text-center py-0.5">
+                            новое
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-4">

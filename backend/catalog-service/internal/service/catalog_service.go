@@ -257,22 +257,46 @@ func (s *CatalogService) SaveProductImages(ctx context.Context, productID uuid.U
     return nil
 }
 
-// GetProductByID — получение товара по ID
+// GetProductByID — получение товара по ID с фото
 func (s *CatalogService) GetProductByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
-	if id == uuid.Nil {
-		return nil, errors.New("invalid product id")
-	}
+    if id == uuid.Nil {
+        return nil, errors.New("invalid product id")
+    }
 
-	product, err := s.productRepo.GetProductByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
+    product, err := s.productRepo.GetProductByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
 
-	go func() {
-		_ = s.productRepo.IncrementViews(context.Background(), id)
-	}()
+    // Получаем фото
+    images, err := s.productRepo.GetProductImages(ctx, id)
+    if err == nil {
+        product.Images = images
+    }
 
-	return product, nil
+    go func() {
+        _ = s.productRepo.IncrementViews(context.Background(), id)
+    }()
+
+    return product, nil
+}
+
+// GetProductsByShopID — получает товары магазина с фото
+func (s *CatalogService) GetProductsByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Product, error) {
+    products, err := s.productRepo.GetProductsByShopID(ctx, shopID)
+    if err != nil {
+        return nil, err
+    }
+
+    // Добавляем фото к каждому товару
+    for i := range products {
+        images, err := s.productRepo.GetProductImages(ctx, products[i].ID)
+        if err == nil && len(images) > 0 {
+            products[i].Images = images
+        }
+    }
+
+    return products, nil
 }
 
 // GetProductBySlug — получение товара по slug
@@ -333,6 +357,13 @@ func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchR
 	products, total, err := s.productRepo.SearchProducts(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("search failed: %w", err)
+	}
+
+	for i := range products {
+		images, err := s.productRepo.GetProductImages(ctx, products[i].ID)
+		if err == nil && len(images) > 0 {
+			products[i].Images = images
+		}
 	}
 
 	resp := &models.SearchResponse{
@@ -451,11 +482,6 @@ func (s *CatalogService) DecreaseStock(ctx context.Context, productID uuid.UUID,
     return s.productRepo.DecreaseStock(ctx, productID, quantity)
 }
 
-// GetProductsByShopID — получает товары магазина
-func (s *CatalogService) GetProductsByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Product, error) {
-    return s.productRepo.GetProductsByShopID(ctx, shopID)
-}
-
 // GetShopIDBySellerID — возвращает shop_id продавца
 func (s *CatalogService) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
     return s.productRepo.GetShopIDBySellerID(ctx, sellerID)
@@ -470,7 +496,20 @@ func (s *CatalogService) AddToCart(ctx context.Context, userID, productID uuid.U
 
 // GetCart — получает корзину пользователя
 func (s *CatalogService) GetCart(ctx context.Context, userID uuid.UUID) ([]models.CartItemWithProduct, error) {
-	return s.cartRepo.GetCartByUserID(ctx, userID)
+    items, err := s.cartRepo.GetCartByUserID(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+
+    // Добавляем фото к каждому товару
+    for i := range items {
+        images, err := s.productRepo.GetProductImages(ctx, items[i].ProductID)
+        if err == nil && len(images) > 0 {
+            items[i].ProductImage = images[0]
+        }
+    }
+
+    return items, nil
 }
 
 // UpdateCartItem — обновляет количество товара в корзине
@@ -495,7 +534,20 @@ func (s *CatalogService) AddFavorite(ctx context.Context, userID, productID uuid
 
 // GetFavorites — получает все избранные товары пользователя
 func (s *CatalogService) GetFavorites(ctx context.Context, userID uuid.UUID) ([]models.FavoriteWithProduct, error) {
-	return s.favoriteRepo.GetFavoritesByUserID(ctx, userID)
+    items, err := s.favoriteRepo.GetFavoritesByUserID(ctx, userID)
+    if err != nil {
+        return nil, err
+    }
+
+    // Добавляем фото к каждому товару
+    for i := range items {
+        images, err := s.productRepo.GetProductImages(ctx, items[i].ProductID)
+        if err == nil && len(images) > 0 {
+            items[i].ProductImage = images[0] // Первое фото
+        }
+    }
+
+    return items, nil
 }
 
 // RemoveFavorite — удаляет товар из избранного

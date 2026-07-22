@@ -80,6 +80,9 @@ func main() {
 	catalogService := service.NewCatalogService(productRepo, cartRepo, favoriteRepo, reviewRepo, autocompleteRepo, addressRepo, categoryAdminRepo, cfg, valkeyClient)
 	catalogHandler := handlers.NewCatalogHandler(catalogService)
 
+	// РАЗДАЧА СТАТИЧЕСКИХ ФАЙЛОВ (ДОЛЖНА БЫТЬ ДО ВСЕХ РОУТОВ)
+	http.Handle("/uploads/products/", http.StripPrefix("/uploads/products/", http.FileServer(http.Dir("./uploads/products"))))
+
 	// РОУТЫ
 
 	// ----- ТОВАРЫ (CRUD) - ПУБЛИЧНЫЕ -----
