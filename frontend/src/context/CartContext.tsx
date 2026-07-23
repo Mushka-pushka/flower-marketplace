@@ -28,47 +28,40 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
   const [items, setItems] = useState<CartItem[]>([])
+  const [isInitialized, setIsInitialized] = useState(false)
 
   const getStorageKey = () => {
     return user ? `flower_cart_${user.id}` : 'flower_cart_guest'
   }
 
+  // Загрузка данных при смене пользователя
   useEffect(() => {
     const key = getStorageKey()
-    
-    // Очищаем старые ключи (без ID) ПРИ КАЖДОЙ ЗАГРУЗКЕ
-    if (user) {
-      const oldKeys = Object.keys(localStorage).filter(
-        k => k.startsWith('flower_cart_') && k !== key
-      )
-      oldKeys.forEach(k => {
-        console.log('Удаляем старый ключ корзины:', k)
-        localStorage.removeItem(k)
-      })
-    }
-    
     const saved = localStorage.getItem(key)
-    console.log('Loading cart from:', key, saved)
+    
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setItems(parsed)
         }
-        // Если parsed пустой — НЕ ОЧИЩАЕМ items
       } catch (error) {
         console.warn('Failed to parse cart data:', error)
-        // НЕ ОЧИЩАЕМ items при ошибке
+        setItems([])
       }
+    } else {
+      setItems([])
     }
-    // НЕ ОЧИЩАЕМ items, если данных нет
-  }, [user])
+    setIsInitialized(true)
+  }, [user]) 
 
+  // Сохранение данных при изменении
   useEffect(() => {
+    if (!isInitialized) return
+    
     const key = getStorageKey()
-    console.log('Saving cart to:', key, items)
     localStorage.setItem(key, JSON.stringify(items))
-  }, [items, user])
+  }, [items, user, isInitialized])
 
   const addToCart = (product: { id: string; name: string; price: number; shop_id: string; image?: string }) => {
     setItems((prev) => {
@@ -96,16 +89,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const removeFromCart = (productId: string) => {
-    setItems((prev) => {
-      const newItems = prev.filter((item) => item.product_id !== productId)
-      // Если корзина стала пустой — удаляем ключ из localStorage
-      if (newItems.length === 0) {
-        const key = getStorageKey()
-        localStorage.removeItem(key)
-        console.log('Cart empty, removed key:', key)
-      }
-      return newItems
-    })
+    setItems((prev) => prev.filter((item) => item.product_id !== productId))
   }
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -120,12 +104,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     )
   }
 
-  const clearCart = () => {
-    const key = getStorageKey()
-    localStorage.removeItem(key)
-    console.log('Cart cleared, removed key:', key)
-    setItems([])
-  }
+  const clearCart = () => setItems([])
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)

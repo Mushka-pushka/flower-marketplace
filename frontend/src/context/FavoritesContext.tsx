@@ -25,43 +25,42 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
   const [items, setItems] = useState<FavoriteItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   const getStorageKey = () => {
     return user ? `flower_favorites_${user.id}` : 'flower_favorites_guest'
   }
 
   useEffect(() => {
-    const loadFavorites = async () => {
-      setLoading(true)
-      const key = getStorageKey()
-      const saved = localStorage.getItem(key)
-      console.log('Loading favorites from:', key, saved)
-      
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved)
-          console.log('Parsed:', parsed)
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setItems(parsed)
-          }
-        } catch (error) {
-          console.warn('Failed to parse favorites data:', error)
+    setLoading(true)
+    const key = getStorageKey()
+    const saved = localStorage.getItem(key)
+    
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          setItems(parsed)
         }
+      } catch (error) {
+        console.warn('Failed to parse favorites data:', error)
+        setItems([])
       }
-      setLoading(false)
+    } else {
+      setItems([])
     }
-
-    loadFavorites()
-  }, [user])
+    setLoading(false)
+    setIsInitialized(true)
+  }, [user]) 
 
   useEffect(() => {
+    if (!isInitialized) return
+    
     const key = getStorageKey()
-    console.log('Saving favorites to:', key, items) 
     localStorage.setItem(key, JSON.stringify(items))
-  }, [items, user])
+  }, [items, user, isInitialized])
 
   const addFavorite = (product: { id: string; name: string; price: number; image?: string }) => {
-    console.log('addFavorite called with:', product)
     setItems((prev) => {
       if (prev.some((item) => item.product_id === product.id)) return prev
       return [
