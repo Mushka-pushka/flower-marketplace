@@ -287,15 +287,19 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	var args []interface{}
 	argIndex := 1
 
-	// 1. Текстовый поиск
-	if req.Query != "" {
-		conditions = append(conditions, fmt.Sprintf(
-			"to_tsvector('russian', name || ' ' || COALESCE(description, '')) @@ plainto_tsquery('russian', $%d)",
-			argIndex,
-		))
-		args = append(args, req.Query)
-		argIndex++
-	}
+    // 1. Текстовый поиск (по названию, описанию, тегам и категории)
+    if req.Query != "" {
+        conditions = append(conditions, fmt.Sprintf(`
+        (
+            LOWER(name) LIKE LOWER($%d)
+            OR LOWER(description) LIKE LOWER($%d)
+            OR EXISTS (SELECT 1 FROM unnest(tags) AS t WHERE LOWER(t) LIKE LOWER($%d))
+            OR EXISTS (SELECT 1 FROM categories c WHERE c.id = category_id AND LOWER(c.name) LIKE LOWER($%d))
+        )
+    `, argIndex, argIndex, argIndex, argIndex))
+    args = append(args, "%"+req.Query+"%")
+    argIndex++
+    }
 
 	// 2. Фильтр по категории
 	if req.Category != "" {

@@ -35,10 +35,12 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true)
       const key = getStorageKey()
       const saved = localStorage.getItem(key)
+      console.log('Loading favorites from:', key, saved)
       
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
+          console.log('Parsed:', parsed)
           if (Array.isArray(parsed) && parsed.length > 0) {
             setItems(parsed)
           }
@@ -46,7 +48,6 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
           console.warn('Failed to parse favorites data:', error)
         }
       }
-      // НЕ ОЧИЩАЕМ items, если данных нет
       setLoading(false)
     }
 
@@ -55,10 +56,12 @@ export const FavoritesProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const key = getStorageKey()
+    console.log('Saving favorites to:', key, items) 
     localStorage.setItem(key, JSON.stringify(items))
   }, [items, user])
 
   const addFavorite = (product: { id: string; name: string; price: number; image?: string }) => {
+    console.log('addFavorite called with:', product)
     setItems((prev) => {
       if (prev.some((item) => item.product_id === product.id)) return prev
       return [

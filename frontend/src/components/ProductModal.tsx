@@ -46,6 +46,8 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
       try {
         setLoading(true)
         const data = await getProductById(productId)
+        console.log('Product data from API:', data)
+        console.log('Product images:', data.images)
         setProduct(data)
         // Проверяем, есть ли товар в корзине
         setIsInCart(items.some(item => item.product_id === productId))
@@ -110,6 +112,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
           name: product.name,
           price: product.price,
           shop_id: product.shop_id,
+          image: product.images && product.images.length > 0 ? product.images[0] : undefined,
         })
       }
       setIsInCart(true)
@@ -131,13 +134,17 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
       return
     }
     if (product) {
-      toggleFavorite({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-      })
-    }
+      console.log('Product images:', product.images)
+      const image = product.images && product.images.length > 0 ? product.images[0] : undefined
+      console.log('Image to save:', image) 
+    toggleFavorite({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: image,
+    })
   }
+}
 
   const modalContent = (
     <div

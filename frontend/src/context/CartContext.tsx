@@ -35,7 +35,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const key = getStorageKey()
+    
+    // Очищаем старые ключи (без ID) ПРИ КАЖДОЙ ЗАГРУЗКЕ
+    if (user) {
+      const oldKeys = Object.keys(localStorage).filter(
+        k => k.startsWith('flower_cart_') && k !== key
+      )
+      oldKeys.forEach(k => {
+        console.log('Удаляем старый ключ корзины:', k)
+        localStorage.removeItem(k)
+      })
+    }
+    
     const saved = localStorage.getItem(key)
+    console.log('Loading cart from:', key, saved)
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -83,7 +96,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const removeFromCart = (productId: string) => {
-    setItems((prev) => prev.filter((item) => item.product_id !== productId))
+    setItems((prev) => {
+      const newItems = prev.filter((item) => item.product_id !== productId)
+      // Если корзина стала пустой — удаляем ключ из localStorage
+      if (newItems.length === 0) {
+        const key = getStorageKey()
+        localStorage.removeItem(key)
+        console.log('Cart empty, removed key:', key)
+      }
+      return newItems
+    })
   }
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -99,7 +121,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const clearCart = () => {
-    console.trace('clearCart called! Stack trace:')
+    const key = getStorageKey()
+    localStorage.removeItem(key)
+    console.log('Cart cleared, removed key:', key)
     setItems([])
   }
 

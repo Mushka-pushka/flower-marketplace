@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react'
-import { FaSearch } from 'react-icons/fa'
+import { FaSearch, FaLeaf, FaFolder, FaTag } from 'react-icons/fa'
 import { getAutocomplete } from '../../api/catalog.api'
 import type { AutocompleteSuggestion } from '../../api/catalog.api'
 
@@ -38,11 +38,12 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
       setLoading(true)
       try {
         const data = await getAutocomplete(query, 6)
-        setSuggestions(data)
+        setSuggestions(Array.isArray(data) ? data : [])
         setShowSuggestions(true)
         setSelectedIndex(-1)
       } catch (error) {
         console.error('Ошибка автодополнения:', error)
+        setSuggestions([])
       } finally {
         setLoading(false)
       }
@@ -66,7 +67,7 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
     setShowSuggestions(false)
     setSelectedIndex(-1)
     if (query.trim()) {
-      console.log('🔍 SearchBar submitting:', query.trim())
+      console.log('SearchBar submitting:', query.trim())
       onSearch(query.trim())
     }
   }
@@ -75,12 +76,12 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
     setQuery(suggestion.text)
     setShowSuggestions(false)
     setSelectedIndex(-1)
-    console.log('🔍 SearchBar suggestion clicked:', suggestion.text)
+    console.log('SearchBar suggestion clicked:', suggestion.text)
     onSearch(suggestion.text)
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || suggestions.length === 0) {
+    if (!showSuggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
       if (e.key === 'Enter' && query.trim()) {
         handleSubmit(e)
       }
@@ -133,7 +134,7 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
         </button>
       </form>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && Array.isArray(suggestions) && suggestions.length > 0 && (
         <div 
           ref={listRef}
           className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] z-20 max-h-60 overflow-y-auto"
@@ -147,13 +148,13 @@ const SearchBar = ({ onSearch, initialValue = '' }: SearchBarProps) => {
                 index === selectedIndex ? 'bg-[#8A9A86]/10' : 'hover:bg-gray-50'
               }`}
             >
-              <span className="text-gray-400 text-sm">
-                {suggestion.type === 'product' && '🌸'}
-                {suggestion.type === 'category' && '📁'}
-                {suggestion.type === 'tag' && '🏷️'}
+              <span className="text-gray-400 text-sm flex items-center justify-center w-5">
+                {suggestion.type === 'product' && <FaLeaf className="text-[#8A9A86]" />}
+                {suggestion.type === 'category' && <FaFolder className="text-[#8A9A86]" />}
+                {suggestion.type === 'tag' && <FaTag className="text-[#8A9A86]" />}
               </span>
               <span className="text-[#1C1C1C]">{suggestion.text}</span>
-              <span className="text-gray-400 text-xs ml-auto">{suggestion.type}</span>
+              <span className="text-gray-400 text-xs ml-auto capitalize">{suggestion.type}</span>
             </div>
           ))}
         </div>

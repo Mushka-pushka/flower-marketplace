@@ -96,6 +96,7 @@ const Catalog = () => {
     setOffset(0) // Сбрасываем страницу при изменении фильтров
     setFilters((prev) => ({
       ...prev,
+      q: '',
       category: newFilters.category !== undefined ? newFilters.category : '',
       minPrice: newFilters.minPrice !== undefined ? newFilters.minPrice : undefined,
       maxPrice: newFilters.maxPrice !== undefined ? newFilters.maxPrice : undefined,
@@ -123,7 +124,7 @@ const Catalog = () => {
     <div className="animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-[#1C1C1C]">Каталог цветов</h1>
-        <SearchBar onSearch={handleSearch} initialValue={filters.q} />
+        <SearchBar key={filters.q} onSearch={handleSearch} initialValue={filters.q} />
       </div>
 
       <Filters 
@@ -138,8 +139,10 @@ const Catalog = () => {
 
       {products.length === 0 ? (
         <div className="text-center py-12 mt-6">
-          <p className="text-gray-400 text-lg">Товаров не найдено</p>
-          <p className="text-gray-400 text-sm mt-2">Попробуйте изменить параметры фильтра</p>
+          <p className="text-gray-400 text-lg">{filters.q || filters.category ? 'Ничего не найдено' : 'Товаров не найдено'}</p>
+          <p className="text-gray-400 text-sm mt-2">{filters.q || filters.category 
+          ? 'Попробуйте изменить параметры поиска или фильтра' 
+          : 'Попробуйте изменить параметры фильтра'}</p>
         </div>
       ) : (
         <>
