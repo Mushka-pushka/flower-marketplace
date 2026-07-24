@@ -50,6 +50,8 @@ func main() {
 			targetURL = authURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/categories"):
 			targetURL = catalogURL + fullPath
+		case strings.HasPrefix(r.URL.Path, "/api/v1/admin/shop"):
+			targetURL = authURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/catalog/"):
 			targetURL = catalogURL + fullPath
 		case strings.HasPrefix(r.URL.Path, "/api/v1/orders"):

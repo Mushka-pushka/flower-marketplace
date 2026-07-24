@@ -26,12 +26,14 @@ import AdminUsersPage from './AdminUsersPage'
 import AdminStatsPage from './AdminStatsPage'
 import AdminCategoriesPage from './AdminCategoriesPage'
 import ProfileSettings from './ProfileSettings'
+import SellerShopSettings from './SellerShopSettings'
 
 type TabType =
   | 'orders'
   | 'favorites'
   | 'cart'
   | 'settings'
+  | 'shop'
   | 'seller-orders'
   | 'seller-products'
   | 'seller-analytics'
@@ -41,7 +43,7 @@ type TabType =
   | 'admin-categories'
 
 const ProfilePage = () => {
-  const { user } = useAuth()
+  const { user, isLoading } = useAuth() 
   const { items } = useCart()
 
   const getDefaultTab = (): TabType => {
@@ -50,36 +52,13 @@ const ProfilePage = () => {
     return 'orders'
   }
 
-  // Загружаем сохранённую вкладку из localStorage
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    const saved = localStorage.getItem('profileTab') as TabType
-    if (saved) return saved
-    return getDefaultTab()
-  })
-
-  // Сохраняем вкладку в localStorage при изменении
-  useEffect(() => {
-    localStorage.setItem('profileTab', activeTab)
-  }, [activeTab])
-
-  // Сбрасываем только если активная вкладка недоступна для текущей роли
-  useEffect(() => {
-    const defaultTab = getDefaultTab()
-    // Проверяем, доступна ли текущая вкладка
-    const tabs = getTabs()
-    const isTabAvailable = tabs.some(tab => tab.id === activeTab)
-    if (!isTabAvailable) {
-      setActiveTab(defaultTab)
-      localStorage.setItem('profileTab', defaultTab)
-    }
-  }, [user])
-
   const getTabs = () => {
     if (user?.role === 'seller') {
       return [
         { id: 'seller-orders', label: 'Заказы магазина', icon: <FaClipboardList /> },
         { id: 'seller-products', label: 'Товары', icon: <FaLeaf /> },
         { id: 'seller-analytics', label: 'Аналитика', icon: <FaChartBar /> },
+        { id: 'shop', label: 'Магазин', icon: <FaStore /> },
         { id: 'settings', label: 'Настройки', icon: <FaCog /> },
       ]
     }
@@ -101,6 +80,35 @@ const ProfilePage = () => {
       { id: 'settings', label: 'Настройки', icon: <FaCog /> },
     ]
   }
+
+  // Загружаем вкладку ТОЛЬКО ПОСЛЕ ЗАГРУЗКИ ПОЛЬЗОВАТЕЛЯ
+  const [activeTab, setActiveTab] = useState<TabType>('orders')
+
+  // Устанавливаем вкладку после загрузки пользователя
+  useEffect(() => {
+    if (!isLoading) {
+      const saved = localStorage.getItem('profileTab') as TabType
+      const defaultTab = getDefaultTab()
+      
+      // Проверяем, доступна ли сохранённая вкладка
+      const tabs = getTabs()
+      const isSavedAvailable = saved && tabs.some(tab => tab.id === saved)
+      
+      if (isSavedAvailable) {
+        setActiveTab(saved)
+      } else {
+        setActiveTab(defaultTab)
+        localStorage.setItem('profileTab', defaultTab)
+      }
+    }
+  }, [user, isLoading])
+
+  // Сохраняем вкладку в localStorage при изменении
+  useEffect(() => {
+    if (!isLoading && activeTab) {
+      localStorage.setItem('profileTab', activeTab)
+    }
+  }, [activeTab, isLoading])
 
   const tabs = getTabs()
 
@@ -138,6 +146,8 @@ const ProfilePage = () => {
         )
       case 'settings':
         return <ProfileSettings />
+      case 'shop':
+        return <SellerShopSettings />
       case 'seller-orders':
         return <SellerOrdersPage />
       case 'seller-products':

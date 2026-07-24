@@ -11,6 +11,7 @@ interface User {
   phone: string
   avatar_url?: string
   shop_id?: string 
+  shop_name?: string
 }
 
 interface AuthContextType {

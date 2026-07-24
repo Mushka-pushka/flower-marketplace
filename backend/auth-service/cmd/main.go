@@ -99,6 +99,10 @@ func main() {
 	http.HandleFunc("GET /api/v1/admin/users/details", authMiddleware.JWT(adminHandler.GetUserByIDForAdmin))
 	http.HandleFunc("GET /api/v1/admin/stats", authMiddleware.JWT(statsHandler.GetAdminStats))
 
+	// ----- АДМИН: УПРАВЛЕНИЕ МАГАЗИНОМ ПРОДАВЦА -----
+    http.HandleFunc("GET /api/v1/admin/shop", authMiddleware.JWT(adminHandler.GetShopInfo))
+    http.HandleFunc("PUT /api/v1/admin/shop", authMiddleware.JWT(adminHandler.UpdateShopName))
+
 	// ----- СТАТИЧЕСКИЕ ФАЙЛЫ (аватары) -----
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 	

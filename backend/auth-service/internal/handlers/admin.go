@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+    "github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/middleware"  
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/service"
 	"github.com/google/uuid"
@@ -233,6 +234,85 @@ func (h *AdminHandler) GetUserByIDForAdmin(w http.ResponseWriter, r *http.Reques
 	}
 
 	respondWithJSON(w, http.StatusOK, user)
+}
+
+// UpdateShopName — обновление названия магазина
+func (h *AdminHandler) UpdateShopName(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        Name string `json:"name"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    if req.Name == "" {
+        respondWithError(w, http.StatusBadRequest, "shop name is required")
+        return
+    }
+
+    // Получаем user_id из контекста
+    userID, ok := middleware.GetUserIDFromContext(r.Context())
+    if !ok {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+
+    // Получаем shop_id продавца
+    shopID, err := h.adminService.GetShopIDBySellerID(r.Context(), userID)
+    if err != nil || shopID == uuid.Nil {
+        respondWithError(w, http.StatusForbidden, "seller has no shop")
+        return
+    }
+
+    err = h.adminService.UpdateShopName(r.Context(), shopID, req.Name)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    // Возвращаем обновлённое название
+    shop, err := h.adminService.GetShopByID(r.Context(), shopID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]string{
+        "shop_id":   shopID.String(),
+        "shop_name": shop.Name,
+    })
+}
+
+// GetShopInfo — получение информации о магазине продавца
+func (h *AdminHandler) GetShopInfo(w http.ResponseWriter, r *http.Request) {
+    // Получаем user_id из контекста
+    userID, ok := middleware.GetUserIDFromContext(r.Context())
+    if !ok {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+
+    // Получаем shop_id продавца
+    shopID, err := h.adminService.GetShopIDBySellerID(r.Context(), userID)
+    if err != nil || shopID == uuid.Nil {
+        respondWithError(w, http.StatusForbidden, "seller has no shop")
+        return
+    }
+
+    // Получаем информацию о магазине
+    shop, err := h.adminService.GetShopByID(r.Context(), shopID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]interface{}{
+        "id":          shop.ID,
+        "name":        shop.Name,
+        "is_verified": shop.IsVerified,
+        "rating":      shop.Rating,
+    })
 }
 
 // ============================================================

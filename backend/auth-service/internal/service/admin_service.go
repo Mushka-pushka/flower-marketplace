@@ -64,3 +64,18 @@ func (s *AdminService) GetUsersListWithFilters(ctx context.Context, req *models.
 func (s *AdminService) GetUserByIDForAdmin(ctx context.Context, userID uuid.UUID) (*models.UserDetails, error) {
 	return s.adminRepo.GetUserByIDForAdmin(ctx, userID)
 }
+
+// GetShopByID — получает магазин по ID
+func (s *AdminService) GetShopByID(ctx context.Context, shopID uuid.UUID) (*models.Shop, error) {
+    return s.adminRepo.GetShopByID(ctx, shopID)
+}
+
+// UpdateShopName — обновляет название магазина
+func (s *AdminService) UpdateShopName(ctx context.Context, shopID uuid.UUID, name string) error {
+    return s.adminRepo.UpdateShopName(ctx, shopID, name)
+}
+
+// GetShopIDBySellerID — возвращает shop_id продавца
+func (s *AdminService) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+    return s.adminRepo.GetShopIDBySellerID(ctx, sellerID)
+}

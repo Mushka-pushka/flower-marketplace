@@ -320,3 +320,41 @@ func (r *AdminRepository) GetUserByIDForAdmin(ctx context.Context, userID uuid.U
 
 	return &u, nil
 }
+
+// GetShopByID — получает магазин по ID
+func (r *AdminRepository) GetShopByID(ctx context.Context, shopID uuid.UUID) (*models.Shop, error) {
+    query := `SELECT id, name, description, seller_id, is_verified, rating, created_at, updated_at FROM shops WHERE id = $1`
+    var shop models.Shop
+    err := r.db.QueryRow(ctx, query, shopID).Scan(
+        &shop.ID,
+        &shop.Name,
+        &shop.Description,
+        &shop.SellerID,
+        &shop.IsVerified,
+        &shop.Rating,
+        &shop.CreatedAt,
+        &shop.UpdatedAt,
+    )
+    if err != nil {
+        return nil, err
+    }
+    return &shop, nil
+}
+
+// UpdateShopName — обновляет название магазина
+func (r *AdminRepository) UpdateShopName(ctx context.Context, shopID uuid.UUID, name string) error {
+    query := `UPDATE shops SET name = $1, updated_at = NOW() WHERE id = $2`
+    _, err := r.db.Exec(ctx, query, name, shopID)
+    return err
+}
+
+// GetShopIDBySellerID — возвращает shop_id продавца
+func (r *AdminRepository) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+    query := `SELECT id FROM shops WHERE seller_id = $1`
+    var shopID uuid.UUID
+    err := r.db.QueryRow(ctx, query, sellerID).Scan(&shopID)
+    if err != nil {
+        return uuid.Nil, err
+    }
+    return shopID, nil
+}
