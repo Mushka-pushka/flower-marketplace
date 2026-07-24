@@ -109,10 +109,14 @@ func main() {
 	// Хендлеры
 	orderHandler := handlers.NewOrderHandler(orderService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
-	http.HandleFunc("GET /api/v1/orders/items", orderHandler.GetOrderItemsByCustomer)
 
 	// Middleware
-	authMiddleware := middleware.NewAuthMiddleware(cfg)
+    authMiddleware := middleware.NewAuthMiddleware(cfg)
+
+    // Роуты 
+    http.HandleFunc("GET /api/v1/orders/items", orderHandler.GetOrderItemsByCustomer)
+    http.HandleFunc("GET /api/v1/analytics/dynamics", authMiddleware.AuthMiddleware(analyticsHandler.GetSalesDynamics))
+
 
 	// Воркеры
 	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)

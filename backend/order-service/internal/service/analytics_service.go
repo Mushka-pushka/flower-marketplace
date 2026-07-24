@@ -36,3 +36,13 @@ func (s *AnalyticsService) GetPopularProducts(ctx context.Context, shopID uuid.U
 func (s *AnalyticsService) GetOrderStatsByStatus(ctx context.Context, shopID uuid.UUID) ([]models.OrderStatsByStatus, error) {
 	return s.analyticsRepo.GetOrderStatsByStatus(ctx, shopID)
 }
+
+// GetSalesDynamics — получает динамику продаж
+func (s *AnalyticsService) GetSalesDynamics(ctx context.Context, shopID uuid.UUID, days int) ([]models.SalesDay, error) {
+    return s.analyticsRepo.GetSalesDynamics(ctx, shopID, days)
+}
+
+// GetShopIDBySellerID — возвращает shop_id продавца
+func (s *AnalyticsService) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+    return s.analyticsRepo.GetShopIDBySellerID(ctx, sellerID)
+}

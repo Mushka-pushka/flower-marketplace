@@ -23,3 +23,10 @@ type OrderStatsByStatus struct {
 	Status string `json:"status"`
 	Count  int64  `json:"count"`
 }
+
+// SalesDay — данные по продажам за день
+type SalesDay struct {
+    Date        string  `json:"date"`
+    OrdersCount int     `json:"orders_count"`
+    Revenue     float64 `json:"revenue"`
+}

@@ -131,6 +131,56 @@ func (h *AnalyticsHandler) GetOrderStatsByStatus(w http.ResponseWriter, r *http.
 	respondWithJSON(w, http.StatusOK, stats)
 }
 
+// GetSalesDynamics — получение динамики продаж
+func (h *AnalyticsHandler) GetSalesDynamics(w http.ResponseWriter, r *http.Request) {
+    shopIDStr := r.URL.Query().Get("shop_id")
+    if shopIDStr == "" {
+        respondWithError(w, http.StatusBadRequest, "shop_id parameter is required")
+        return
+    }
+
+    shopID, err := uuid.Parse(shopIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid shop_id format")
+        return
+    }
+
+    // Проверяем, что пользователь имеет доступ к этому магазину
+    userIDStr := r.Header.Get("X-User-ID")
+    if userIDStr == "" {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+
+    userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, "invalid user id")
+        return
+    }
+
+    // Проверяем, что продавец владеет этим магазином
+    sellerShopID, err := h.analyticsService.GetShopIDBySellerID(r.Context(), userID)
+    if err != nil || sellerShopID != shopID {
+        respondWithError(w, http.StatusForbidden, "you don't have access to this shop")
+        return
+    }
+
+    days := 30
+    if d := r.URL.Query().Get("days"); d != "" {
+        if val, err := strconv.Atoi(d); err == nil && val > 0 {
+            days = val
+        }
+    }
+
+    dynamics, err := h.analyticsService.GetSalesDynamics(r.Context(), shopID, days)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, dynamics)
+}
+
 // ============================================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================================

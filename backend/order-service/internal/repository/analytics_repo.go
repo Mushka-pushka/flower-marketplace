@@ -1,11 +1,8 @@
 package repository
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -62,57 +59,30 @@ func (r *AnalyticsRepository) GetSellerAnalytics(ctx context.Context, shopID uui
 	return &analytics, nil
 }
 
-// getProductNamesFromCatalog — получает названия товаров из Catalog Service
-func (r *AnalyticsRepository) getProductNamesFromCatalog(ctx context.Context, productIDs []uuid.UUID) (map[uuid.UUID]string, error) {
-	if len(productIDs) == 0 {
-		return make(map[uuid.UUID]string), nil
-	}
+// getProductNamesFromDB — получает названия товаров напрямую из БД
+func (r *AnalyticsRepository) getProductNamesFromDB(ctx context.Context, productIDs []uuid.UUID) (map[uuid.UUID]string, error) {
+    if len(productIDs) == 0 {
+        return make(map[uuid.UUID]string), nil
+    }
 
-	// Формируем URL с параметрами
-	url := fmt.Sprintf("%s/products/batch", r.catalogURL)
-	
-	// Создаем запрос с списком ID
-	requestBody := map[string]interface{}{
-		"product_ids": productIDs,
-	}
-	body, err := json.Marshal(requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
+    query := `SELECT id, name FROM products WHERE id = ANY($1)`
+    rows, err := r.db.Query(ctx, query, productIDs)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Body = io.NopCloser(bytes.NewReader(body))
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get product names: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("catalog service returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var products []struct {
-		ID   uuid.UUID `json:"id"`
-		Name string    `json:"name"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&products); err != nil {
-		return nil, fmt.Errorf("failed to decode product names: %w", err)
-	}
-
-	// Создаем мапу для быстрого доступа
-	nameMap := make(map[uuid.UUID]string)
-	for _, p := range products {
-		nameMap[p.ID] = p.Name
-	}
-
-	return nameMap, nil
+    nameMap := make(map[uuid.UUID]string)
+    for rows.Next() {
+        var id uuid.UUID
+        var name string
+        err := rows.Scan(&id, &name)
+        if err != nil {
+            return nil, err
+        }
+        nameMap[id] = name
+    }
+    return nameMap, nil
 }
 
 // GetPopularProducts — получает популярные товары (через API Catalog Service)
@@ -168,7 +138,7 @@ func (r *AnalyticsRepository) GetPopularProducts(ctx context.Context, shopID uui
 	}
 
 	// Получаем названия товаров из Catalog Service
-	nameMap, err := r.getProductNamesFromCatalog(ctx, productIDs)
+	nameMap, err := r.getProductNamesFromDB(ctx, productIDs)
 	if err != nil {
 		// Логируем ошибку, но не прерываем выполнение
 		// Используем заглушки для названий
@@ -221,4 +191,53 @@ func (r *AnalyticsRepository) GetOrderStatsByStatus(ctx context.Context, shopID 
 		stats = append(stats, stat)
 	}
 	return stats, nil
+}
+
+// GetSalesDynamics — получает динамику продаж по дням
+func (r *AnalyticsRepository) GetSalesDynamics(ctx context.Context, shopID uuid.UUID, days int) ([]models.SalesDay, error) {
+    if days <= 0 {
+        days = 30
+    }
+
+    // Исправлено: DATE(created_at)::text — преобразуем дату в текст
+    query := fmt.Sprintf(`
+        SELECT 
+            DATE(created_at)::text as day,
+            COUNT(*) as orders_count,
+            COALESCE(SUM(total_amount), 0) as revenue
+        FROM orders
+        WHERE shop_id = $1 
+            AND current_status IN ('delivered', 'confirmed', 'preparing', 'packing', 'delivery')
+            AND created_at >= NOW() - INTERVAL '%d days'
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC
+    `, days)
+
+    rows, err := r.db.Query(ctx, query, shopID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var dynamics []models.SalesDay
+    for rows.Next() {
+        var day models.SalesDay
+        err := rows.Scan(&day.Date, &day.OrdersCount, &day.Revenue)
+        if err != nil {
+            return nil, err
+        }
+        dynamics = append(dynamics, day)
+    }
+    return dynamics, nil
+}
+
+// GetShopIDBySellerID — возвращает shop_id продавца по его user_id
+func (r *AnalyticsRepository) GetShopIDBySellerID(ctx context.Context, sellerID uuid.UUID) (uuid.UUID, error) {
+    query := `SELECT id FROM shops WHERE seller_id = $1`
+    var shopID uuid.UUID
+    err := r.db.QueryRow(ctx, query, sellerID).Scan(&shopID)
+    if err != nil {
+        return uuid.Nil, err
+    }
+    return shopID, nil
 }
