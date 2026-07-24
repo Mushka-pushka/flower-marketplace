@@ -259,6 +259,11 @@ const OrdersPage = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-[#1C1C1C]">{item.product_name}</p>
+                {item.shop_name && (
+                  <p className="text-sm text-gray-400">
+                    Магазин: <span className="font-medium text-[#1C1C1C]">{item.shop_name}</span>
+                  </p>
+                )}
                 <p className="text-sm text-gray-400">
                   {new Date(item.created_at).toLocaleDateString('ru-RU', {
                     day: '2-digit',
@@ -332,6 +337,11 @@ const OrdersPage = () => {
               </div>
 
               <div className="mb-4">
+                {selectedOrder.order.shop_name && (
+                  <p className="text-sm text-gray-400">
+                    Магазин: <span className="font-medium text-[#1C1C1C]">{selectedOrder.order.shop_name}</span>
+                  </p>
+                )}
                 <p className="text-sm text-gray-400">
                   Сумма: <span className="font-bold text-[#8A9A86]">{selectedOrder.order.total_amount} BYN</span>
                 </p>

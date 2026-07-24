@@ -210,13 +210,16 @@ func (r *OrderRepository) UpdateOrderStatus(ctx context.Context, orderID uuid.UU
 // GetOrdersByCustomer — получение заказов покупателя
 func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uuid.UUID) ([]models.Order, error) {
 	query := `
-		SELECT id, customer_id, shop_id, delivery_address_id, payment_type_id,
-			total_amount, commission, delivery_date, delivery_time, comment, current_status,
-			created_at, updated_at
-		FROM orders
-		WHERE customer_id = $1
-		ORDER BY created_at DESC
-	`
+    SELECT 
+        o.id, o.customer_id, o.shop_id, o.delivery_address_id, o.payment_type_id,
+        o.total_amount, o.commission, o.delivery_date, o.delivery_time, o.comment, o.current_status,
+        o.created_at, o.updated_at,
+        s.name as shop_name
+    FROM orders o
+    LEFT JOIN shops s ON s.id = o.shop_id
+    WHERE o.customer_id = $1
+    ORDER BY o.created_at DESC
+`
 
 	rows, err := r.db.Query(ctx, query, customerID)
 	if err != nil {
@@ -241,6 +244,7 @@ func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID uu
 			&order.CurrentStatus,
 			&order.CreatedAt,
 			&order.UpdatedAt,
+			&order.ShopName,
 		)
 		if err != nil {
 			return nil, err
@@ -354,12 +358,14 @@ func (r *OrderRepository) GetOrderItemsByCustomer(ctx context.Context, customerI
 			o.created_at,
 			o.updated_at,
 			o.shop_id,
+			s.name as shop_name,
 			o.delivery_date,
 			o.delivery_time,
 			o.comment
 		FROM order_items oi
 		JOIN orders o ON o.id = oi.order_id
 		JOIN products p ON p.id = oi.product_id
+		JOIN shops s ON s.id = o.shop_id
 		WHERE o.customer_id = $1
 		ORDER BY o.created_at DESC, oi.id
 	`
@@ -385,6 +391,7 @@ func (r *OrderRepository) GetOrderItemsByCustomer(ctx context.Context, customerI
 			&item.CreatedAt,
 			&item.UpdatedAt,
 			&item.ShopID,
+			&item.ShopName,
 			&item.DeliveryDate,
 			&item.DeliveryTime,
 			&item.Comment,

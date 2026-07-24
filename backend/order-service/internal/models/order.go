@@ -11,6 +11,7 @@ type Order struct {
 	ID                uuid.UUID  `json:"id" db:"id"`
 	CustomerID        uuid.UUID  `json:"customer_id" db:"customer_id"`
 	ShopID            uuid.UUID  `json:"shop_id" db:"shop_id"`
+	ShopName          string     `json:"shop_name,omitempty" db:"shop_name"`
 	DeliveryAddressID uuid.UUID  `json:"delivery_address_id" db:"delivery_address_id"`
 	PaymentTypeID     int        `json:"payment_type_id" db:"payment_type_id"`
 	TotalAmount       float64    `json:"total_amount" db:"total_amount"`
@@ -118,6 +119,7 @@ type OrderItemWithStatus struct {
 	Total        float64    `json:"total" db:"total"`
 	OrderStatus  string     `json:"order_status" db:"order_status"`
 	ShopID       uuid.UUID  `json:"shop_id" db:"shop_id"`
+	ShopName     string     `json:"shop_name,omitempty" db:"shop_name"`
 	DeliveryDate *time.Time `json:"delivery_date" db:"delivery_date"`
 	DeliveryTime string     `json:"delivery_time" db:"delivery_time"`
 	Comment      string     `json:"comment" db:"comment"`

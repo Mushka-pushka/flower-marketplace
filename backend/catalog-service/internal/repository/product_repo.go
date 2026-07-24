@@ -74,12 +74,15 @@ func (r *ProductRepository) CreateProduct(ctx context.Context, product *models.P
 // GetProductByID — получение товара по ID
 func (r *ProductRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
 	query := `
-		SELECT id, shop_id, category_id, name, slug, description, price, old_price,
-			stock, unit, packaging, tags, is_active, is_featured, rating, views_count,
-			created_at, updated_at
-		FROM products
-		WHERE id = $1
-	`
+    SELECT 
+        p.id, p.shop_id, p.category_id, p.name, p.slug, p.description, p.price, p.old_price,
+        p.stock, p.unit, p.packaging, p.tags, p.is_active, p.is_featured, p.rating, p.views_count,
+        p.created_at, p.updated_at,
+        s.name as shop_name
+    FROM products p
+    LEFT JOIN shops s ON s.id = p.shop_id
+    WHERE p.id = $1
+`
 
 	var product models.Product
 	err := r.db.QueryRow(ctx, query, id).Scan(
@@ -101,6 +104,7 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 		&product.ViewsCount,
 		&product.CreatedAt,
 		&product.UpdatedAt,
+		&product.ShopName,
 	)
 
 	if err != nil {
@@ -291,10 +295,10 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
     if req.Query != "" {
         conditions = append(conditions, fmt.Sprintf(`
         (
-            LOWER(name) LIKE LOWER($%d)
-            OR LOWER(description) LIKE LOWER($%d)
-            OR EXISTS (SELECT 1 FROM unnest(tags) AS t WHERE LOWER(t) LIKE LOWER($%d))
-            OR EXISTS (SELECT 1 FROM categories c WHERE c.id = category_id AND LOWER(c.name) LIKE LOWER($%d))
+            LOWER(p.name) LIKE LOWER($%d)
+            OR LOWER(p.description) LIKE LOWER($%d)
+            OR EXISTS (SELECT 1 FROM unnest(p.tags) AS t WHERE LOWER(t) LIKE LOWER($%d))
+            OR EXISTS (SELECT 1 FROM categories c WHERE c.id = p.category_id AND LOWER(c.name) LIKE LOWER($%d))
         )
     `, argIndex, argIndex, argIndex, argIndex))
     args = append(args, "%"+req.Query+"%")
@@ -304,7 +308,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	// 2. Фильтр по категории
 	if req.Category != "" {
 		conditions = append(conditions, fmt.Sprintf(
-			"category_id IN (SELECT id FROM categories WHERE slug = $%d)",
+			"p.category_id IN (SELECT id FROM categories WHERE slug = $%d)",
 			argIndex,
 		))
 		args = append(args, req.Category)
@@ -315,7 +319,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	if len(req.Tags) > 0 {
 		tagConditions := []string{}
 		for _, tag := range req.Tags {
-			tagConditions = append(tagConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM unnest(tags) AS t WHERE LOWER(t) = LOWER($%d::text))", argIndex,
+			tagConditions = append(tagConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM unnest(p.tags) AS t WHERE LOWER(t) = LOWER($%d::text))", argIndex,
 			))
 			args = append(args, tag)
 			argIndex++
@@ -325,38 +329,38 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 
 	// 4. Фильтр по цене
 	if req.MinPrice != nil {
-		conditions = append(conditions, fmt.Sprintf("price >= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("p.price >= $%d", argIndex))
 		args = append(args, *req.MinPrice)
 		argIndex++
 	}
 	if req.MaxPrice != nil {
-		conditions = append(conditions, fmt.Sprintf("price <= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("p.price <= $%d", argIndex))
 		args = append(args, *req.MaxPrice)
 		argIndex++
 	}
 
 	// 5. Только активные товары
-	conditions = append(conditions, "is_active = true")
+	conditions = append(conditions, "p.is_active = true")
 
 	// Собираем WHERE
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
 
 	// 6. Сортировка
-	sortClause := "ORDER BY rating DESC, views_count DESC"
+	sortClause := "ORDER BY p.rating DESC, p.views_count DESC"
 	switch req.SortBy {
 	case "price_asc":
-		sortClause = "ORDER BY price ASC"
+		sortClause = "ORDER BY p.price ASC"
 	case "price_desc":
-		sortClause = "ORDER BY price DESC"
+		sortClause = "ORDER BY p.price DESC"
 	case "rating":
-		sortClause = "ORDER BY rating DESC"
+		sortClause = "ORDER BY p.rating DESC"
 	case "newest":
-		sortClause = "ORDER BY created_at DESC"
+		sortClause = "ORDER BY p.created_at DESC"
 	case "relevance":
 		if req.Query != "" {
 			sortClause = fmt.Sprintf(`
-				ORDER BY ts_rank(to_tsvector('russian', name || ' ' || COALESCE(description, '')), plainto_tsquery('russian', $%d)) DESC,
-				rating DESC, views_count DESC
+				ORDER BY ts_rank(to_tsvector('russian', p.name || ' ' || COALESCE(p.description, '')), plainto_tsquery('russian', $%d)) DESC,
+				p.rating DESC, p.views_count DESC
 			`, argIndex)
 			args = append(args, req.Query)
 			argIndex++
@@ -376,12 +380,15 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 		offset = 0
 	}
 
-	// Запрос на список
+	// Запрос на список с JOIN для получения названия магазина
 	query := fmt.Sprintf(`
-		SELECT id, shop_id, category_id, name, slug, description, price, old_price,
-			stock, unit, packaging, tags, is_active, is_featured, rating, views_count,
-			created_at, updated_at
-		FROM products
+		SELECT 
+			p.id, p.shop_id, p.category_id, p.name, p.slug, p.description, p.price, p.old_price,
+			p.stock, p.unit, p.packaging, p.tags, p.is_active, p.is_featured, p.rating, p.views_count,
+			p.created_at, p.updated_at,
+			COALESCE(s.name, '') as shop_name
+		FROM products p
+		LEFT JOIN shops s ON s.id = p.shop_id
 		%s
 		%s
 		LIMIT $%d OFFSET $%d
@@ -417,6 +424,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 			&product.ViewsCount,
 			&product.CreatedAt,
 			&product.UpdatedAt,
+			&product.ShopName, 
 		)
 		if err != nil {
 			return nil, 0, err
@@ -434,7 +442,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 
 	if req.Query != "" {
 		countConditions = append(countConditions, fmt.Sprintf(
-			"to_tsvector('russian', name || ' ' || COALESCE(description, '')) @@ plainto_tsquery('russian', $%d)",
+			"to_tsvector('russian', p.name || ' ' || COALESCE(p.description, '')) @@ plainto_tsquery('russian', $%d)",
 			countArgIndex,
 		))
 		countArgsList = append(countArgsList, req.Query)
@@ -442,7 +450,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	}
 	if req.Category != "" {
 		countConditions = append(countConditions, fmt.Sprintf(
-			"category_id IN (SELECT id FROM categories WHERE slug = $%d)",
+			"p.category_id IN (SELECT id FROM categories WHERE slug = $%d)",
 			countArgIndex,
 		))
 		countArgsList = append(countArgsList, req.Category)
@@ -451,7 +459,7 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	if len(req.Tags) > 0 {
 		tagConditions := []string{}
 		for _, tag := range req.Tags {
-			tagConditions = append(tagConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM unnest(tags) AS t WHERE LOWER(t) = LOWER($%d::text))", countArgIndex,
+			tagConditions = append(tagConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM unnest(p.tags) AS t WHERE LOWER(t) = LOWER($%d::text))", countArgIndex,
 			))
 			countArgsList = append(countArgsList, tag)
 			countArgIndex++
@@ -459,19 +467,19 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 		countConditions = append(countConditions, "("+strings.Join(tagConditions, " OR ")+")")
 	}
 	if req.MinPrice != nil {
-		countConditions = append(countConditions, fmt.Sprintf("price >= $%d", countArgIndex))
+		countConditions = append(countConditions, fmt.Sprintf("p.price >= $%d", countArgIndex))
 		countArgsList = append(countArgsList, *req.MinPrice)
 		countArgIndex++
 	}
 	if req.MaxPrice != nil {
-		countConditions = append(countConditions, fmt.Sprintf("price <= $%d", countArgIndex))
+		countConditions = append(countConditions, fmt.Sprintf("p.price <= $%d", countArgIndex))
 		countArgsList = append(countArgsList, *req.MaxPrice)
 		countArgIndex++
 	}
-	countConditions = append(countConditions, "is_active = true")
+	countConditions = append(countConditions, "p.is_active = true")
 
 	countWhereClause := strings.Join(countConditions, " AND ")
-	countQueryFinal := fmt.Sprintf(`SELECT COUNT(*) FROM products WHERE %s`, countWhereClause)
+	countQueryFinal := fmt.Sprintf(`SELECT COUNT(*) FROM products p WHERE %s`, countWhereClause)
 
 	var total int64
 	err = r.db.QueryRow(ctx, countQueryFinal, countArgsList...).Scan(&total)
@@ -701,6 +709,7 @@ func (r *ProductRepository) GetProductsByShopID(ctx context.Context, shopID uuid
             &product.ViewsCount,
             &product.CreatedAt,
             &product.UpdatedAt,
+			&product.ShopName,
         )
         if err != nil {
             return nil, err

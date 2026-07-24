@@ -17,6 +17,7 @@ export interface Order {
   customer_last_name?: string   
   customer_email?: string 
   product_names?: string
+  shop_name?: string
 }
 
 export interface OrderItem {
@@ -68,6 +69,7 @@ export interface OrderItemWithStatus {
   total: number
   order_status: string
   shop_id: string
+  shop_name?: string
   delivery_date: string
   delivery_time: string
   comment: string

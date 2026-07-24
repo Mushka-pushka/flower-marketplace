@@ -37,7 +37,7 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
   const [authNotification, setAuthNotification] = useState(false)
   const [isInCart, setIsInCart] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0) // <--- ДОБАВЛЕНО
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
     if (!productId) return
@@ -137,14 +137,14 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
       console.log('Product images:', product.images)
       const image = product.images && product.images.length > 0 ? product.images[0] : undefined
       console.log('Image to save:', image) 
-    toggleFavorite({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: image,
-    })
+      toggleFavorite({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: image,
+      })
+    }
   }
-}
 
   const modalContent = (
     <div
@@ -255,6 +255,12 @@ const ProductModal = ({ productId, onClose }: ProductModalProps) => {
                 <p className="text-gray-600 mt-4 leading-relaxed">
                   {product.description || 'Описание отсутствует'}
                 </p>
+
+                {product.shop_name && (
+                  <p className="text-sm text-gray-400 mt-2">
+                    Магазин: <span className="font-medium text-[#1C1C1C]">{product.shop_name}</span>
+                  </p>
+                )}
 
                 {product.tags && product.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-4">

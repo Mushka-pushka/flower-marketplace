@@ -31,6 +31,7 @@ export interface Product {
   images?: string[]
   created_at: string
   updated_at: string
+  shop_name?: string
 }
 
 export interface SearchResponse {

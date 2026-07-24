@@ -166,6 +166,11 @@ const Catalog = () => {
                   )}
                 </div>
                 <h3 className="font-semibold text-[#1C1C1C] truncate text-base">{product.name}</h3>
+                {product.shop_name && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Магазин: {product.shop_name}
+                  </p>
+                )}
                 <div className="flex items-baseline gap-0.5 mt-1">
                   <span className="text-[#8A9A86] font-bold text-xl">{product.price}</span>
                   <span className="text-gray-400 text-sm font-medium">BYN</span>
