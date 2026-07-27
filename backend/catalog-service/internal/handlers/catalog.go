@@ -1633,3 +1633,51 @@ func (h *CatalogHandler) DeleteReplyFromReview(w http.ResponseWriter, r *http.Re
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Ответ удалён"})
 }
+
+// DeleteReviewBySeller godoc
+// @Summary      Удаление отзыва продавцом
+// @Description  Продавец удаляет отзыв на свой товар
+// @Tags         seller
+// @Security     Bearer
+// @Param        id query string true "ID отзыва"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /seller/reviews [delete]
+func (h *CatalogHandler) DeleteReviewBySeller(w http.ResponseWriter, r *http.Request) {
+    reviewIDStr := r.URL.Query().Get("id")
+    if reviewIDStr == "" {
+        respondWithError(w, http.StatusBadRequest, "id parameter is required")
+        return
+    }
+
+    reviewID, err := uuid.Parse(reviewIDStr)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "invalid id format")
+        return
+    }
+
+    // Получаем user_id из контекста
+    userID, err := getUserIDFromContext(r)
+    if err != nil {
+        respondWithError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+
+    err = h.catalogService.DeleteReviewBySeller(r.Context(), reviewID, userID)
+    if err != nil {
+        status := http.StatusInternalServerError
+        if err.Error() == "seller has no shop" {
+            status = http.StatusForbidden
+        }
+        if err.Error() == "review not found or you don't have permission to delete it" {
+            status = http.StatusNotFound
+        }
+        respondWithError(w, status, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]string{"message": "Отзыв удалён"})
+}

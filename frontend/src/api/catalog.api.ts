@@ -211,9 +211,8 @@ export const deleteSellerProduct = async (id: string): Promise<void> => {
   await client.delete(`/catalog/seller/products/${id}`)
 }
 
-// ============================================================
+
 // ОТЗЫВЫ — ДЛЯ ПРОДАВЦА
-// ============================================================
 
 // Интерфейс отзыва с ответом продавца
 export interface ReviewWithReply extends Review {
@@ -251,4 +250,9 @@ export const updateReplyOnReview = async (reviewId: string, text: string): Promi
 // Удаление ответа на отзыв
 export const deleteReplyFromReview = async (reviewId: string): Promise<void> => {
   await client.delete('/seller/reviews/reply', { params: { id: reviewId } })
+}
+
+// Удаление отзыва продавцом
+export const deleteReviewBySeller = async (reviewId: string): Promise<void> => {
+  await client.delete('/seller/reviews', { params: { id: reviewId } })
 }

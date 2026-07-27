@@ -385,6 +385,10 @@ func (h *OrderHandler) CanReview(w http.ResponseWriter, r *http.Request) {
 func (h *OrderHandler) GetOrderItemsByCustomer(w http.ResponseWriter, r *http.Request) {
     // Берем user_id из заголовка
     userIDStr := r.Header.Get("X-User-ID")
+
+	log.Printf("GetOrderItemsByCustomer: X-User-ID = %s", userIDStr)
+    log.Printf("GetOrderItemsByCustomer: X-User-Role = %s", r.Header.Get("X-User-Role"))
+	
     if userIDStr == "" {
         respondWithError(w, http.StatusUnauthorized, "user not authenticated")
         return

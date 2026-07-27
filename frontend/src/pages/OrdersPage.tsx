@@ -83,8 +83,14 @@ const OrdersPage = () => {
     }
   }
 
+  // Загружаем заказы только для покупателей
   useEffect(() => {
-    fetchOrderItems()
+    if (user?.role === 'customer') {
+      fetchOrderItems()
+    } else {
+      setLoading(false)
+      setOrderItems([])
+    }
   }, [user, limit, offset])
 
   useEffect(() => {

@@ -5,10 +5,9 @@ import {
   FaReply,
   FaEdit,
   FaTrash,
-  FaCheck,
   FaSpinner,
 } from 'react-icons/fa'
-import { getSellerReviews, addReplyToReview, updateReplyOnReview, deleteReplyFromReview } from '../api/catalog.api'
+import { getSellerReviews, addReplyToReview, updateReplyOnReview, deleteReplyFromReview, deleteReviewBySeller } from '../api/catalog.api'
 import type { ReviewWithReply } from '../api/catalog.api'
 import { toast } from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
@@ -105,6 +104,20 @@ const SellerReviewsPage = () => {
     }
   }
 
+  // Удаление отзыва
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm('Вы уверены, что хотите удалить этот отзыв? Это действие нельзя отменить.')) return
+
+    try {
+      await deleteReviewBySeller(reviewId)
+      toast.success('Отзыв удалён')
+      await fetchReviews()
+    } catch (error: any) {
+      console.error('Ошибка удаления отзыва:', error)
+      toast.error(error.response?.data?.error || 'Не удалось удалить отзыв')
+    }
+  }
+
   const toggleExpand = (reviewId: string) => {
     setExpandedReviews(prev => {
       const newSet = new Set(prev)
@@ -179,27 +192,42 @@ const SellerReviewsPage = () => {
 
       {/* Статистика */}
       {reviews.length > 0 && (
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-4 border border-gray-100">
-            <p className="text-2xl font-bold text-[#1C1C1C]">
-              {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}
-            </p>
+            <div className="flex items-center gap-2">
+              <FaStar className="text-[#8A9A86] text-lg" />
+              <p className="text-2xl font-bold text-[#1C1C1C]">
+                {(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)}
+              </p>
+            </div>
             <p className="text-sm text-gray-400">Средний рейтинг</p>
           </div>
+          
           <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-4 border border-gray-100">
-            <p className="text-2xl font-bold text-[#1C1C1C]">{reviews.length}</p>
+            <div className="flex items-center gap-2">
+              <FaRegStar className="text-[#8A9A86] text-lg" />
+              <p className="text-2xl font-bold text-[#1C1C1C]">{reviews.length}</p>
+            </div>
             <p className="text-sm text-gray-400">Всего отзывов</p>
           </div>
+          
           <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-4 border border-gray-100">
-            <p className="text-2xl font-bold text-[#1C1C1C]">
-              {reviews.filter(r => r.rating >= 4).length}
-            </p>
-            <p className="text-sm text-gray-400">Положительных (4-5⭐)</p>
+            <div className="flex items-center gap-2">
+              <FaStar className="text-green-500 text-lg" />
+              <p className="text-2xl font-bold text-[#1C1C1C]">
+                {reviews.filter(r => r.rating >= 4).length}
+              </p>
+            </div>
+            <p className="text-sm text-gray-400">Положительных (4-5★)</p>
           </div>
+          
           <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-4 border border-gray-100">
-            <p className="text-2xl font-bold text-[#1C1C1C]">
-              {reviews.filter(r => r.reply).length}
-            </p>
+            <div className="flex items-center gap-2">
+              <FaReply className="text-[#8A9A86] text-lg" />
+              <p className="text-2xl font-bold text-[#1C1C1C]">
+                {reviews.filter(r => r.reply).length}
+              </p>
+            </div>
             <p className="text-sm text-gray-400">С ответами</p>
           </div>
         </div>
@@ -323,7 +351,7 @@ const SellerReviewsPage = () => {
                           disabled={submitting || !editReplyText.trim()}
                           className="px-3 py-1 text-sm bg-[#8A9A86] text-white rounded-lg hover:bg-[#7A8A76] transition disabled:opacity-50 flex items-center gap-1"
                         >
-                          {submitting ? <FaSpinner className="animate-spin" /> : <FaCheck />}
+                          {submitting ? <FaSpinner className="animate-spin" /> : <FaEdit />}
                           Сохранить
                         </button>
                         <button
@@ -339,18 +367,29 @@ const SellerReviewsPage = () => {
                     </div>
                   )}
 
-                  {/* Кнопка "Ответить" */}
-                  {!hasReply && !isReplying && (
+                  {/* Кнопки действий продавца */}
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {/* Кнопка "Ответить" */}
+                    {!hasReply && !isReplying && (
+                      <button
+                        onClick={() => {
+                          setReplyingTo(review.id)
+                          setReplyText('')
+                        }}
+                        className="text-sm text-[#8A9A86] hover:text-[#7A8A76] transition flex items-center gap-1.5 font-medium"
+                      >
+                        <FaReply /> Ответить на отзыв
+                      </button>
+                    )}
+
+                    {/* Кнопка "Удалить отзыв" */}
                     <button
-                      onClick={() => {
-                        setReplyingTo(review.id)
-                        setReplyText('')
-                      }}
-                      className="mt-3 text-sm text-[#8A9A86] hover:text-[#7A8A76] transition flex items-center gap-1.5 font-medium"
+                      onClick={() => handleDeleteReview(review.id)}
+                      className="text-sm text-red-500 hover:text-red-700 transition flex items-center gap-1.5 font-medium"
                     >
-                      <FaReply /> Ответить на отзыв
+                      <FaTrash /> Удалить отзыв
                     </button>
-                  )}
+                  </div>
 
                   {/* Форма добавления ответа */}
                   {isReplying && (

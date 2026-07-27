@@ -104,19 +104,14 @@ func main() {
 	analyticsService := service.NewAnalyticsService(analyticsRepo, cfg)
 	orderService := service.NewOrderService(orderRepo, cfg, rabbitCh)
 	notificationRepo := repository.NewNotificationRepository(db)
-    notificationService := service.NewNotificationService(notificationRepo, cfg, rabbitCh)
+	notificationService := service.NewNotificationService(notificationRepo, cfg, rabbitCh)
 
 	// Хендлеры
 	orderHandler := handlers.NewOrderHandler(orderService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
 
 	// Middleware
-    authMiddleware := middleware.NewAuthMiddleware(cfg)
-
-    // Роуты 
-    http.HandleFunc("GET /api/v1/orders/items", orderHandler.GetOrderItemsByCustomer)
-    http.HandleFunc("GET /api/v1/analytics/dynamics", authMiddleware.AuthMiddleware(analyticsHandler.GetSalesDynamics))
-
+	authMiddleware := middleware.NewAuthMiddleware(cfg)
 
 	// Воркеры
 	orderWorker := worker.NewOrderWorker(orderService, rabbitCh)
@@ -127,7 +122,7 @@ func main() {
 	// ============================================================
 	
 	// Запускаем несколько воркеров для обработки заказов
-	numWorkers := 3 // Количество воркеров
+	numWorkers := 3
 	
 	for i := 0; i < numWorkers; i++ {
 		workerID := i
@@ -152,27 +147,22 @@ func main() {
 	// ============================================================
 
 	// ----- ПУБЛИЧНЫЕ ЭНДПОИНТЫ (без авторизации) -----
-	// GetOrder - публичный, так как может использоваться для отслеживания статуса
 	http.HandleFunc("GET /api/v1/orders", orderHandler.GetOrder)
-	// GetOrdersByShop - публичный, но внутри проверяется принадлежность магазина
 	http.HandleFunc("GET /api/v1/orders/shop", orderHandler.GetOrdersByShop)
 
 	// ----- ЗАЩИЩЕННЫЕ ЭНДПОИНТЫ -----
-	// Создание заказа - только для авторизованных пользователей
 	http.HandleFunc("POST /api/v1/orders", authMiddleware.AuthMiddleware(orderHandler.CreateOrder))
-	// Получение заказов покупателя - только для авторизованных пользователей
 	http.HandleFunc("GET /api/v1/orders/customer", authMiddleware.AuthMiddleware(orderHandler.GetOrdersByCustomer))
-	// Отмена заказа - только для авторизованных пользователей
 	http.HandleFunc("POST /api/v1/orders/cancel", authMiddleware.AuthMiddleware(orderHandler.CancelOrder))
-	// Обновление статуса заказа продавцом - только для авторизованных пользователей с ролью seller
 	http.HandleFunc("PUT /api/v1/orders/status", authMiddleware.AuthMiddleware(orderHandler.UpdateOrderStatusBySeller))
-	// Проверка возможности оставить отзыв - только для авторизованных пользователей
 	http.HandleFunc("GET /api/v1/orders/can-review", authMiddleware.AuthMiddleware(orderHandler.CanReview))
+	http.HandleFunc("GET /api/v1/orders/items", authMiddleware.AuthMiddleware(orderHandler.GetOrderItemsByCustomer))
 
 	// ----- АНАЛИТИКА -----
 	http.HandleFunc("GET /api/v1/analytics/seller", authMiddleware.AuthMiddleware(analyticsHandler.GetSellerAnalytics))
 	http.HandleFunc("GET /api/v1/analytics/popular", authMiddleware.AuthMiddleware(analyticsHandler.GetPopularProducts))
 	http.HandleFunc("GET /api/v1/analytics/statuses", authMiddleware.AuthMiddleware(analyticsHandler.GetOrderStatsByStatus))
+	http.HandleFunc("GET /api/v1/analytics/dynamics", authMiddleware.AuthMiddleware(analyticsHandler.GetSalesDynamics))
 
 	// ----- SWAGGER -----
 	http.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)

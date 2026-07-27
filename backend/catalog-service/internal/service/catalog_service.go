@@ -1036,3 +1036,14 @@ func (s *CatalogService) DeleteReplyFromReview(ctx context.Context, reviewID uui
 
 	return s.reviewRepo.DeleteReply(ctx, reviewID)
 }
+
+// DeleteReviewBySeller — удаляет отзыв продавцом
+func (s *CatalogService) DeleteReviewBySeller(ctx context.Context, reviewID uuid.UUID, sellerID uuid.UUID) error {
+    // Получаем shop_id продавца
+    shopID, err := s.productRepo.GetShopIDBySellerID(ctx, sellerID)
+    if err != nil || shopID == uuid.Nil {
+        return errors.New("seller has no shop")
+    }
+    
+    return s.reviewRepo.DeleteReviewBySeller(ctx, reviewID, shopID)
+}
