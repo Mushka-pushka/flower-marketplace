@@ -127,6 +127,12 @@ func main() {
 	// ----- ОТЗЫВЫ (REVIEWS) - ПУБЛИЧНЫЕ -----
 	http.HandleFunc("GET /api/v1/catalog/reviews", catalogHandler.GetProductReviews)
 
+	// ----- ОТЗЫВЫ ДЛЯ ПРОДАВЦА -----
+	http.HandleFunc("GET /api/v1/seller/reviews", middleware.AuthMiddleware(catalogHandler.GetSellerReviews))
+	http.HandleFunc("POST /api/v1/seller/reviews/reply", middleware.AuthMiddleware(catalogHandler.AddReplyToReview))
+	http.HandleFunc("PUT /api/v1/seller/reviews/reply", middleware.AuthMiddleware(catalogHandler.UpdateReplyOnReview))
+	http.HandleFunc("DELETE /api/v1/seller/reviews/reply", middleware.AuthMiddleware(catalogHandler.DeleteReplyFromReview))
+
 	// ----- АВТОДОПОЛНЕНИЕ (ПУБЛИЧНОЕ) -----
 	http.HandleFunc("GET /api/v1/catalog/autocomplete", catalogHandler.GetAutocompleteSuggestions)
 

@@ -670,15 +670,18 @@ func (r *ProductRepository) ExistsShop(ctx context.Context, id uuid.UUID) (bool,
 // МЕТОДЫ ДЛЯ РАБОТЫ С МАГАЗИНАМИ И ТОВАРАМИ
 // ============================================================
 
-// GetProductsByShopID — получает товары магазина          <--- ДОБАВИТЬ СЮДА
+// GetProductsByShopID — получает товары магазина
 func (r *ProductRepository) GetProductsByShopID(ctx context.Context, shopID uuid.UUID) ([]models.Product, error) {
     query := `
-        SELECT id, shop_id, category_id, name, slug, description, price, old_price,
-            stock, unit, packaging, tags, is_active, is_featured, rating, views_count,
-            created_at, updated_at
-        FROM products
-        WHERE shop_id = $1
-        ORDER BY created_at DESC
+        SELECT 
+            p.id, p.shop_id, p.category_id, p.name, p.slug, p.description, p.price, p.old_price,
+            p.stock, p.unit, p.packaging, p.tags, p.is_active, p.is_featured, p.rating, p.views_count,
+            p.created_at, p.updated_at,
+            COALESCE(s.name, '') as shop_name
+        FROM products p
+        LEFT JOIN shops s ON s.id = p.shop_id
+        WHERE p.shop_id = $1
+        ORDER BY p.created_at DESC
     `
 
     rows, err := r.db.Query(ctx, query, shopID)
@@ -709,7 +712,7 @@ func (r *ProductRepository) GetProductsByShopID(ctx context.Context, shopID uuid
             &product.ViewsCount,
             &product.CreatedAt,
             &product.UpdatedAt,
-			&product.ShopName,
+            &product.ShopName,
         )
         if err != nil {
             return nil, err

@@ -1403,3 +1403,233 @@ func (h *CatalogHandler) SetDefaultAddress(w http.ResponseWriter, r *http.Reques
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Адрес установлен по умолчанию"})
 }
+
+// ОТЗЫВЫ — ДЛЯ ПРОДАВЦА
+
+// GetSellerReviews godoc
+// @Summary      Получение отзывов на товары продавца
+// @Description  Возвращает все отзывы на товары текущего продавца
+// @Tags         seller
+// @Produce      json
+// @Security     Bearer
+// @Param        limit query int false "Количество записей" default(20)
+// @Param        offset query int false "Смещение" default(0)
+// @Success      200 {object} map[string]interface{}
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /seller/reviews [get]
+func (h *CatalogHandler) GetSellerReviews(w http.ResponseWriter, r *http.Request) {
+	// Получаем user_id из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	// Получаем shop_id продавца
+	shopID, err := h.catalogService.GetShopIDBySellerID(r.Context(), userID)
+	if err != nil || shopID == uuid.Nil {
+		respondWithError(w, http.StatusForbidden, "seller has no shop")
+		return
+	}
+
+	limit := 20
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil && val > 0 {
+			limit = val
+		}
+	}
+	offset := 0
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if val, err := strconv.Atoi(o); err == nil && val >= 0 {
+			offset = val
+		}
+	}
+
+	reviews, total, err := h.catalogService.GetSellerReviews(r.Context(), shopID, limit, offset)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"reviews": reviews,
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
+		"has_more": int64(offset+limit) < total,
+	})
+}
+
+// AddReplyToReview godoc
+// @Summary      Ответ на отзыв
+// @Description  Продавец отвечает на отзыв покупателя
+// @Tags         seller
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        id query string true "ID отзыва"
+// @Param        request body models.ReplyRequest true "Текст ответа"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /seller/reviews/reply [post]
+func (h *CatalogHandler) AddReplyToReview(w http.ResponseWriter, r *http.Request) {
+	reviewIDStr := r.URL.Query().Get("id")
+	if reviewIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	reviewID, err := uuid.Parse(reviewIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	var req models.ReplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Text == "" {
+		respondWithError(w, http.StatusBadRequest, "reply text is required")
+		return
+	}
+
+	// Получаем user_id из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	err = h.catalogService.AddReplyToReview(r.Context(), reviewID, userID, req.Text)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "seller has no shop" {
+			status = http.StatusForbidden
+		}
+		if err.Error() == "you can only reply to reviews on your products" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Ответ добавлен"})
+}
+
+// UpdateReplyOnReview godoc
+// @Summary      Обновление ответа на отзыв
+// @Description  Продавец обновляет свой ответ на отзыв
+// @Tags         seller
+// @Accept       json
+// @Produce      json
+// @Security     Bearer
+// @Param        id query string true "ID отзыва"
+// @Param        request body models.ReplyRequest true "Новый текст ответа"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /seller/reviews/reply [put]
+func (h *CatalogHandler) UpdateReplyOnReview(w http.ResponseWriter, r *http.Request) {
+	reviewIDStr := r.URL.Query().Get("id")
+	if reviewIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	reviewID, err := uuid.Parse(reviewIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	var req models.ReplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Text == "" {
+		respondWithError(w, http.StatusBadRequest, "reply text is required")
+		return
+	}
+
+	// Получаем user_id из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	err = h.catalogService.UpdateReplyOnReview(r.Context(), reviewID, userID, req.Text)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "seller has no shop" {
+			status = http.StatusForbidden
+		}
+		if err.Error() == "you can only update replies on your products" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Ответ обновлён"})
+}
+
+// DeleteReplyFromReview godoc
+// @Summary      Удаление ответа на отзыв
+// @Description  Продавец удаляет свой ответ на отзыв
+// @Tags         seller
+// @Security     Bearer
+// @Param        id query string true "ID отзыва"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /seller/reviews/reply [delete]
+func (h *CatalogHandler) DeleteReplyFromReview(w http.ResponseWriter, r *http.Request) {
+	reviewIDStr := r.URL.Query().Get("id")
+	if reviewIDStr == "" {
+		respondWithError(w, http.StatusBadRequest, "id parameter is required")
+		return
+	}
+
+	reviewID, err := uuid.Parse(reviewIDStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid id format")
+		return
+	}
+
+	// Получаем user_id из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	err = h.catalogService.DeleteReplyFromReview(r.Context(), reviewID, userID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "seller has no shop" {
+			status = http.StatusForbidden
+		}
+		if err.Error() == "you can only delete replies on your products" {
+			status = http.StatusForbidden
+		}
+		respondWithError(w, status, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Ответ удалён"})
+}

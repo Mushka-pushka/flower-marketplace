@@ -952,3 +952,87 @@ func (s *CatalogService) AdminUpdateCategory(ctx context.Context, id uuid.UUID, 
 func (s *CatalogService) AdminDeleteCategory(ctx context.Context, id uuid.UUID) error {
 	return s.categoryAdminRepo.DeleteCategory(ctx, id)
 }
+
+// ОТЗЫВЫ (REVIEWS) — ДЛЯ ПРОДАВЦА
+
+// GetSellerReviews — получает отзывы на товары продавца
+func (s *CatalogService) GetSellerReviews(ctx context.Context, shopID uuid.UUID, limit, offset int) ([]models.ReviewWithUser, int64, error) {
+	return s.reviewRepo.GetReviewsByShopID(ctx, shopID, limit, offset)
+}
+
+// AddReplyToReview — добавляет ответ на отзыв
+func (s *CatalogService) AddReplyToReview(ctx context.Context, reviewID uuid.UUID, sellerID uuid.UUID, text string) error {
+	// Проверяем, что отзыв существует
+	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
+	if err != nil {
+		return err
+	}
+
+	// Проверяем, что продавец владеет товаром, на который оставлен отзыв
+	product, err := s.productRepo.GetProductByID(ctx, review.ProductID)
+	if err != nil {
+		return err
+	}
+
+	// Получаем shop_id продавца
+	shopID, err := s.productRepo.GetShopIDBySellerID(ctx, sellerID)
+	if err != nil || shopID == uuid.Nil {
+		return errors.New("seller has no shop")
+	}
+
+	if product.ShopID != shopID {
+		return errors.New("you can only reply to reviews on your products")
+	}
+
+	return s.reviewRepo.AddReply(ctx, reviewID, text)
+}
+
+// UpdateReplyOnReview — обновляет ответ на отзыв
+func (s *CatalogService) UpdateReplyOnReview(ctx context.Context, reviewID uuid.UUID, sellerID uuid.UUID, text string) error {
+	// Проверяем права (аналогично AddReplyToReview)
+	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
+	if err != nil {
+		return err
+	}
+
+	product, err := s.productRepo.GetProductByID(ctx, review.ProductID)
+	if err != nil {
+		return err
+	}
+
+	shopID, err := s.productRepo.GetShopIDBySellerID(ctx, sellerID)
+	if err != nil || shopID == uuid.Nil {
+		return errors.New("seller has no shop")
+	}
+
+	if product.ShopID != shopID {
+		return errors.New("you can only update replies on your products")
+	}
+
+	return s.reviewRepo.UpdateReply(ctx, reviewID, text)
+}
+
+// DeleteReplyFromReview — удаляет ответ на отзыв
+func (s *CatalogService) DeleteReplyFromReview(ctx context.Context, reviewID uuid.UUID, sellerID uuid.UUID) error {
+	// Проверяем права (аналогично AddReplyToReview)
+	review, err := s.reviewRepo.GetReviewByID(ctx, reviewID)
+	if err != nil {
+		return err
+	}
+
+	product, err := s.productRepo.GetProductByID(ctx, review.ProductID)
+	if err != nil {
+		return err
+	}
+
+	shopID, err := s.productRepo.GetShopIDBySellerID(ctx, sellerID)
+	if err != nil || shopID == uuid.Nil {
+		return errors.New("seller has no shop")
+	}
+
+	if product.ShopID != shopID {
+		return errors.New("you can only delete replies on your products")
+	}
+
+	return s.reviewRepo.DeleteReply(ctx, reviewID)
+}

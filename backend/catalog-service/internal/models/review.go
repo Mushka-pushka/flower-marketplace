@@ -8,23 +8,33 @@ import (
 
 // Review — отзыв на товар
 type Review struct {
-	ID         uuid.UUID `json:"id" db:"id"`
-	ProductID  uuid.UUID `json:"product_id" db:"product_id"`
-	UserID     uuid.UUID `json:"user_id" db:"user_id"`
-	OrderID    *uuid.UUID `json:"order_id,omitempty" db:"order_id"`
-	Rating     int       `json:"rating" db:"rating"`
-	Comment    string    `json:"comment" db:"comment"`
-	IsApproved bool      `json:"is_approved" db:"is_approved"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	ProductID      uuid.UUID  `json:"product_id" db:"product_id"`
+	UserID         uuid.UUID  `json:"user_id" db:"user_id"`
+	OrderID        *uuid.UUID `json:"order_id,omitempty" db:"order_id"`
+	Rating         int        `json:"rating" db:"rating"`
+	Comment        string     `json:"comment" db:"comment"`
+	IsApproved     bool       `json:"is_approved" db:"is_approved"`
+	Reply          *string    `json:"reply,omitempty" db:"reply"`                   
+	ReplyCreatedAt *time.Time `json:"reply_created_at,omitempty" db:"reply_created_at"` 
+	ReplyUpdatedAt *time.Time `json:"reply_updated_at,omitempty" db:"reply_updated_at"` 
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // ReviewWithUser — отзыв с данными о пользователе
 type ReviewWithUser struct {
 	Review
-	UserName  string `json:"user_name"`
-	UserEmail string `json:"user_email"`
+	UserName   string  `json:"user_name"`
+	UserEmail  string  `json:"user_email"`
 	UserAvatar *string `json:"user_avatar,omitempty"`
+	ProductName string `json:"product_name,omitempty"` 
+	ShopID     uuid.UUID `json:"shop_id,omitempty"`    
+}
+
+// ReplyRequest — запрос на ответ на отзыв
+type ReplyRequest struct {
+	Text string `json:"text" binding:"required"`
 }
 
 // CreateReviewRequest — запрос на создание отзыва

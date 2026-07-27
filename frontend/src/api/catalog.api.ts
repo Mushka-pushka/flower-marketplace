@@ -122,12 +122,17 @@ export interface Review {
   id: string
   product_id: string
   user_id: string
+  order_id?: string | null
   rating: number
   comment: string
   is_approved: boolean
+  reply?: string | null
+  reply_created_at?: string | null
+  reply_updated_at?: string | null
   user_name?: string
   user_avatar?: string
   created_at: string
+  updated_at?: string
 }
 
 // Получение отзывов на товар
@@ -204,4 +209,46 @@ export const updateSellerProduct = async (id: string, data: FormData): Promise<P
 // Удаление товара (мягкое)
 export const deleteSellerProduct = async (id: string): Promise<void> => {
   await client.delete(`/catalog/seller/products/${id}`)
+}
+
+// ============================================================
+// ОТЗЫВЫ — ДЛЯ ПРОДАВЦА
+// ============================================================
+
+// Интерфейс отзыва с ответом продавца
+export interface ReviewWithReply extends Review {
+  reply?: string
+  reply_created_at?: string
+  reply_updated_at?: string
+  product_name?: string
+  shop_id?: string
+}
+
+// Интерфейс ответа на отзыв
+export interface ReplyRequest {
+  text: string
+}
+
+// Получение отзывов на товары продавца
+export const getSellerReviews = async (params?: {
+  limit?: number
+  offset?: number
+}): Promise<{ reviews: ReviewWithReply[]; total: number; limit: number; offset: number; has_more: boolean }> => {
+  const response = await client.get('/seller/reviews', { params })
+  return response.data
+}
+
+// Добавление ответа на отзыв
+export const addReplyToReview = async (reviewId: string, text: string): Promise<void> => {
+  await client.post('/seller/reviews/reply', { text }, { params: { id: reviewId } })
+}
+
+// Обновление ответа на отзыв
+export const updateReplyOnReview = async (reviewId: string, text: string): Promise<void> => {
+  await client.put('/seller/reviews/reply', { text }, { params: { id: reviewId } })
+}
+
+// Удаление ответа на отзыв
+export const deleteReplyFromReview = async (reviewId: string): Promise<void> => {
+  await client.delete('/seller/reviews/reply', { params: { id: reviewId } })
 }

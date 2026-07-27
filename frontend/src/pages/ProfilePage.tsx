@@ -13,6 +13,7 @@ import {
   FaChartLine,
   FaFolder,
   FaUser,
+  FaStar,
 } from 'react-icons/fa'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -21,6 +22,7 @@ import FavoritesList from '../components/FavoritesList'
 import SellerOrdersPage from './SellerOrdersPage'
 import SellerProductsPage from './SellerProductsPage'
 import SellerAnalyticsPage from './SellerAnalyticsPage'
+import SellerReviewsPage from './SellerReviewsPage'
 import AdminSellersPage from './AdminSellersPage'
 import AdminUsersPage from './AdminUsersPage'
 import AdminStatsPage from './AdminStatsPage'
@@ -36,6 +38,7 @@ type TabType =
   | 'shop'
   | 'seller-orders'
   | 'seller-products'
+  | 'seller-reviews'
   | 'seller-analytics'
   | 'admin-sellers'
   | 'admin-users'
@@ -57,6 +60,7 @@ const ProfilePage = () => {
       return [
         { id: 'seller-orders', label: 'Заказы магазина', icon: <FaClipboardList /> },
         { id: 'seller-products', label: 'Товары', icon: <FaLeaf /> },
+        { id: 'seller-reviews', label: 'Отзывы', icon: <FaStar /> },
         { id: 'seller-analytics', label: 'Аналитика', icon: <FaChartBar /> },
         { id: 'shop', label: 'Магазин', icon: <FaStore /> },
         { id: 'settings', label: 'Настройки', icon: <FaCog /> },
@@ -152,6 +156,8 @@ const ProfilePage = () => {
         return <SellerOrdersPage />
       case 'seller-products':
         return <SellerProductsPage />
+      case 'seller-reviews':
+        return <SellerReviewsPage />
       case 'seller-analytics':
         return <SellerAnalyticsPage />
       case 'admin-sellers':

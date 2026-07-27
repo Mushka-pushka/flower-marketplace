@@ -56,7 +56,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    //Проверяем, не оставлял ли пользователь уже отзыв
     if (hasUserReviewed) {
       toast.error('Вы уже оставили отзыв на этот товар')
       return
@@ -80,7 +79,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
         comment,
       })
       toast.success('Спасибо за ваш отзыв!')
-      // Обновляем список отзывов
       const data = await getProductReviews(productId)
       setReviews(data || [])
       setRating(5)
@@ -95,7 +93,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
     }
   }
 
-  // Удаление отзыва
   const handleDeleteReview = async (reviewId: string) => {
     if (!confirm('Удалить отзыв?')) return
     try {
@@ -110,21 +107,18 @@ const Reviews = ({ productId }: ReviewsProps) => {
     }
   }
 
-  // Начало редактирования отзыва
   const handleStartEdit = (review: Review) => {
     setEditingReview(review.id)
     setEditRating(review.rating)
     setEditComment(review.comment)
   }
 
-  // Отмена редактирования
   const handleCancelEdit = () => {
     setEditingReview(null)
     setEditRating(5)
     setEditComment('')
   }
 
-  // Сохранение отредактированного отзыва
   const handleSaveEdit = async (reviewId: string) => {
     try {
       await updateReview(reviewId, {
@@ -171,7 +165,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
         </span>
       </div>
 
-      {/* Форма отправки отзыва — только если пользователь может оставить отзыв и ещё не оставлял */}
       {user && canReview && !hasUserReviewed && (
         <form onSubmit={handleSubmit} className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
           <h4 className="font-medium text-[#1C1C1C] mb-2">Оставить отзыв</h4>
@@ -209,7 +202,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
         </form>
       )}
 
-      {/* Сообщение, если пользователь уже оставил отзыв */}
       {user && hasUserReviewed && (
         <div className="mb-4 p-3 bg-green-50 rounded-xl border border-green-200 text-sm text-green-700">
           ✓ Вы уже оставили отзыв на этот товар. Вы можете редактировать или удалить его ниже.
@@ -233,7 +225,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
             return (
               <div key={review.id} className="border-b border-gray-100 pb-2 last:border-0">
                 {isEditing ? (
-                  // Режим редактирования
                   <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
                     <div className="flex items-center gap-1 mb-2">
                       {[1, 2, 3, 4, 5].map((star) => (
@@ -273,7 +264,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
                     </div>
                   </div>
                 ) : (
-                  // Обычный просмотр отзыва с аватаром
                   <>
                     <div className="flex items-center gap-2">
                       {review.user_avatar ? (
@@ -282,7 +272,6 @@ const Reviews = ({ productId }: ReviewsProps) => {
                           alt={review.user_name || 'Пользователь'} 
                           className="w-6 h-6 rounded-full object-cover border border-gray-200"
                           onError={(e) => {
-                            // Если картинка не загрузилась — показываем иконку
                             e.currentTarget.style.display = 'none'
                           }}
                         />
@@ -310,7 +299,22 @@ const Reviews = ({ productId }: ReviewsProps) => {
                       {new Date(review.created_at).toLocaleDateString('ru-RU')}
                     </p>
 
-                    {/* Кнопки редактирования/удаления для своих отзывов */}
+                    {/* Блок с ответом продавца */}
+                    {review.reply && (
+                      <div className="mt-2 ml-4 pl-3 border-l-2 border-[#8A9A86] bg-gray-50/50 rounded-r-lg p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-[#8A9A86]">Продавец ответил:</span>
+                          <span className="text-xs text-gray-400">
+                            {review.reply_created_at && new Date(review.reply_created_at).toLocaleDateString('ru-RU')}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700 mt-0.5">{review.reply}</p>
+                        {review.reply_updated_at && review.reply_created_at !== review.reply_updated_at && (
+                          <span className="text-[10px] text-gray-400">(отредактировано)</span>
+                        )}
+                      </div>
+                    )}
+
                     {isOwnReview && (
                       <div className="flex gap-3 mt-1">
                         <button

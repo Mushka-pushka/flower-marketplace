@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/catalog-service/internal/models"
 
@@ -57,10 +58,13 @@ func (r *ReviewRepository) CreateReview(ctx context.Context, review *models.Revi
 	return err
 }
 
+// GetReviewsByProductID — получает отзывы на товар (публичный)
 func (r *ReviewRepository) GetReviewsByProductID(ctx context.Context, productID uuid.UUID) ([]models.ReviewWithUser, error) {
     query := `
         SELECT 
-            r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved, r.created_at, r.updated_at,
+            r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved,
+            r.reply, r.reply_created_at, r.reply_updated_at,  
+            r.created_at, r.updated_at,
             COALESCE(u.first_name || ' ' || u.last_name, u.email) as user_name,
             u.email as user_email,
             u.avatar_url as user_avatar
@@ -87,11 +91,14 @@ func (r *ReviewRepository) GetReviewsByProductID(ctx context.Context, productID 
             &rev.Rating,
             &rev.Comment,
             &rev.IsApproved,
+            &rev.Reply,           
+            &rev.ReplyCreatedAt,  
+            &rev.ReplyUpdatedAt,  
             &rev.CreatedAt,
             &rev.UpdatedAt,
             &rev.UserName,
             &rev.UserEmail,
-            &rev.UserAvatar, 
+            &rev.UserAvatar,
         )
         if err != nil {
             return nil, err
@@ -105,7 +112,9 @@ func (r *ReviewRepository) GetReviewsByProductID(ctx context.Context, productID 
 func (r *ReviewRepository) GetReviewsByUserID(ctx context.Context, userID uuid.UUID) ([]models.ReviewWithUser, error) {
     query := `
         SELECT 
-            r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved, r.created_at, r.updated_at,
+            r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved,
+            r.reply, r.reply_created_at, r.reply_updated_at,
+            r.created_at, r.updated_at,
             COALESCE(u.first_name || ' ' || u.last_name, u.email) as user_name,
             u.email as user_email,
             u.avatar_url as user_avatar
@@ -240,4 +249,171 @@ func (r *ReviewRepository) GetReviewByUserAndProduct(ctx context.Context, userID
         return nil, err
     }
     return &review, nil
+}
+
+// ============================================================
+// МЕТОДЫ ДЛЯ ПРОДАВЦА
+// ============================================================
+
+// GetReviewsByShopID — получает все отзывы на товары магазина
+func (r *ReviewRepository) GetReviewsByShopID(ctx context.Context, shopID uuid.UUID, limit, offset int) ([]models.ReviewWithUser, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Основной запрос с пагинацией
+	query := `
+		SELECT 
+			r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved,
+			r.reply, r.reply_created_at, r.reply_updated_at,
+			r.created_at, r.updated_at,
+			COALESCE(u.first_name || ' ' || u.last_name, u.email) as user_name,
+			u.email as user_email,
+			u.avatar_url as user_avatar,
+			p.name as product_name,
+			p.shop_id as shop_id
+		FROM reviews r
+		JOIN users u ON u.id = r.user_id
+		JOIN products p ON p.id = r.product_id
+		WHERE p.shop_id = $1
+		ORDER BY r.created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.db.Query(ctx, query, shopID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var reviews []models.ReviewWithUser
+	for rows.Next() {
+		var rev models.ReviewWithUser
+		err := rows.Scan(
+			&rev.ID,
+			&rev.ProductID,
+			&rev.UserID,
+			&rev.OrderID,
+			&rev.Rating,
+			&rev.Comment,
+			&rev.IsApproved,
+			&rev.Reply,
+			&rev.ReplyCreatedAt,
+			&rev.ReplyUpdatedAt,
+			&rev.CreatedAt,
+			&rev.UpdatedAt,
+			&rev.UserName,
+			&rev.UserEmail,
+			&rev.UserAvatar,
+			&rev.ProductName,
+			&rev.ShopID,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		reviews = append(reviews, rev)
+	}
+
+	// Подсчёт общего количества
+	countQuery := `
+		SELECT COUNT(*)
+		FROM reviews r
+		JOIN products p ON p.id = r.product_id
+		WHERE p.shop_id = $1
+	`
+	var total int64
+	err = r.db.QueryRow(ctx, countQuery, shopID).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return reviews, total, nil
+}
+
+// AddReply — добавляет ответ продавца на отзыв
+func (r *ReviewRepository) AddReply(ctx context.Context, reviewID uuid.UUID, text string) error {
+	now := time.Now()
+	query := `
+		UPDATE reviews 
+		SET reply = $1, reply_created_at = $2, reply_updated_at = $3, updated_at = $4
+		WHERE id = $5
+	`
+	_, err := r.db.Exec(ctx, query, text, now, now, now, reviewID)
+	return err
+}
+
+// UpdateReply — обновляет ответ продавца
+func (r *ReviewRepository) UpdateReply(ctx context.Context, reviewID uuid.UUID, text string) error {
+	now := time.Now()
+	query := `
+		UPDATE reviews 
+		SET reply = $1, reply_updated_at = $2, updated_at = $3
+		WHERE id = $4
+	`
+	_, err := r.db.Exec(ctx, query, text, now, now, reviewID)
+	return err
+}
+
+// DeleteReply — удаляет ответ продавца
+func (r *ReviewRepository) DeleteReply(ctx context.Context, reviewID uuid.UUID) error {
+	query := `
+		UPDATE reviews 
+		SET reply = NULL, reply_created_at = NULL, reply_updated_at = NULL, updated_at = $1
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, time.Now(), reviewID)
+	return err
+}
+
+// GetReviewByIDWithDetails — получает отзыв по ID с деталями для продавца
+func (r *ReviewRepository) GetReviewByIDWithDetails(ctx context.Context, reviewID uuid.UUID) (*models.ReviewWithUser, error) {
+	query := `
+		SELECT 
+			r.id, r.product_id, r.user_id, r.order_id, r.rating, r.comment, r.is_approved,
+			r.reply, r.reply_created_at, r.reply_updated_at,
+			r.created_at, r.updated_at,
+			COALESCE(u.first_name || ' ' || u.last_name, u.email) as user_name,
+			u.email as user_email,
+			u.avatar_url as user_avatar,
+			p.name as product_name,
+			p.shop_id as shop_id
+		FROM reviews r
+		JOIN users u ON u.id = r.user_id
+		JOIN products p ON p.id = r.product_id
+		WHERE r.id = $1
+	`
+
+	var rev models.ReviewWithUser
+	err := r.db.QueryRow(ctx, query, reviewID).Scan(
+		&rev.ID,
+		&rev.ProductID,
+		&rev.UserID,
+		&rev.OrderID,
+		&rev.Rating,
+		&rev.Comment,
+		&rev.IsApproved,
+		&rev.Reply,
+		&rev.ReplyCreatedAt,
+		&rev.ReplyUpdatedAt,
+		&rev.CreatedAt,
+		&rev.UpdatedAt,
+		&rev.UserName,
+		&rev.UserEmail,
+		&rev.UserAvatar,
+		&rev.ProductName,
+		&rev.ShopID,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrReviewNotFound
+		}
+		return nil, err
+	}
+	return &rev, nil
 }
