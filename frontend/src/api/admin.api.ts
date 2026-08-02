@@ -28,6 +28,13 @@ export interface SellerWithShop {
   created_at: string
 }
 
+export interface UsersListResponse {
+  users: User[]
+  total: number
+  limit: number
+  offset: number
+}
+
 // УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ
 export const adminGetUsers = async (params?: {
   search?: string
@@ -35,9 +42,17 @@ export const adminGetUsers = async (params?: {
   is_active?: boolean
   limit?: number
   offset?: number
-}): Promise<User[]> => {
+}): Promise<UsersListResponse> => {
   const response = await client.get('/admin/users/list', { params })
-  return response.data.users || []
+  // Если бэкенд возвращает объект с users, total, limit, offset
+  return response.data
+  // Если бэкенд возвращает { users: [], total }, то используйте:
+  // return {
+  //   users: response.data.users || [],
+  //   total: response.data.total || 0,
+  //   limit: params?.limit || 10,
+  //   offset: params?.offset || 0
+  // }
 }
 
 export const adminUpdateUserStatus = async (userId: string, isActive: boolean): Promise<void> => {
@@ -66,7 +81,7 @@ export const getShopInfo = async (): Promise<{ id: string; name: string; is_veri
 }
 
 // СТАТИСТИКА (АДМИН)
-export const adminGetStats = async (): Promise<any> => {
-  const response = await client.get('/admin/stats')
+export const adminGetStats = async (params?: { period?: string }): Promise<any> => {
+  const response = await client.get('/admin/stats', { params })
   return response.data
 }
