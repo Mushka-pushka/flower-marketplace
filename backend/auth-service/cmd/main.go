@@ -73,7 +73,7 @@ func main() {
 	adminRepo := repository.NewAdminRepository(db)
 	adminService := service.NewAdminService(adminRepo, cfg)
 	adminHandler := handlers.NewAdminHandler(adminService)
-	statsRepo := repository.NewAdminStatsRepository()
+	statsRepo := repository.NewAdminStatsRepository(db) // 🆕 передаём db
 	statsService := service.NewAdminStatsService(statsRepo, cfg)
 	statsHandler := handlers.NewAdminStatsHandler(statsService)
 
@@ -98,6 +98,7 @@ func main() {
 	http.HandleFunc("GET /api/v1/admin/users/list", authMiddleware.JWT(adminHandler.GetUsersListWithFilters))
 	http.HandleFunc("GET /api/v1/admin/users/details", authMiddleware.JWT(adminHandler.GetUserByIDForAdmin))
 	http.HandleFunc("GET /api/v1/admin/stats", authMiddleware.JWT(statsHandler.GetAdminStats))
+	http.HandleFunc("GET /api/v1/admin/stats/daily", authMiddleware.JWT(statsHandler.GetDailyStats)) 
 
 	// ----- АДМИН: УПРАВЛЕНИЕ МАГАЗИНОМ ПРОДАВЦА -----
     http.HandleFunc("GET /api/v1/admin/shop", authMiddleware.JWT(adminHandler.GetShopInfo))

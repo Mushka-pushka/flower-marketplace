@@ -70,3 +70,8 @@ func (s *AdminStatsService) GetAdminStats(ctx context.Context) (*models.AdminSta
 
 	return stats, nil
 }
+
+// GetDailyStats — получает дневную статистику для графиков
+func (s *AdminStatsService) GetDailyStats(ctx context.Context, days int) ([]repository.DailyStat, error) {
+	return s.statsRepo.GetDailyStats(ctx, days)
+}
