@@ -42,8 +42,6 @@ type CreateOrderRequest struct {
 	ShopID            uuid.UUID `json:"shop_id"`
 	DeliveryAddressID uuid.UUID `json:"delivery_address_id"`
 	PaymentTypeID     int       `json:"payment_type_id"`
-	DeliveryDate      string    `json:"delivery_date"`
-	DeliveryTime      string    `json:"delivery_time"`
 	Comment           string    `json:"comment"`
 	Items             []OrderItemRequest `json:"items"`
 }

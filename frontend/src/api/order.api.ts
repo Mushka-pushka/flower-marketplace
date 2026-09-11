@@ -82,8 +82,6 @@ export const createOrder = async (data: {
   shop_id: string
   delivery_address_id: string
   payment_type_id: number
-  delivery_date: string
-  delivery_time: string
   comment: string
   items: { product_id: string; quantity: number }[]
 }): Promise<Order> => {

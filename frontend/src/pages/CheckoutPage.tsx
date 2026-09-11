@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   FaShoppingCart,
   FaExclamationCircle,
+  FaCreditCard,
+  FaInfoCircle,
 } from 'react-icons/fa'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -25,9 +27,6 @@ const CheckoutPage = () => {
     floor: '',
     intercom: '',
     comment: '',
-    deliveryDate: '',
-    deliveryTime: '',
-    paymentMethod: 'card',
   })
 
   useEffect(() => {
@@ -69,7 +68,6 @@ const CheckoutPage = () => {
     )
   }
 
-  // ЕСЛИ shopId === null — ПОКАЗЫВАЕМ ОШИБКУ
   if (!shopId) {
     return (
       <div className="text-center py-16">
@@ -94,12 +92,6 @@ const CheckoutPage = () => {
     setPaymentStatus('processing')
 
     try {
-      const paymentTypeMap: Record<string, number> = {
-        card: 1,
-        cash: 2,
-        online: 3,
-      }
-
       // 1. Создаём адрес доставки
       const addressData = {
         name: 'Доставка',
@@ -114,13 +106,11 @@ const CheckoutPage = () => {
       const address = await createAddress(addressData)
       console.log('Адрес создан:', address)
 
-      // 2. Создаём заказ 
+      // 2. Создаём заказ (оплата только онлайн — payment_type_id = 3)
       const orderData = {
-        shop_id: shopId, 
+        shop_id: shopId,
         delivery_address_id: address.id,
-        payment_type_id: paymentTypeMap[form.paymentMethod] || 1,
-        delivery_date: form.deliveryDate,
-        delivery_time: form.deliveryTime,
+        payment_type_id: 3, // 3 = онлайн-оплата
         comment: form.comment,
         items: items.map((item) => ({
           product_id: item.product_id,
@@ -131,11 +121,11 @@ const CheckoutPage = () => {
       const order = await createOrder(orderData)
       console.log('Заказ создан:', order)
 
-      // 3. Создаём платёж
+      // 3. Создаём платёж (всегда онлайн)
       const paymentData = {
         order_id: order.id,
         amount: totalPrice,
-        payment_method: form.paymentMethod,
+        payment_method: 'online',
       }
 
       const payment = await createPayment(paymentData)
@@ -163,7 +153,7 @@ const CheckoutPage = () => {
 
         if (statusResponse.status === 'failed') {
           setPaymentStatus('failed')
-          setError('Оплата не прошла. Попробуйте другой способ оплаты.')
+          setError('Оплата не прошла. Попробуйте оформить заказ снова.')
           break
         }
       }
@@ -248,56 +238,30 @@ const CheckoutPage = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-[#1C1C1C] mb-1.5">
-                  Дата доставки *
-                </label>
-                <input
-                  type="date"
-                  name="deliveryDate"
-                  value={form.deliveryDate}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition text-[#1C1C1C]"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[#1C1C1C] mb-1.5">
-                  Время доставки *
-                </label>
-                <select
-                  name="deliveryTime"
-                  value={form.deliveryTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition bg-white text-[#1C1C1C]"
-                  required
-                >
-                  <option value="">Выберите время</option>
-                  <option value="10:00-12:00">10:00 – 12:00</option>
-                  <option value="12:00-14:00">12:00 – 14:00</option>
-                  <option value="14:00-16:00">14:00 – 16:00</option>
-                  <option value="16:00-18:00">16:00 – 18:00</option>
-                  <option value="18:00-20:00">18:00 – 20:00</option>
-                </select>
+            {/* Уведомление о согласовании доставки */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <FaInfoCircle className="text-amber-600 text-lg mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Согласование доставки</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    После подтверждения заказа продавец свяжется с вами по указанному номеру телефона для согласования даты и времени доставки.
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[#1C1C1C] mb-1.5">
-                Способ оплаты *
-              </label>
-              <select
-                name="paymentMethod"
-                value={form.paymentMethod}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8A9A86] transition bg-white text-[#1C1C1C]"
-                required
-              >
-                <option value="card">Картой курьеру</option>
-                <option value="cash">Наличными курьеру</option>
-                <option value="online">Онлайн на сайте</option>
-              </select>
+            {/* Онлайн-оплата (информационный блок) */}
+            <div className="bg-[#8A9A86]/5 border border-[#8A9A86]/20 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <FaCreditCard className="text-[#8A9A86] text-lg mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-[#1C1C1C]">Онлайн-оплата</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Оплата производится на сайте. После оформления заказа вы будете перенаправлены на страницу оплаты.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -325,7 +289,7 @@ const CheckoutPage = () => {
               disabled={loading}
               className="w-full bg-[#8A9A86] text-white py-3 rounded-xl hover:bg-[#7A8A76] transition flex items-center justify-center gap-2 text-base font-medium disabled:opacity-50"
             >
-              {loading ? 'Обработка...' : 'Оформить заказ'}
+              {loading ? 'Обработка...' : 'Перейти к оплате'}
             </button>
           </form>
         </div>

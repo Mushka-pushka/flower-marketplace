@@ -215,17 +215,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID uuid.UUID, re
 		PaymentTypeID:     req.PaymentTypeID,
 		TotalAmount:       totalAmount,
 		Commission:        commission,
-		DeliveryTime:      req.DeliveryTime,
 		Comment:           req.Comment,
 		CurrentStatus:     "pending",
 		CreatedAt:         now,
 		UpdatedAt:         now,
-	}
-
-	if req.DeliveryDate != "" {
-		if deliveryDate, err := time.Parse("2006-01-02", req.DeliveryDate); err == nil {
-			order.DeliveryDate = &deliveryDate
-		}
 	}
 
 	err := s.orderRepo.CreateOrder(ctx, order)
