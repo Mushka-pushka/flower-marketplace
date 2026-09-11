@@ -79,6 +79,20 @@ func (s *AuthService) Register(ctx context.Context, req *models.RegisterRequest)
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
+	// Если роль продавец — создаём магазин
+    if role == "seller" {
+        shopID, err := s.userRepo.CreateShop(ctx, user.ID, user.FirstName, user.LastName)
+        if err != nil {
+        return nil, fmt.Errorf("failed to create shop: %w", err)
+    }
+    // Обновляем shop_id у пользователя
+    err = s.userRepo.UpdateUserShopID(ctx, user.ID, shopID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to update user shop_id: %w", err)
+    }
+    user.ShopID = &shopID
+    }
+
 	return user, nil
 }
 
@@ -299,4 +313,13 @@ func (s *AuthService) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatar
 // GetUserByID — получает пользователя по ID
 func (s *AuthService) GetUserByID(ctx context.Context, userID uuid.UUID) (*models.User, error) {
     return s.userRepo.GetByID(ctx, userID)
+}
+
+// RequestShopVerification — отправка магазина на верификацию
+func (s *AdminService) RequestShopVerification(ctx context.Context, sellerID uuid.UUID) error {
+    shopID, err := s.adminRepo.GetShopIDBySellerID(ctx, sellerID)
+    if err != nil || shopID == uuid.Nil {
+        return errors.New("seller has no shop")
+    }
+    return s.adminRepo.RequestShopVerification(ctx, shopID)
 }

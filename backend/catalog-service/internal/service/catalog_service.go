@@ -311,15 +311,8 @@ func (s *CatalogService) GetProductBySlug(ctx context.Context, slug string) (*mo
 
 // SearchProducts — расширенный семантический поиск с кэшированием в Valkey
 func (s *CatalogService) SearchProducts(ctx context.Context, req *models.SearchRequest) (*models.SearchResponse, error) {
-	if req.Query != "" {
-		tagsFromQuery := extractTagsFromQuery(req.Query)
-		if len(req.Tags) == 0 {
-			req.Tags = tagsFromQuery
-		} else {
-			req.Tags = append(req.Tags, tagsFromQuery...)
-		}
-	}
-	req.Tags = uniqueStrings(req.Tags)
+	// Теги из запроса не используются как жёсткий фильтр.
+    // Текстовый поиск (req.Query) уже ищет по name, description, tags, category.
 
 	if req.Limit <= 0 {
 		req.Limit = 24

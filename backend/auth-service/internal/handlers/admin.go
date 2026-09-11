@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log" 
 	"net/http"
 	"strconv"
 
@@ -30,19 +31,26 @@ func NewAdminHandler(adminService *service.AdminService) *AdminHandler {
 // @Failure      500 {object} ErrorResponse
 // @Router       /admin/sellers [get]
 func (h *AdminHandler) GetSellers(w http.ResponseWriter, r *http.Request) {
-	var verified *bool
-	if v := r.URL.Query().Get("verified"); v != "" {
-		b := v == "true"
-		verified = &b
-	}
+    log.Println("GetSellers: START")  
 
-	sellers, err := h.adminService.GetSellers(r.Context(), verified)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    var verified *bool
+    if v := r.URL.Query().Get("verified"); v != "" {
+        b := v == "true"
+        verified = &b
+    }
 
-	respondWithJSON(w, http.StatusOK, sellers)
+    log.Printf("GetSellers: verified=%v", verified)  
+
+    sellers, err := h.adminService.GetSellers(r.Context(), verified)
+    if err != nil {
+        log.Printf("GetSellers: ERROR: %v", err)  
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    log.Printf("GetSellers: SUCCESS, count=%d", len(sellers))  
+
+    respondWithJSON(w, http.StatusOK, sellers)
 }
 
 // VerifySeller godoc
@@ -286,26 +294,39 @@ func (h *AdminHandler) UpdateShopName(w http.ResponseWriter, r *http.Request) {
 
 // GetShopInfo — получение информации о магазине продавца
 func (h *AdminHandler) GetShopInfo(w http.ResponseWriter, r *http.Request) {
-    // Получаем user_id из контекста
+    log.Println("GetShopInfo: START")  
+
     userID, ok := middleware.GetUserIDFromContext(r.Context())
     if !ok {
+        log.Println("GetShopInfo: user not authenticated")  
         respondWithError(w, http.StatusUnauthorized, "user not authenticated")
         return
     }
 
-    // Получаем shop_id продавца
+    log.Printf("GetShopInfo: userID=%s", userID)  
+
     shopID, err := h.adminService.GetShopIDBySellerID(r.Context(), userID)
-    if err != nil || shopID == uuid.Nil {
+    if err != nil {
+        log.Printf("GetShopInfo: GetShopIDBySellerID error: %v", err)  
+        respondWithError(w, http.StatusForbidden, "seller has no shop")
+        return
+    }
+    if shopID == uuid.Nil {
+        log.Println("GetShopInfo: shopID is nil")  
         respondWithError(w, http.StatusForbidden, "seller has no shop")
         return
     }
 
-    // Получаем информацию о магазине
+    log.Printf("GetShopInfo: shopID=%s", shopID)  
+
     shop, err := h.adminService.GetShopByID(r.Context(), shopID)
     if err != nil {
+        log.Printf("GetShopInfo: GetShopByID error: %v", err)  
         respondWithError(w, http.StatusInternalServerError, err.Error())
         return
     }
+
+    log.Printf("GetShopInfo: SUCCESS shop=%+v", shop)  
 
     respondWithJSON(w, http.StatusOK, map[string]interface{}{
         "id":          shop.ID,
@@ -339,4 +360,23 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	if payload != nil {
 		json.NewEncoder(w).Encode(payload)
 	}
+}
+
+// RequestShopVerification — продавец отправляет магазин на верификацию
+func (h *AdminHandler) RequestShopVerification(w http.ResponseWriter, r *http.Request) {
+    userID, ok := middleware.GetUserIDFromContext(r.Context())
+    if !ok {
+        respondWithError(w, http.StatusUnauthorized, "user not authenticated")
+        return
+    }
+
+    err := h.adminService.RequestShopVerification(r.Context(), userID)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    respondWithJSON(w, http.StatusOK, map[string]string{
+        "message": "Заявка на верификацию отправлена",
+    })
 }

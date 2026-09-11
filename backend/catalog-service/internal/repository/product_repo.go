@@ -82,6 +82,11 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
     FROM products p
     LEFT JOIN shops s ON s.id = p.shop_id
     WHERE p.id = $1
+      AND p.is_active = true
+      AND EXISTS (
+          SELECT 1 FROM shops s2 
+          WHERE s2.id = p.shop_id AND s2.is_verified = true
+      )
 `
 
 	var product models.Product
@@ -119,11 +124,17 @@ func (r *ProductRepository) GetProductByID(ctx context.Context, id uuid.UUID) (*
 // GetProductBySlug — получение товара по slug
 func (r *ProductRepository) GetProductBySlug(ctx context.Context, slug string) (*models.Product, error) {
 	query := `
-		SELECT id, shop_id, category_id, name, slug, description, price, old_price,
-			stock, unit, packaging, tags, is_active, is_featured, rating, views_count,
-			created_at, updated_at
-		FROM products
-		WHERE slug = $1
+		SELECT 
+			p.id, p.shop_id, p.category_id, p.name, p.slug, p.description, p.price, p.old_price,
+			p.stock, p.unit, p.packaging, p.tags, p.is_active, p.is_featured, p.rating, p.views_count,
+			p.created_at, p.updated_at
+		FROM products p
+		WHERE p.slug = $1
+		  AND p.is_active = true
+		  AND EXISTS (
+		      SELECT 1 FROM shops s 
+		      WHERE s.id = p.shop_id AND s.is_verified = true
+		  )
 	`
 
 	var product models.Product
@@ -285,15 +296,16 @@ func (r *ProductRepository) DecreaseStock(ctx context.Context, productID uuid.UU
 
 // SearchProducts — семантический поиск товаров
 func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.SearchRequest) ([]models.Product, int64, error) {
-	log.Printf("SearchProducts called with: Query=%s, Category=%s, Tags=%v, Limit=%d, Offset=%d", 
-        req.Query, req.Category, req.Tags, req.Limit, req.Offset)
+	log.Printf("SearchProducts REPO: Query=%q, Category=%q, Tags=%v, Limit=%d, Offset=%d",
+		req.Query, req.Category, req.Tags, req.Limit, req.Offset)
+
 	var conditions []string
 	var args []interface{}
 	argIndex := 1
 
-    // 1. Текстовый поиск (по названию, описанию, тегам и категории)
-    if req.Query != "" {
-        conditions = append(conditions, fmt.Sprintf(`
+	// 1. Текстовый поиск (по названию, описанию, тегам и категории)
+	if req.Query != "" {
+		conditions = append(conditions, fmt.Sprintf(`
         (
             LOWER(p.name) LIKE LOWER($%d)
             OR LOWER(p.description) LIKE LOWER($%d)
@@ -301,9 +313,9 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
             OR EXISTS (SELECT 1 FROM categories c WHERE c.id = p.category_id AND LOWER(c.name) LIKE LOWER($%d))
         )
     `, argIndex, argIndex, argIndex, argIndex))
-    args = append(args, "%"+req.Query+"%")
-    argIndex++
-    }
+		args = append(args, "%"+req.Query+"%")
+		argIndex++
+	}
 
 	// 2. Фильтр по категории
 	if req.Category != "" {
@@ -342,8 +354,20 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 	// 5. Только активные товары
 	conditions = append(conditions, "p.is_active = true")
 
+	// Только товары верифицированных магазинов
+	conditions = append(conditions, `
+		EXISTS (
+			SELECT 1 FROM shops s 
+			WHERE s.id = p.shop_id AND s.is_verified = true
+		)
+	`)
+
 	// Собираем WHERE
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
+
+	// Лог: какие условия и аргументы получились
+	log.Printf("SearchProducts REPO: whereClause=%s", whereClause)
+	log.Printf("SearchProducts REPO: args so far=%v (argIndex=%d)", args, argIndex)
 
 	// 6. Сортировка
 	sortClause := "ORDER BY p.rating DESC, p.views_count DESC"
@@ -366,6 +390,9 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 			argIndex++
 		}
 	}
+
+	// Лог: сортировка
+	log.Printf("SearchProducts REPO: sortClause=%s", sortClause)
 
 	// 7. Пагинация
 	limit := req.Limit
@@ -396,8 +423,14 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 
 	args = append(args, limit, offset)
 
+	// Лог: финальный SQL и все args
+	log.Printf("SearchProducts REPO: FINAL QUERY:\n%s", query)
+	log.Printf("SearchProducts REPO: FINAL ARGS=%v", args)
+
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
+		// Лог ошибки выполнения запроса
+		log.Printf("SearchProducts REPO: query error: %v", err)
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -424,13 +457,18 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 			&product.ViewsCount,
 			&product.CreatedAt,
 			&product.UpdatedAt,
-			&product.ShopName, 
+			&product.ShopName,
 		)
 		if err != nil {
+			// Лог ошибки сканирования
+			log.Printf("SearchProducts REPO: scan error: %v", err)
 			return nil, 0, err
 		}
 		products = append(products, product)
 	}
+
+	// Лог: сколько нашли
+	log.Printf("SearchProducts REPO: found %d products", len(products))
 
 	// ============================================================
 	// ПОДСЧЁТ ОБЩЕГО КОЛИЧЕСТВА 
@@ -477,6 +515,14 @@ func (r *ProductRepository) SearchProducts(ctx context.Context, req *models.Sear
 		countArgIndex++
 	}
 	countConditions = append(countConditions, "p.is_active = true")
+
+	// Только верифицированные магазины
+	countConditions = append(countConditions, `
+		EXISTS (
+			SELECT 1 FROM shops s 
+			WHERE s.id = p.shop_id AND s.is_verified = true
+		)
+	`)
 
 	countWhereClause := strings.Join(countConditions, " AND ")
 	countQueryFinal := fmt.Sprintf(`SELECT COUNT(*) FROM products p WHERE %s`, countWhereClause)
@@ -732,4 +778,3 @@ func (r *ProductRepository) GetShopIDBySellerID(ctx context.Context, sellerID uu
     }
     return shopID, nil
 }
-

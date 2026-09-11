@@ -103,6 +103,7 @@ func main() {
 	// ----- АДМИН: УПРАВЛЕНИЕ МАГАЗИНОМ ПРОДАВЦА -----
     http.HandleFunc("GET /api/v1/admin/shop", authMiddleware.JWT(adminHandler.GetShopInfo))
     http.HandleFunc("PUT /api/v1/admin/shop", authMiddleware.JWT(adminHandler.UpdateShopName))
+	http.HandleFunc("POST /api/v1/admin/shop/request-verification", authMiddleware.JWT(adminHandler.RequestShopVerification))
 
 	// ----- СТАТИЧЕСКИЕ ФАЙЛЫ (аватары) -----
 	http.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))

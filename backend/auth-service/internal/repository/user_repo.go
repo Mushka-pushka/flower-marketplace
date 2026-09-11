@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Mushka-pushka/flower-marketplace/backend/auth-service/internal/models"
@@ -144,5 +145,38 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, n
 func (r *UserRepository) UpdateAvatar(ctx context.Context, userID uuid.UUID, avatarURL *string) error {
     query := `UPDATE users SET avatar_url = $1, updated_at = $2 WHERE id = $3`
     _, err := r.db.Exec(ctx, query, avatarURL, time.Now(), userID)
+    return err
+}
+
+// CreateShop — создаёт магазин для продавца
+func (r *UserRepository) CreateShop(ctx context.Context, sellerID uuid.UUID, firstName, lastName string) (uuid.UUID, error) {
+    shopID := uuid.New()
+
+    shopName := "Мой магазин"
+    if firstName != "" || lastName != "" {
+        shopName = fmt.Sprintf("Магазин %s %s", firstName, lastName)
+    }
+
+    query := `
+        INSERT INTO shops (id, seller_id, name, is_verified, rating, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+    `
+    _, err := r.db.Exec(ctx, query,
+        shopID,
+        sellerID,
+        shopName,
+        false, // is_verified
+        0.0,   // rating
+    )
+    if err != nil {
+        return uuid.Nil, err
+    }
+    return shopID, nil
+}
+
+// UpdateUserShopID — обновляет shop_id у пользователя
+func (r *UserRepository) UpdateUserShopID(ctx context.Context, userID, shopID uuid.UUID) error {
+    query := `UPDATE users SET shop_id = $1, updated_at = NOW() WHERE id = $2`
+    _, err := r.db.Exec(ctx, query, shopID, userID)
     return err
 }

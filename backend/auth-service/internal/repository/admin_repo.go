@@ -22,64 +22,64 @@ func NewAdminRepository(db *pgxpool.Pool) *AdminRepository {
 
 // GetSellersWithShops — получает всех продавцов с данными магазинов
 func (r *AdminRepository) GetSellersWithShops(ctx context.Context, verified *bool) ([]models.SellerWithUser, error) {
-	query := `
-		SELECT 
-			s.id as shop_id,
-			s.name as shop_name,
-			s.description as shop_description,
-			s.is_verified,
-			s.rating,
-			u.id as user_id,
-			u.email,
-			u.phone,
-			u.first_name,
-			u.last_name,
-			u.is_active,
-			u.created_at
-		FROM shops s
-		JOIN users u ON u.id = s.seller_id
-		WHERE u.role = 'seller'
-	`
+    query := `
+        SELECT 
+            s.id as shop_id,
+            s.name as shop_name,
+            COALESCE(s.description, '') as shop_description,
+            COALESCE(s.is_verified, false) as is_verified,
+            COALESCE(s.rating, 0) as rating,
+            u.id as user_id,
+            u.email,
+            COALESCE(u.phone, '') as phone,
+            COALESCE(u.first_name, '') as first_name,
+            COALESCE(u.last_name, '') as last_name,
+            COALESCE(u.is_active, true) as is_active,
+            u.created_at
+        FROM shops s
+        JOIN users u ON u.id = s.seller_id
+        WHERE u.role = 'seller'
+    `
 
-	if verified != nil {
-		if *verified {
-			query += " AND s.is_verified = true"
-		} else {
-			query += " AND s.is_verified = false"
-		}
-	}
+    if verified != nil {
+        if *verified {
+            query += " AND s.is_verified = true"
+        } else {
+            query += " AND s.is_verified = false"
+        }
+    }
 
-	query += " ORDER BY s.created_at DESC"
+    query += " ORDER BY s.created_at DESC"
 
-	rows, err := r.db.Query(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(ctx, query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
-	var sellers []models.SellerWithUser
-	for rows.Next() {
-		var s models.SellerWithUser
-		err := rows.Scan(
-			&s.ShopID,
-			&s.ShopName,
-			&s.ShopDesc,
-			&s.IsVerified,
-			&s.Rating,
-			&s.UserID,
-			&s.Email,
-			&s.Phone,
-			&s.FirstName,
-			&s.LastName,
-			&s.IsActive,
-			&s.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		sellers = append(sellers, s)
-	}
-	return sellers, nil
+    var sellers []models.SellerWithUser
+    for rows.Next() {
+        var s models.SellerWithUser
+        err := rows.Scan(
+            &s.ShopID,
+            &s.ShopName,
+            &s.ShopDesc,
+            &s.IsVerified,
+            &s.Rating,
+            &s.UserID,
+            &s.Email,
+            &s.Phone,
+            &s.FirstName,
+            &s.LastName,
+            &s.IsActive,
+            &s.CreatedAt,
+        )
+        if err != nil {
+            return nil, err
+        }
+        sellers = append(sellers, s)
+    }
+    return sellers, nil
 }
 
 // VerifyShop — верифицирует магазин
@@ -323,7 +323,19 @@ func (r *AdminRepository) GetUserByIDForAdmin(ctx context.Context, userID uuid.U
 
 // GetShopByID — получает магазин по ID
 func (r *AdminRepository) GetShopByID(ctx context.Context, shopID uuid.UUID) (*models.Shop, error) {
-    query := `SELECT id, name, description, seller_id, is_verified, rating, created_at, updated_at FROM shops WHERE id = $1`
+    query := `
+        SELECT 
+            id, 
+            name, 
+            COALESCE(description, '') as description, 
+            seller_id, 
+            COALESCE(is_verified, false) as is_verified, 
+            COALESCE(rating, 0) as rating, 
+            created_at, 
+            updated_at 
+        FROM shops 
+        WHERE id = $1
+    `
     var shop models.Shop
     err := r.db.QueryRow(ctx, query, shopID).Scan(
         &shop.ID,
@@ -357,4 +369,11 @@ func (r *AdminRepository) GetShopIDBySellerID(ctx context.Context, sellerID uuid
         return uuid.Nil, err
     }
     return shopID, nil
+}
+
+// RequestShopVerification — отправка магазина на верификацию
+func (r *AdminRepository) RequestShopVerification(ctx context.Context, shopID uuid.UUID) error {
+    query := `UPDATE shops SET is_verified = false WHERE id = $1`
+    _, err := r.db.Exec(ctx, query, shopID)
+    return err
 }
