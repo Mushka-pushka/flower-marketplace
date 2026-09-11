@@ -7,7 +7,7 @@ import {
   FaTrash,
   FaSpinner,
 } from 'react-icons/fa'
-import { getSellerReviews, addReplyToReview, updateReplyOnReview, deleteReplyFromReview, deleteReviewBySeller } from '../api/catalog.api'
+import { getSellerReviews, addReplyToReview, updateReplyOnReview, deleteReplyFromReview } from '../api/catalog.api'
 import type { ReviewWithReply } from '../api/catalog.api'
 import { toast } from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
@@ -101,20 +101,6 @@ const SellerReviewsPage = () => {
     } catch (error: any) {
       console.error('Ошибка удаления ответа:', error)
       toast.error(error.response?.data?.error || 'Не удалось удалить ответ')
-    }
-  }
-
-  // Удаление отзыва
-  const handleDeleteReview = async (reviewId: string) => {
-    if (!confirm('Вы уверены, что хотите удалить этот отзыв? Это действие нельзя отменить.')) return
-
-    try {
-      await deleteReviewBySeller(reviewId)
-      toast.success('Отзыв удалён')
-      await fetchReviews()
-    } catch (error: any) {
-      console.error('Ошибка удаления отзыва:', error)
-      toast.error(error.response?.data?.error || 'Не удалось удалить отзыв')
     }
   }
 
@@ -381,14 +367,6 @@ const SellerReviewsPage = () => {
                         <FaReply /> Ответить на отзыв
                       </button>
                     )}
-
-                    {/* Кнопка "Удалить отзыв" */}
-                    <button
-                      onClick={() => handleDeleteReview(review.id)}
-                      className="text-sm text-red-500 hover:text-red-700 transition flex items-center gap-1.5 font-medium"
-                    >
-                      <FaTrash /> Удалить отзыв
-                    </button>
                   </div>
 
                   {/* Форма добавления ответа */}

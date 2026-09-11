@@ -417,26 +417,3 @@ func (r *ReviewRepository) GetReviewByIDWithDetails(ctx context.Context, reviewI
 	}
 	return &rev, nil
 }
-
-// DeleteReviewBySeller — удаляет отзыв (для продавца)
-func (r *ReviewRepository) DeleteReviewBySeller(ctx context.Context, reviewID uuid.UUID, shopID uuid.UUID) error {
-    // Проверяем, что отзыв принадлежит товару этого продавца
-    query := `
-        DELETE FROM reviews r
-        USING products p
-        WHERE r.id = $1 
-          AND r.product_id = p.id 
-          AND p.shop_id = $2
-    `
-    result, err := r.db.Exec(ctx, query, reviewID, shopID)
-    if err != nil {
-        return err
-    }
-    
-    rowsAffected := result.RowsAffected()
-    if rowsAffected == 0 {
-        return errors.New("review not found or you don't have permission to delete it")
-    }
-    
-    return nil
-}
