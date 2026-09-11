@@ -380,10 +380,26 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID uuid.UUID, userI
 		return err
 	}
 
+	// Проверка прав: покупатель может отменить только свой заказ
 	if role == "customer" && order.CustomerID != userID {
 		return errors.New("you can only cancel your own orders")
 	}
 
+	// Покупатель может отменить только из pending или paid (до подтверждения продавцом)
+	if role == "customer" {
+		if order.CurrentStatus != "pending" && order.CurrentStatus != "paid" {
+			return errors.New("you can only cancel order before it is confirmed by seller")
+		}
+	}
+
+	// Продавец может отменить только из pending, paid или confirmed
+	if role == "seller" {
+		if order.CurrentStatus != "pending" && order.CurrentStatus != "paid" && order.CurrentStatus != "confirmed" {
+			return errors.New("you can only cancel order before it is being prepared")
+		}
+	}
+
+	// Нельзя отменить доставленный или уже отменённый заказ
 	if order.CurrentStatus == "delivered" {
 		return errors.New("cannot cancel delivered order")
 	}
@@ -400,8 +416,8 @@ func (s *OrderService) CancelOrder(ctx context.Context, orderID uuid.UUID, userI
 		ID:        uuid.New(),
 		OrderID:   orderID,
 		Status:    "cancelled",
-		ChangedBy: userID.String(),
-		Comment:   "Заказ отменён пользователем",
+		ChangedBy: role,
+		Comment:   "Заказ отменён",
 		CreatedAt: time.Now(),
 	}
 	err = s.orderRepo.AddStatusHistory(ctx, history)
@@ -450,20 +466,24 @@ func (s *OrderService) UpdateOrderStatusBySeller(ctx context.Context, orderID, s
 		return errors.New("you can only update orders from your shop")
 	}
 
-	validStatuses := map[string]bool{
-		"confirmed": true,
-		"preparing": true,
-		"packing":   true,
-		"delivery":  true,
-		"delivered": true,
-		"cancelled": true,
-	}
-	if !validStatuses[status] {
-		return errors.New("invalid status")
+	// Строгая последовательность статусов
+	statusFlow := map[string]string{
+		"paid":      "confirmed",
+		"confirmed": "preparing",
+		"preparing": "packing",
+		"packing":   "delivery",
+		"delivery":  "delivered",
 	}
 
-	if order.CurrentStatus == "delivered" || order.CurrentStatus == "cancelled" {
+	// Проверяем, что текущий статус есть в цепочке
+	expectedNext, ok := statusFlow[order.CurrentStatus]
+	if !ok {
 		return errors.New("cannot change status of delivered or cancelled order")
+	}
+
+	// Проверяем, что продавец меняет статус строго на следующий
+	if status != expectedNext {
+		return fmt.Errorf("invalid status transition: from %s you can only go to %s", order.CurrentStatus, expectedNext)
 	}
 
 	err = s.orderRepo.UpdateOrderStatus(ctx, orderID, status)

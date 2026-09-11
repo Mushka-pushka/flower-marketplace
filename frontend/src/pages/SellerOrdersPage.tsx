@@ -6,10 +6,11 @@ import {
   FaShoppingBag,
   FaFilter,
   FaSearch,
+  FaCheckCircle,
+  FaTimesCircle,
 } from 'react-icons/fa'
-import { getShopOrders, updateOrderStatus } from '../api/order.api'
+import { getShopOrders, getOrderDetails } from '../api/order.api'
 import type { Order, OrderDetails } from '../api/order.api'
-import { getOrderDetails } from '../api/order.api'
 import OrderTimeline from '../components/OrderTimeline'
 import { useAuth } from '../context/AuthContext'
 import { toast } from 'react-hot-toast'
@@ -62,24 +63,12 @@ const SellerOrdersPage = () => {
     }
   }
 
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
-    if (!confirm(`Изменить статус заказа на "${getStatusLabel(newStatus)}"?`)) return
-
-    try {
-      await updateOrderStatus({
-        order_id: orderId,
-        status: newStatus,
-        comment: `Статус изменён на ${getStatusLabel(newStatus)}`,
-      })
-      toast.success('Статус заказа обновлён')
-      await fetchOrders()
-      if (selectedOrder && selectedOrder.order.id === orderId) {
-        const updated = await getOrderDetails(orderId)
-        setSelectedOrder(updated)
-      }
-    } catch (error) {
-      console.error('Ошибка обновления статуса:', error)
-      toast.error('Не удалось обновить статус')
+  // Обновление данных после смены статуса
+  const handleStatusUpdate = async () => {
+    await fetchOrders()
+    if (selectedOrder) {
+      const updated = await getOrderDetails(selectedOrder.order.id)
+      setSelectedOrder(updated)
     }
   }
 
@@ -111,39 +100,23 @@ const SellerOrdersPage = () => {
     return map[status] || 'text-gray-600 bg-gray-50 border-gray-200'
   }
 
-  const getStatusFlow = (status: string): string[] => {
-    const flow: Record<string, string[]> = {
-      pending: ['confirmed', 'preparing', 'packing', 'delivery', 'delivered'],
-      confirmed: ['preparing', 'packing', 'delivery', 'delivered'],
-      preparing: ['packing', 'delivery', 'delivered'],
-      packing: ['delivery', 'delivered'],
-      delivery: ['delivered'],
-      delivered: [],
-      cancelled: [],
-      paid: ['confirmed', 'preparing', 'packing', 'delivery', 'delivered'],
-    }
-    return flow[status] || []
-  }
-
   // Фильтрация с поиском
   const filteredOrders = orders.filter((order) => {
-    // Фильтр по статусу
     if (statusFilter !== 'all' && order.current_status !== statusFilter) return false
-    
-    // Поиск
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       const orderId = order.id.toLowerCase()
       const customerName = `${order.customer_first_name || ''} ${order.customer_last_name || ''}`.toLowerCase()
       const customerEmail = (order.customer_email || '').toLowerCase()
-      const productNames = (order.product_names || '').toLowerCase() 
-      
-      return orderId.includes(query) || 
-             customerName.includes(query) || 
+      const productNames = (order.product_names || '').toLowerCase()
+
+      return orderId.includes(query) ||
+             customerName.includes(query) ||
              customerEmail.includes(query) ||
-             productNames.includes(query) 
+             productNames.includes(query)
     }
-    
+
     return true
   })
 
@@ -203,7 +176,6 @@ const SellerOrdersPage = () => {
           </select>
         </div>
 
-        {/* Поиск */}
         <div className="flex-1 min-w-[200px] relative">
           <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
           <input
@@ -222,80 +194,59 @@ const SellerOrdersPage = () => {
 
       {/* Список заказов */}
       <div className="space-y-3">
-        {filteredOrders.map((order) => {
-          const nextStatuses = getStatusFlow(order.current_status)
-
-          return (
-            <div
-              key={order.id}
-              onClick={() => handleOrderClick(order.id)}
-              className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 p-4 cursor-pointer border border-gray-100"
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-sm font-medium text-[#1C1C1C]">
-                      Заказ #{order.id.slice(0, 8)}
-                    </p>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.current_status)}`}>
-                      {getStatusLabel(order.current_status)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {order.customer_first_name} {order.customer_last_name} • {order.customer_email}
+        {filteredOrders.map((order) => (
+          <div
+            key={order.id}
+            onClick={() => handleOrderClick(order.id)}
+            className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 p-4 cursor-pointer border border-gray-100"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <p className="text-sm font-medium text-[#1C1C1C]">
+                    Заказ #{order.id.slice(0, 8)}
                   </p>
-                  <p className="text-sm text-gray-400">
-                    {new Date(order.created_at).toLocaleDateString('ru-RU', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })} • Сумма: <span className="font-bold text-[#8A9A86]">{order.total_amount} BYN</span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Товары: <span className="text-[#1C1C1C] font-medium">
-                      {order.product_names ? order.product_names.split(', ').slice(0, 3).join(', ') + (order.product_names.split(',').length > 3 ? '...' : '') : '—'}
-                    </span>
-                  </p>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.current_status)}`}>
+                    {getStatusLabel(order.current_status)}
+                  </span>
                 </div>
+                <p className="text-sm text-gray-400 mt-1">
+                  {order.customer_first_name} {order.customer_last_name} • {order.customer_email}
+                </p>
+                <p className="text-sm text-gray-400">
+                  {new Date(order.created_at).toLocaleDateString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  })} • Сумма: <span className="font-bold text-[#8A9A86]">{order.total_amount} BYN</span>
+                </p>
+                <p className="text-sm text-gray-400">
+                  Товары: <span className="text-[#1C1C1C] font-medium">
+                    {order.product_names ? order.product_names.split(', ').slice(0, 3).join(', ') + (order.product_names.split(',').length > 3 ? '...' : '') : '—'}
+                  </span>
+                </p>
+              </div>
 
-                <div className="flex flex-col items-end gap-2">
-                  {/* Кнопки смены статуса */}
-                  {nextStatuses.length > 0 && (
-                    <div className="flex flex-wrap gap-1 justify-end">
-                      {nextStatuses.slice(0, 3).map((status) => (
-                        <button
-                          key={status}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleUpdateStatus(order.id, status)
-                          }}
-                          className="px-3 py-1 text-xs bg-[#8A9A86] text-white rounded-lg hover:bg-[#7A8A76] transition whitespace-nowrap"
-                        >
-                          {getStatusLabel(status)}
-                        </button>
-                      ))}
-                      {nextStatuses.length > 3 && (
-                        <span className="text-xs text-gray-400 self-center">
-                          +{nextStatuses.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  {order.current_status === 'delivered' && (
-                    <span className="text-xs text-green-600 font-medium">
-                      Завершён
-                    </span>
-                  )}
-                  {order.current_status === 'cancelled' && (
-                    <span className="text-xs text-red-600 font-medium">
-                      Отменён
-                    </span>
-                  )}
-                </div>
+              <div className="flex flex-col items-end gap-2">
+                {order.current_status === 'delivered' && (
+                  <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                    <FaCheckCircle className="text-xs" /> Завершён
+                  </span>
+                )}
+                {order.current_status === 'cancelled' && (
+                  <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                    <FaTimesCircle className="text-xs" /> Отменён
+                  </span>
+                )}
+                {order.current_status !== 'delivered' && order.current_status !== 'cancelled' && (
+                  <span className="text-xs text-gray-400">
+                    Нажмите, чтобы изменить статус
+                  </span>
+                )}
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
 
         {filteredOrders.length === 0 && (
           <p className="text-center text-gray-400 py-8">
@@ -359,7 +310,7 @@ const SellerOrdersPage = () => {
                   statuses={selectedOrder.statuses}
                   orderId={selectedOrder.order.id}
                   currentStatus={selectedOrder.order.current_status}
-                  onStatusUpdate={fetchOrders}
+                  onStatusUpdate={handleStatusUpdate}
                 />
               </div>
 
@@ -379,28 +330,6 @@ const SellerOrdersPage = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Быстрые кнопки смены статуса в модалке */}
-              {selectedOrder.order.current_status !== 'delivered' &&
-                selectedOrder.order.current_status !== 'cancelled' && (
-                  <div className="border-t border-gray-100 pt-4 mt-4">
-                    <h4 className="text-sm font-medium text-[#1C1C1C] mb-2">Изменить статус:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {getStatusFlow(selectedOrder.order.current_status).map((status) => (
-                        <button
-                          key={status}
-                          onClick={() => {
-                            handleUpdateStatus(selectedOrder.order.id, status)
-                            setIsModalOpen(false)
-                          }}
-                          className="px-4 py-2 text-sm bg-[#8A9A86] text-white rounded-xl hover:bg-[#7A8A76] transition"
-                        >
-                          {getStatusLabel(status)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
             </div>
           </div>,
           document.body

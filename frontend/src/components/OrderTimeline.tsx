@@ -7,9 +7,10 @@ import {
   FaTruck,
   FaGift,
   FaTimesCircle,
-  FaEdit,
+  FaArrowRight,
+  FaBan,
 } from 'react-icons/fa'
-import { updateOrderStatus } from '../api/order.api'
+import { updateOrderStatus, cancelOrder } from '../api/order.api'
 import { useAuth } from '../context/AuthContext'
 
 interface StatusHistory {
@@ -31,20 +32,36 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
   const { user } = useAuth()
   const [updating, setUpdating] = useState(false)
 
-  const statusFlow = ['pending', 'confirmed', 'preparing', 'packing', 'delivery', 'delivered']
+  // Строгая последовательность статусов
+  const statusFlow = ['paid', 'confirmed', 'preparing', 'packing', 'delivery', 'delivered']
   const currentIndex = statusFlow.indexOf(currentStatus)
 
-  const canUpdate = user?.role === 'seller' && currentStatus !== 'delivered' && currentStatus !== 'cancelled'
+  // Следующий статус (только один шаг вперёд)
+  const nextStatus = currentIndex >= 0 && currentIndex < statusFlow.length - 1
+    ? statusFlow[currentIndex + 1]
+    : null
+
+  // Продавец может менять статус только если заказ оплачен и не завершён
+  const canUpdate = user?.role === 'seller' && currentIndex >= 0 && nextStatus !== null
+
+  // Продавец может отменить только до статуса "preparing"
+  const canCancel = user?.role === 'seller' &&
+    (currentStatus === 'paid' || currentStatus === 'confirmed')
+
+  // Покупатель может отменить только до подтверждения продавцом
+  const customerCanCancel = user?.role === 'customer' &&
+    (currentStatus === 'pending' || currentStatus === 'paid')
 
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'Заказ создан',
-      confirmed: 'Продавец подтвердил',
-      preparing: 'Букет собирается',
-      packing: 'Заказ упаковывается',
-      delivery: 'Передан курьеру',
-      delivered: 'Доставлен получателю',
-      cancelled: 'Заказ отменён',
+      pending: 'Ожидает оплаты',
+      paid: 'Оплачен',
+      confirmed: 'Подтверждён',
+      preparing: 'Собирается',
+      packing: 'Упаковывается',
+      delivery: 'В доставке',
+      delivered: 'Доставлен',
+      cancelled: 'Отменён',
     }
     return map[status] || status
   }
@@ -52,7 +69,8 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
   const getStatusIcon = (status: string) => {
     const map: Record<string, React.ReactNode> = {
       pending: <FaBox className="text-yellow-500" />,
-      confirmed: <FaCheckCircle className="text-blue-500" />,
+      paid: <FaCheckCircle className="text-blue-500" />,
+      confirmed: <FaCheckCircle className="text-blue-600" />,
       preparing: <FaLeaf className="text-purple-500" />,
       packing: <FaBoxOpen className="text-indigo-500" />,
       delivery: <FaTruck className="text-orange-500" />,
@@ -65,7 +83,8 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
   const getStatusColor = (status: string) => {
     const map: Record<string, string> = {
       pending: 'border-yellow-400 bg-yellow-50 text-yellow-700',
-      confirmed: 'border-blue-400 bg-blue-50 text-blue-700',
+      paid: 'border-blue-400 bg-blue-50 text-blue-700',
+      confirmed: 'border-blue-500 bg-blue-50 text-blue-700',
       preparing: 'border-purple-400 bg-purple-50 text-purple-700',
       packing: 'border-indigo-400 bg-indigo-50 text-indigo-700',
       delivery: 'border-orange-400 bg-orange-50 text-orange-700',
@@ -75,19 +94,34 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
     return map[status] || 'border-gray-400 bg-gray-50 text-gray-700'
   }
 
-  const handleUpdateStatus = async (newStatus: string) => {
-    if (!confirm(`Изменить статус заказа на "${getStatusLabel(newStatus)}"?`)) return
+  const handleMoveToNext = async () => {
+    if (!nextStatus) return
+    if (!confirm(`Перевести заказ в статус «${getStatusLabel(nextStatus)}»?`)) return
 
     setUpdating(true)
     try {
       await updateOrderStatus({
         order_id: orderId,
-        status: newStatus,
-        comment: `Статус изменён на ${getStatusLabel(newStatus)}`
+        status: nextStatus,
+        comment: `Статус изменён на «${getStatusLabel(nextStatus)}»`,
       })
       onStatusUpdate?.()
     } catch (error) {
       console.error('Ошибка обновления статуса:', error)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!confirm('Вы уверены, что хотите отменить заказ?')) return
+
+    setUpdating(true)
+    try {
+      await cancelOrder(orderId)
+      onStatusUpdate?.()
+    } catch (error) {
+      console.error('Ошибка отмены заказа:', error)
     } finally {
       setUpdating(false)
     }
@@ -99,6 +133,7 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
 
   return (
     <div>
+      {/* Таймлайн истории статусов */}
       <div className="relative pl-8">
         <div className="absolute left-3 top-2 bottom-0 w-0.5 bg-gray-200" />
 
@@ -122,6 +157,7 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
                 })}
                 {item.changed_by === 'seller' && ' продавец'}
                 {item.changed_by === 'system' && ' система'}
+                {item.changed_by === 'customer' && ' покупатель'}
               </div>
               {item.comment && (
                 <div className="text-sm text-gray-400 mt-0.5 italic bg-gray-50 px-3 py-1 rounded-full inline-block">
@@ -133,29 +169,56 @@ const OrderTimeline = ({ statuses, orderId, currentStatus, onStatusUpdate }: Ord
         ))}
       </div>
 
+      {/* Панель управления статусом (только для продавца) */}
       {canUpdate && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex flex-wrap gap-2">
-            {statusFlow.slice(currentIndex + 1).map((status) => (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="bg-[#8A9A86]/5 rounded-xl p-4 border border-[#8A9A86]/20">
+            <p className="text-sm text-gray-600 mb-3">
+              Текущий статус: <span className="font-semibold text-[#1C1C1C]">{getStatusLabel(currentStatus)}</span>
+            </p>
+            <div className="flex flex-wrap gap-3">
               <button
-                key={status}
-                onClick={() => handleUpdateStatus(status)}
+                onClick={handleMoveToNext}
                 disabled={updating}
-                className="px-4 py-2 bg-[#8A9A86] text-white rounded-xl hover:bg-[#7A8A76] transition text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2.5 bg-[#8A9A86] text-white rounded-xl hover:bg-[#7A8A76] transition text-sm font-medium disabled:opacity-50 flex items-center gap-2"
               >
-                <FaEdit /> {getStatusLabel(status)}
+                <FaArrowRight />
+                {updating ? 'Обновление...' : `Перевести в «${getStatusLabel(nextStatus)}»`}
               </button>
-            ))}
-            {currentStatus !== 'cancelled' && currentStatus !== 'delivered' && (
-              <button
-                onClick={() => handleUpdateStatus('cancelled')}
-                disabled={updating}
-                className="px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition text-sm font-medium border border-red-200"
-              >
-                Отменить заказ
-              </button>
+
+              {canCancel && (
+                <button
+                  onClick={handleCancel}
+                  disabled={updating}
+                  className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition text-sm font-medium border border-red-200 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <FaBan />
+                  Отменить заказ
+                </button>
+              )}
+            </div>
+
+            {!canCancel && (
+              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                <FaBan className="text-[10px]" />
+                Отмена недоступна после начала сборки заказа
+              </p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Кнопка отмены для покупателя */}
+      {customerCanCancel && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <button
+            onClick={handleCancel}
+            disabled={updating}
+            className="w-full px-5 py-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition text-sm font-medium border border-red-200 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <FaBan />
+            Отменить заказ
+          </button>
         </div>
       )}
     </div>

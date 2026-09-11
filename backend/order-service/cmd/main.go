@@ -121,23 +121,18 @@ func main() {
 	// ЗАПУСК ВОРКЕРОВ
 	// ============================================================
 	
-	// Запускаем несколько воркеров для обработки заказов
-	numWorkers := 3
-	
-	for i := 0; i < numWorkers; i++ {
-		workerID := i
-		go func() {
-			log.Printf("Starting order worker #%d", workerID)
-			if err := orderWorker.Start(context.Background()); err != nil {
-				log.Printf("Order worker #%d error: %v", workerID, err)
-			}
-		}()
-	}
+	// Запускаем ОДИН воркер для обработки событий оплаты
+    go func() {
+		log.Println("Starting order worker")
+        if err := orderWorker.Start(context.Background()); err != nil {
+			 log.Printf("Order worker error: %v", err)
+		}
+	}()
 
 	// Запускаем notification worker
-	go func() {
+    go func() {
 		log.Println("Starting notification worker")
-		if err := notificationWorker.Start(context.Background()); err != nil {
+        if err := notificationWorker.Start(context.Background()); err != nil {
 			log.Printf("Notification worker error: %v", err)
 		}
 	}()
